@@ -504,7 +504,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 	 * memory segment, we'll block the invokable and wait for the task failure due to the failed
 	 * schedule or update consumers call.
 	 */
-	@Test(timeout = 10000L)
+	@Test(timeout = 20000L)
 	public void testFailingScheduleOrUpdateConsumers() throws Exception {
 		final Configuration configuration = new Configuration();
 

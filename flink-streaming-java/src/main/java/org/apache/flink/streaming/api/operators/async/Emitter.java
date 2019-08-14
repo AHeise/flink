@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Runnable responsible for consuming elements from the given queue and outputting them to the
@@ -95,6 +96,17 @@ public class Emitter<OUT> implements Runnable {
 			operatorActions.failOperator(new Exception("AsyncWaitOperator's emitter caught an " +
 				"unexpected throwable.", t));
 		}
+	}
+
+	public boolean tryRun() throws InterruptedException {
+		Optional<AsyncResult> streamElementEntry = streamElementQueue.tryPeek();
+
+		if (!streamElementEntry.isPresent()) {
+			return false;
+		}
+
+		output(streamElementEntry.get());
+		return true;
 	}
 
 	private void output(AsyncResult asyncResult) throws InterruptedException {

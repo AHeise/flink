@@ -110,9 +110,6 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Emitter for the completed stream element queue entries. */
 	private transient Emitter<OUT> emitter;
 
-	/** Thread running the emitter. */
-	private transient Thread emitterThread;
-
 	public AsyncWaitOperator(
 			AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,
@@ -169,10 +166,10 @@ public class AsyncWaitOperator<IN, OUT>
 		// create the emitter
 		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
 
-		// start the emitter thread
-		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
-		emitterThread.setDaemon(true);
-		emitterThread.start();
+//		// start the emitter thread
+//		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
+//		emitterThread.setDaemon(true);
+//		emitterThread.start();
 
 		// process stream elements from state, since the Emit thread will start as soon as all
 		// elements from previous state are in the StreamElementQueue, we have to make sure that the
@@ -352,7 +349,6 @@ public class AsyncWaitOperator<IN, OUT>
 	 */
 	private void stopResources(boolean waitForShutdown) throws InterruptedException {
 		emitter.stop();
-		emitterThread.interrupt();
 
 		executor.shutdown();
 
@@ -371,13 +367,7 @@ public class AsyncWaitOperator<IN, OUT>
 			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
 			 * that the emitter thread can complete/react to the interrupt signal.
 			 */
-			if (Thread.holdsLock(checkpointingLock)) {
-				while (emitterThread.isAlive()) {
-					checkpointingLock.wait(100L);
-				}
-			}
-
-			emitterThread.join();
+			while(emitter.tryRun()) { }
 		} else {
 			executor.shutdownNow();
 		}
@@ -402,8 +392,7 @@ public class AsyncWaitOperator<IN, OUT>
 		pendingStreamElementQueueEntry = streamElementQueueEntry;
 
 		while (!queue.tryPut(streamElementQueueEntry)) {
-			// we wait for the emitter to notify us if the queue has space left again
-			checkpointingLock.wait();
+			this.emitter.tryRun();
 		}
 
 		pendingStreamElementQueueEntry = null;
@@ -413,9 +402,7 @@ public class AsyncWaitOperator<IN, OUT>
 		assert(Thread.holdsLock(checkpointingLock));
 
 		while (!queue.isEmpty()) {
-			// wait for the emitter thread to output the remaining elements
-			// for that he needs the checkpointing lock and thus we have to free it
-			checkpointingLock.wait();
+			this.emitter.tryRun();
 		}
 	}
 

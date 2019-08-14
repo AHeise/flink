@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
 
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Interface for blocking stream element queues for the {@link AsyncWaitOperator}.
@@ -62,6 +63,8 @@ public interface StreamElementQueue {
 	 * 	completed async result.
 	 */
 	AsyncResult peekBlockingly() throws InterruptedException;
+
+	Optional<AsyncResult> tryPeek();
 
 	/**
 	 * Poll the first completed {@link AsyncResult} from the head of this queue. This operation is

@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -95,6 +96,15 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 		} finally {
 			lock.unlock();
 		}
+	}
+
+	@Override
+	public Optional<AsyncResult> tryPeek() {
+		if (queue.isEmpty() || !queue.peek().isDone()) {
+			return Optional.empty();
+		}
+
+		return Optional.of(queue.peek());
 	}
 
 	@Override

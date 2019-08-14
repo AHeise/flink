@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
@@ -154,6 +155,15 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 		} finally {
 			lock.unlock();
 		}
+	}
+
+	@Override
+	public Optional<AsyncResult> tryPeek() {
+		if (completedQueue.isEmpty()) {
+			return Optional.empty();
+		}
+
+		return Optional.of(completedQueue.peek());
 	}
 
 	@Override
