@@ -99,36 +99,29 @@ public class EmitterTest extends TestLogger {
 
 		StreamElementQueue queue = new OrderedStreamElementQueue(capacity, executor, operatorActions);
 
-		final Emitter<Integer> emitter = new Emitter<>(lock, output, queue, operatorActions);
+		final Emitter<Integer> emitter = new Emitter<>(output, queue, operatorActions);
 
-		final Thread emitterThread = new Thread(emitter);
-		emitterThread.start();
+		StreamRecordQueueEntry<Integer> record1 = new StreamRecordQueueEntry<>(new StreamRecord<>(1, 0L));
+		StreamRecordQueueEntry<Integer> record2 = new StreamRecordQueueEntry<>(new StreamRecord<>(2, 1L));
+		WatermarkQueueEntry watermark1 = new WatermarkQueueEntry(new Watermark(3L));
+		StreamRecordQueueEntry<Integer> record3 = new StreamRecordQueueEntry<>(new StreamRecord<>(3, 4L));
 
-		try {
-			StreamRecordQueueEntry<Integer> record1 = new StreamRecordQueueEntry<>(new StreamRecord<>(1, 0L));
-			StreamRecordQueueEntry<Integer> record2 = new StreamRecordQueueEntry<>(new StreamRecord<>(2, 1L));
-			WatermarkQueueEntry watermark1 = new WatermarkQueueEntry(new Watermark(3L));
-			StreamRecordQueueEntry<Integer> record3 = new StreamRecordQueueEntry<>(new StreamRecord<>(3, 4L));
+		queue.put(record1);
+		queue.put(record2);
+		queue.put(watermark1);
+		queue.put(record3);
 
-			queue.put(record1);
-			queue.put(record2);
-			queue.put(watermark1);
-			queue.put(record3);
+		record2.complete(Arrays.asList(3, 4));
+		record1.complete(Arrays.asList(1, 2));
+		record3.complete(Arrays.asList(5, 6));
 
-			record2.complete(Arrays.asList(3, 4));
-			record1.complete(Arrays.asList(1, 2));
-			record3.complete(Arrays.asList(5, 6));
+		runFully(emitter);
 
-			synchronized (lock) {
-				while (!queue.isEmpty()) {
-					lock.wait();
-				}
-			}
+		Assert.assertEquals(expected, list);
+	}
 
-			Assert.assertEquals(expected, list);
-		} finally {
-			emitter.stop();
-			emitterThread.interrupt();
+	private void runFully(Emitter<Integer> emitter) throws InterruptedException {
+		while (emitter.tryRun()) {
 		}
 	}
 
@@ -151,47 +144,35 @@ public class EmitterTest extends TestLogger {
 
 		StreamElementQueue queue = new OrderedStreamElementQueue(capacity, executor, operatorActions);
 
-		final Emitter<Integer> emitter = new Emitter<>(lock, output, queue, operatorActions);
-
-		final Thread emitterThread = new Thread(emitter);
-		emitterThread.start();
+		final Emitter<Integer> emitter = new Emitter<>(output, queue, operatorActions);
 
 		final Exception testException = new Exception("Test exception");
 
-		try {
-			StreamRecordQueueEntry<Integer> record1 = new StreamRecordQueueEntry<>(new StreamRecord<>(1, 0L));
-			StreamRecordQueueEntry<Integer> record2 = new StreamRecordQueueEntry<>(new StreamRecord<>(2, 1L));
-			WatermarkQueueEntry watermark1 = new WatermarkQueueEntry(new Watermark(3L));
+		StreamRecordQueueEntry<Integer> record1 = new StreamRecordQueueEntry<>(new StreamRecord<>(1, 0L));
+		StreamRecordQueueEntry<Integer> record2 = new StreamRecordQueueEntry<>(new StreamRecord<>(2, 1L));
+		WatermarkQueueEntry watermark1 = new WatermarkQueueEntry(new Watermark(3L));
 
-			queue.put(record1);
-			queue.put(record2);
-			queue.put(watermark1);
+		queue.put(record1);
+		queue.put(record2);
+		queue.put(watermark1);
 
-			record2.completeExceptionally(testException);
-			record1.complete(Arrays.asList(1));
+		record2.completeExceptionally(testException);
+		record1.complete(Arrays.asList(1));
 
-			synchronized (lock) {
-				while (!queue.isEmpty()) {
-					lock.wait();
-				}
-			}
+		runFully(emitter);
 
-			Assert.assertEquals(expected, list);
+		Assert.assertEquals(expected, list);
 
-			ArgumentCaptor<Throwable> argumentCaptor = ArgumentCaptor.forClass(Throwable.class);
+		ArgumentCaptor<Throwable> argumentCaptor = ArgumentCaptor.forClass(Throwable.class);
 
-			verify(operatorActions).failOperator(argumentCaptor.capture());
+		verify(operatorActions).failOperator(argumentCaptor.capture());
 
-			Throwable failureCause = argumentCaptor.getValue();
+		Throwable failureCause = argumentCaptor.getValue();
 
-			Assert.assertNotNull(failureCause.getCause());
-			Assert.assertTrue(failureCause.getCause() instanceof ExecutionException);
+		Assert.assertNotNull(failureCause.getCause());
+		Assert.assertTrue(failureCause.getCause() instanceof ExecutionException);
 
-			Assert.assertNotNull(failureCause.getCause().getCause());
-			Assert.assertEquals(testException, failureCause.getCause().getCause());
-		} finally {
-			emitter.stop();
-			emitterThread.interrupt();
-		}
+		Assert.assertNotNull(failureCause.getCause().getCause());
+		Assert.assertEquals(testException, failureCause.getCause().getCause());
 	}
 }

@@ -81,39 +81,12 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 	}
 
 	@Override
-	public AsyncResult peekBlockingly() throws InterruptedException {
+	public Optional<AsyncResult> tryPoll() throws InterruptedException {
 		lock.lockInterruptibly();
 
 		try {
-			while (queue.isEmpty() || !queue.peek().isDone()) {
-				headIsCompleted.await();
-			}
-
-			LOG.debug("Peeked head element from ordered stream element queue with filling degree " +
-				"({}/{}).", queue.size(), capacity);
-
-			return queue.peek();
-		} finally {
-			lock.unlock();
-		}
-	}
-
-	@Override
-	public Optional<AsyncResult> tryPeek() {
-		if (queue.isEmpty() || !queue.peek().isDone()) {
-			return Optional.empty();
-		}
-
-		return Optional.of(queue.peek());
-	}
-
-	@Override
-	public AsyncResult poll() throws InterruptedException {
-		lock.lockInterruptibly();
-
-		try {
-			while (queue.isEmpty() || !queue.peek().isDone()) {
-				headIsCompleted.await();
+			if (queue.isEmpty() || !queue.peek().isDone()) {
+				return Optional.empty();
 			}
 
 			notFull.signalAll();
@@ -121,7 +94,7 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 			LOG.debug("Polled head element from ordered stream element queue. New filling degree " +
 				"({}/{}).", queue.size() - 1, capacity);
 
-			return queue.poll();
+			return Optional.of(queue.poll());
 		} finally {
 			lock.unlock();
 		}

@@ -23,21 +23,19 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -48,28 +46,10 @@ import static org.mockito.Mockito.verify;
  * {@link UnorderedStreamElementQueue} specific tests.
  */
 public class UnorderedStreamElementQueueTest extends TestLogger {
-	private static final long timeout = 10000L;
-	private static ExecutorService executor;
-
-	@BeforeClass
-	public static void setup() {
-		executor = Executors.newFixedThreadPool(3);
-	}
-
-	@AfterClass
-	public static void shutdown() {
-		executor.shutdown();
-
-		try {
-			if (!executor.awaitTermination(timeout, TimeUnit.MILLISECONDS)) {
-				executor.shutdownNow();
-			}
-		} catch (InterruptedException interrupted) {
-			executor.shutdownNow();
-
-			Thread.currentThread().interrupt();
-		}
-	}
+	@Rule
+	public ExecutorServiceRule userExecutor = new ExecutorServiceRule(() -> Executors.newFixedThreadPool(1));
+	@Rule
+	public ExecutorServiceRule queueExecutor = new ExecutorServiceRule(() -> Executors.newFixedThreadPool(1));
 
 	/**
 	 * Tests that only elements before the oldest watermark are returned if they are completed.
@@ -78,7 +58,7 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 	public void testCompletionOrder() throws Exception {
 		OperatorActions operatorActions = mock(OperatorActions.class);
 
-		final UnorderedStreamElementQueue queue = new UnorderedStreamElementQueue(8, executor, operatorActions);
+		final UnorderedStreamElementQueue queue = new UnorderedStreamElementQueue(8, queueExecutor, operatorActions);
 
 		StreamRecordQueueEntry<Integer> record1 = new StreamRecordQueueEntry<>(new StreamRecord<>(1, 0L));
 		StreamRecordQueueEntry<Integer> record2 = new StreamRecordQueueEntry<>(new StreamRecord<>(2, 1L));
@@ -102,12 +82,12 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 		CompletableFuture<AsyncResult> firstPoll = CompletableFuture.supplyAsync(
 			() -> {
 				try {
-					return queue.poll();
+					return pollBlocking(queue);
 				} catch (InterruptedException e) {
 					throw new CompletionException(e);
 				}
 			},
-			executor);
+				userExecutor);
 
 		// this should not fulfill the poll, because R3 is behind W1
 		record3.complete(Collections.<Integer>emptyList());
@@ -123,12 +103,12 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 		CompletableFuture<AsyncResult> secondPoll = CompletableFuture.supplyAsync(
 			() -> {
 				try {
-					return queue.poll();
+					return pollBlocking(queue);
 				} catch (InterruptedException e) {
 					throw new CompletionException(e);
 				}
 			},
-			executor);
+				userExecutor);
 
 		record6.complete(Collections.<Integer>emptyList());
 		record4.complete(Collections.<Integer>emptyList());
@@ -143,7 +123,7 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 		Assert.assertEquals(record1, secondPoll.get());
 
 		// Now W1, R3, R4 and W2 are completed and should be pollable
-		Assert.assertEquals(watermark1, queue.poll());
+		Assert.assertEquals(watermark1, pollBlocking(queue));
 
 		// The order of R3 and R4 is not specified
 		Set<AsyncResult> expected = new HashSet<>(2);
@@ -152,29 +132,28 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 
 		Set<AsyncResult> actual = new HashSet<>(2);
 
-		actual.add(queue.poll());
-		actual.add(queue.poll());
+		actual.add(pollBlocking(queue));
+		actual.add(pollBlocking(queue));
 
 		Assert.assertEquals(expected, actual);
 
-		Assert.assertEquals(watermark2, queue.poll());
+		Assert.assertEquals(watermark2, pollBlocking(queue));
 
 		// since R6 has been completed before and W2 has been consumed, we should be able to poll
 		// this record as well
-		Assert.assertEquals(record6, queue.poll());
+		Assert.assertEquals(record6, pollBlocking(queue));
 
 		// only R5 left in the queue
-		Assert.assertTrue(1 == queue.size());
+		Assert.assertEquals(1, queue.size());
 
 		CompletableFuture<AsyncResult> thirdPoll = CompletableFuture.supplyAsync(
 			() -> {
 				try {
-					return queue.poll();
+					return pollBlocking(queue);
 				} catch (InterruptedException e) {
 					throw new CompletionException(e);
 				}
-			},
-			executor);
+			}, userExecutor);
 
 		Thread.sleep(10L);
 
@@ -187,5 +166,13 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
 		Assert.assertTrue(queue.isEmpty());
 
 		verify(operatorActions, never()).failOperator(any(Exception.class));
+	}
+
+	private AsyncResult pollBlocking(StreamElementQueue queue) throws InterruptedException {
+		Optional<AsyncResult> result;
+		do {
+			result = queue.tryPoll();
+		} while (!result.isPresent());
+		return result.get();
 	}
 }

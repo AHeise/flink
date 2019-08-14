@@ -140,48 +140,23 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 	}
 
 	@Override
-	public AsyncResult peekBlockingly() throws InterruptedException {
+	public Optional<AsyncResult> tryPoll() throws InterruptedException {
 		lock.lockInterruptibly();
 
 		try {
-			while (completedQueue.isEmpty()) {
-				hasCompletedEntries.await();
-			}
-
-			LOG.debug("Peeked head element from unordered stream element queue with filling degree " +
-				"({}/{}).", numberEntries, capacity);
-
-			return completedQueue.peek();
-		} finally {
-			lock.unlock();
-		}
-	}
-
-	@Override
-	public Optional<AsyncResult> tryPeek() {
-		if (completedQueue.isEmpty()) {
-			return Optional.empty();
-		}
-
-		return Optional.of(completedQueue.peek());
-	}
-
-	@Override
-	public AsyncResult poll() throws InterruptedException {
-		lock.lockInterruptibly();
-
-		try {
-			while (completedQueue.isEmpty()) {
-				hasCompletedEntries.await();
+			if (completedQueue.isEmpty()) {
+				return Optional.empty();
 			}
 
 			numberEntries--;
 			notFull.signalAll();
 
-			LOG.debug("Polled element from unordered stream element queue. New filling degree " +
-				"({}/{}).", numberEntries, capacity);
+			LOG.debug(
+					"Polled element from unordered stream element queue. New filling degree ({}/{}).",
+					numberEntries,
+					capacity);
 
-			return completedQueue.poll();
+			return Optional.of(completedQueue.poll());
 		} finally {
 			lock.unlock();
 		}

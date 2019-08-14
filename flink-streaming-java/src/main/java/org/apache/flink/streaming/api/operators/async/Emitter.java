@@ -41,12 +41,9 @@ import java.util.Optional;
  * @param <OUT> Type of the output elements
  */
 @Internal
-public class Emitter<OUT> implements Runnable {
+public class Emitter<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Emitter.class);
-
-	/** Lock to hold before outputting. */
-	private final Object checkpointLock;
 
 	/** Output for the watermark elements. */
 	private final Output<StreamRecord<OUT>> output;
@@ -59,47 +56,20 @@ public class Emitter<OUT> implements Runnable {
 	/** Output for stream records. */
 	private final TimestampedCollector<OUT> timestampedCollector;
 
-	private volatile boolean running;
-
 	public Emitter(
-			final Object checkpointLock,
 			final Output<StreamRecord<OUT>> output,
 			final StreamElementQueue streamElementQueue,
 			final OperatorActions operatorActions) {
 
-		this.checkpointLock = Preconditions.checkNotNull(checkpointLock, "checkpointLock");
 		this.output = Preconditions.checkNotNull(output, "output");
 		this.streamElementQueue = Preconditions.checkNotNull(streamElementQueue, "streamElementQueue");
 		this.operatorActions = Preconditions.checkNotNull(operatorActions, "operatorActions");
 
 		this.timestampedCollector = new TimestampedCollector<>(this.output);
-		this.running = true;
-	}
-
-	@Override
-	public void run() {
-		try {
-			while (running) {
-				LOG.debug("Wait for next completed async stream element result.");
-				AsyncResult streamElementEntry = streamElementQueue.peekBlockingly();
-
-				output(streamElementEntry);
-			}
-		} catch (InterruptedException e) {
-			if (running) {
-				operatorActions.failOperator(e);
-			} else {
-				// Thread got interrupted which means that it should shut down
-				LOG.debug("Emitter thread got interrupted, shutting down.");
-			}
-		} catch (Throwable t) {
-			operatorActions.failOperator(new Exception("AsyncWaitOperator's emitter caught an " +
-				"unexpected throwable.", t));
-		}
 	}
 
 	public boolean tryRun() throws InterruptedException {
-		Optional<AsyncResult> streamElementEntry = streamElementQueue.tryPeek();
+		Optional<AsyncResult> streamElementEntry = streamElementQueue.tryPoll();
 
 		if (!streamElementEntry.isPresent()) {
 			return false;
@@ -109,22 +79,12 @@ public class Emitter<OUT> implements Runnable {
 		return true;
 	}
 
-	private void output(AsyncResult asyncResult) throws InterruptedException {
+	private void output(AsyncResult asyncResult) {
 		if (asyncResult.isWatermark()) {
-			synchronized (checkpointLock) {
 				AsyncWatermarkResult asyncWatermarkResult = asyncResult.asWatermark();
 
 				LOG.debug("Output async watermark.");
 				output.emitWatermark(asyncWatermarkResult.getWatermark());
-
-				// remove the peeked element from the async collector buffer so that it is no longer
-				// checkpointed
-				streamElementQueue.poll();
-
-				// notify the main thread that there is again space left in the async collector
-				// buffer
-				checkpointLock.notifyAll();
-			}
 		} else {
 			AsyncCollectionResult<OUT> streamRecordResult = asyncResult.asResultCollection();
 
@@ -134,35 +94,21 @@ public class Emitter<OUT> implements Runnable {
 				timestampedCollector.eraseTimestamp();
 			}
 
-			synchronized (checkpointLock) {
-				LOG.debug("Output async stream element collection result.");
+			LOG.debug("Output async stream element collection result.");
 
-				try {
-					Collection<OUT> resultCollection = streamRecordResult.get();
+			try {
+				Collection<OUT> resultCollection = streamRecordResult.get();
 
-					if (resultCollection != null) {
-						for (OUT result : resultCollection) {
-							timestampedCollector.collect(result);
-						}
+				if (resultCollection != null) {
+					for (OUT result : resultCollection) {
+						timestampedCollector.collect(result);
 					}
-				} catch (Exception e) {
-					operatorActions.failOperator(
-						new Exception("An async function call terminated with an exception. " +
-							"Failing the AsyncWaitOperator.", e));
 				}
-
-				// remove the peeked element from the async collector buffer so that it is no longer
-				// checkpointed
-				streamElementQueue.poll();
-
-				// notify the main thread that there is again space left in the async collector
-				// buffer
-				checkpointLock.notifyAll();
+			} catch (Exception e) {
+				operatorActions.failOperator(
+						new Exception("An async function call terminated with an exception. " +
+								"Failing the AsyncWaitOperator.", e));
 			}
 		}
-	}
-
-	public void stop() {
-		running = false;
 	}
 }

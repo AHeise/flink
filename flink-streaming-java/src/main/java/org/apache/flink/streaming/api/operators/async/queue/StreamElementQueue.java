@@ -54,27 +54,11 @@ public interface StreamElementQueue {
 	<T> boolean tryPut(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException;
 
 	/**
-	 * Peek at the head of the queue and return the first completed {@link AsyncResult}. This
-	 * operation is a blocking operation and only returns once a completed async result has been
-	 * found.
+	 * Poll the first completed {@link AsyncResult} from the head of this queue or {@link Optional#empty()} if none exists.
 	 *
-	 * @return Completed {@link AsyncResult}
-	 * @throws InterruptedException if the current thread has been interrupted while waiting for a
-	 * 	completed async result.
+	 * @return Completed {@link AsyncResult} or {@link Optional#empty()}
 	 */
-	AsyncResult peekBlockingly() throws InterruptedException;
-
-	Optional<AsyncResult> tryPeek();
-
-	/**
-	 * Poll the first completed {@link AsyncResult} from the head of this queue. This operation is
-	 * blocking and only returns once a completed async result has been found.
-	 *
-	 * @return Completed {@link AsyncResult} which has been removed from the queue
-	 * @throws InterruptedException if the current thread has been interrupted while waiting for a
-	 * 	completed async result.
-	 */
-	AsyncResult poll() throws InterruptedException;
+	Optional<AsyncResult> tryPoll() throws InterruptedException;
 
 	/**
 	 * Return the collection of {@link StreamElementQueueEntry} currently contained in this queue.

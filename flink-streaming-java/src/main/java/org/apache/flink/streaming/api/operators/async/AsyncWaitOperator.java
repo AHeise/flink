@@ -164,12 +164,7 @@ public class AsyncWaitOperator<IN, OUT>
 		super.open();
 
 		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
-
-//		// start the emitter thread
-//		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
-//		emitterThread.setDaemon(true);
-//		emitterThread.start();
+		this.emitter = new Emitter<>(output, queue, this);
 
 		// process stream elements from state, since the Emit thread will start as soon as all
 		// elements from previous state are in the StreamElementQueue, we have to make sure that the
@@ -348,8 +343,6 @@ public class AsyncWaitOperator<IN, OUT>
 	 * @throws InterruptedException if current thread has been interrupted
 	 */
 	private void stopResources(boolean waitForShutdown) throws InterruptedException {
-		emitter.stop();
-
 		executor.shutdown();
 
 		if (waitForShutdown) {
@@ -367,7 +360,8 @@ public class AsyncWaitOperator<IN, OUT>
 			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
 			 * that the emitter thread can complete/react to the interrupt signal.
 			 */
-			while(emitter.tryRun()) { }
+			while (emitter.tryRun()) {
+			}
 		} else {
 			executor.shutdownNow();
 		}

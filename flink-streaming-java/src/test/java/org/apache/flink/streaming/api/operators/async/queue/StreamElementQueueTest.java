@@ -24,9 +24,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -35,11 +34,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueTest.StreamElementQueueType.OrderedStreamElementQueueType;
 import static org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueTest.StreamElementQueueType.UnorderedStreamElementQueueType;
@@ -54,29 +52,8 @@ import static org.mockito.Mockito.verify;
  */
 @RunWith(Parameterized.class)
 public class StreamElementQueueTest extends TestLogger {
-
-	private static final long timeout = 10000L;
-	private static ExecutorService executor;
-
-	@BeforeClass
-	public static void setup() {
-		executor = Executors.newFixedThreadPool(3);
-	}
-
-	@AfterClass
-	public static void shutdown() {
-		executor.shutdown();
-
-		try {
-			if (!executor.awaitTermination(timeout, TimeUnit.MILLISECONDS)) {
-				executor.shutdownNow();
-			}
-		} catch (InterruptedException interrupted) {
-			executor.shutdownNow();
-
-			Thread.currentThread().interrupt();
-		}
-	}
+	@Rule
+	public ExecutorServiceRule executor = new ExecutorServiceRule(() -> Executors.newFixedThreadPool(3));
 
 	enum StreamElementQueueType {
 		OrderedStreamElementQueueType,
@@ -144,15 +121,14 @@ public class StreamElementQueueTest extends TestLogger {
 		queue.put(watermarkQueueEntry);
 		queue.put(streamRecordQueueEntry);
 
-		Assert.assertEquals(watermarkQueueEntry, queue.peekBlockingly());
 		Assert.assertEquals(2, queue.size());
 
-		Assert.assertEquals(watermarkQueueEntry, queue.poll());
+		Assert.assertEquals(watermarkQueueEntry, pollBlocking(queue));
 		Assert.assertEquals(1, queue.size());
 
 		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
-		Assert.assertEquals(streamRecordQueueEntry, queue.poll());
+		Assert.assertEquals(streamRecordQueueEntry, pollBlocking(queue));
 
 		Assert.assertEquals(0, queue.size());
 		Assert.assertTrue(queue.isEmpty());
@@ -194,7 +170,7 @@ public class StreamElementQueueTest extends TestLogger {
 		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
 		// polling the completed head element frees the queue again
-		Assert.assertEquals(streamRecordQueueEntry, queue.poll());
+		Assert.assertEquals(streamRecordQueueEntry, pollBlocking(queue));
 
 		// now the put operation should complete
 		putOperation.get();
@@ -202,69 +178,11 @@ public class StreamElementQueueTest extends TestLogger {
 		verify(operatorActions, never()).failOperator(any(Exception.class));
 	}
 
-	/**
-	 * Test that a poll operation on an empty queue blocks.
-	 */
-	@Test
-	public void testBlockingPoll() throws Exception {
-		OperatorActions operatorActions = mock(OperatorActions.class);
-		final StreamElementQueue queue = createStreamElementQueue(1, operatorActions);
-
-		WatermarkQueueEntry watermarkQueueEntry = new WatermarkQueueEntry(new Watermark(1L));
-		StreamRecordQueueEntry<Integer> streamRecordQueueEntry = new StreamRecordQueueEntry<>(new StreamRecord<>(1, 2L));
-
-		Assert.assertTrue(queue.isEmpty());
-
-		CompletableFuture<AsyncResult> peekOperation = CompletableFuture.supplyAsync(
-			() -> {
-				try {
-					return queue.peekBlockingly();
-				} catch (InterruptedException e) {
-					throw new CompletionException(e);
-				}
-			},
-			executor);
-
-		Thread.sleep(10L);
-
-		Assert.assertFalse(peekOperation.isDone());
-
-		queue.put(watermarkQueueEntry);
-
-		AsyncResult watermarkResult = peekOperation.get();
-
-		Assert.assertEquals(watermarkQueueEntry, watermarkResult);
-		Assert.assertEquals(1, queue.size());
-
-		Assert.assertEquals(watermarkQueueEntry, queue.poll());
-		Assert.assertTrue(queue.isEmpty());
-
-		CompletableFuture<AsyncResult> pollOperation = CompletableFuture.supplyAsync(
-			() -> {
-				try {
-					return queue.poll();
-				} catch (InterruptedException e) {
-					throw new CompletionException(e);
-				}
-			},
-			executor);
-
-		Thread.sleep(10L);
-
-		Assert.assertFalse(pollOperation.isDone());
-
-		queue.put(streamRecordQueueEntry);
-
-		Thread.sleep(10L);
-
-		Assert.assertFalse(pollOperation.isDone());
-
-		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
-
-		Assert.assertEquals(streamRecordQueueEntry, pollOperation.get());
-
-		Assert.assertTrue(queue.isEmpty());
-
-		verify(operatorActions, never()).failOperator(any(Exception.class));
+	private AsyncResult pollBlocking(StreamElementQueue queue) throws InterruptedException {
+		Optional<AsyncResult> result;
+		do {
+			result = queue.tryPoll();
+		} while (!result.isPresent());
+		return result.get();
 	}
 }

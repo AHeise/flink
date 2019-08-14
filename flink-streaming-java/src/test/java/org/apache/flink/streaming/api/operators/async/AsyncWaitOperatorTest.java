@@ -560,7 +560,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		return jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 	}
 
-	@Test
+	@Test(timeout = 10000L)
 	public void testStateSnapshotAndRestore() throws Exception {
 		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(
 				OneInputStreamTask::new,

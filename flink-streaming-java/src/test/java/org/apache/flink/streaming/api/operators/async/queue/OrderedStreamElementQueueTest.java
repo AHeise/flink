@@ -23,9 +23,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -34,9 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -47,29 +44,8 @@ import static org.mockito.Mockito.verify;
  * {@link OrderedStreamElementQueue} specific tests.
  */
 public class OrderedStreamElementQueueTest extends TestLogger {
-
-	private static final long timeout = 10000L;
-	private static ExecutorService executor;
-
-	@BeforeClass
-	public static void setup() {
-		executor = Executors.newFixedThreadPool(3);
-	}
-
-	@AfterClass
-	public static void shutdown() {
-		executor.shutdown();
-
-		try {
-			if (!executor.awaitTermination(timeout, TimeUnit.MILLISECONDS)) {
-				executor.shutdownNow();
-			}
-		} catch (InterruptedException interrupted) {
-			executor.shutdownNow();
-
-			Thread.currentThread().interrupt();
-		}
-	}
+	@Rule
+	public ExecutorServiceRule executor = new ExecutorServiceRule(() -> Executors.newFixedThreadPool(3));
 
 	/**
 	 * Tests that only the head element is pulled from the ordered queue if it has been
@@ -96,7 +72,7 @@ public class OrderedStreamElementQueueTest extends TestLogger {
 				List<AsyncResult> result = new ArrayList<>(4);
 				while (!queue.isEmpty()) {
 					try {
-						result.add(queue.poll());
+						queue.tryPoll().ifPresent(result::add);
 					} catch (InterruptedException e) {
 						throw new CompletionException(e);
 					}
