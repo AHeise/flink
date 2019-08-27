@@ -1,4 +1,5 @@
 dependencies {
+    compileOnly(project(":flink-core"))
     implementation(project(":flink-connectors:flink-hadoop-compatibility"))
     implementation(Libs.hcatalog_core)
     compileOnly(project(":flink-java"))

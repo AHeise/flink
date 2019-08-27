@@ -3,6 +3,7 @@ dependencies {
     implementation(Libs.hadoop_client)
     implementation(Libs.hadoop_openstack)
     compileOnly(project(":flink-core"))
+    testImplementation(project(":flink-core"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 

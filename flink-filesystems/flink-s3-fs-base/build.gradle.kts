@@ -8,6 +8,8 @@ dependencies {
     implementation(Libs.hadoop_aws)
     implementation(Libs.commons_io)
     compileOnly(project(":flink-core"))
+    testImplementation(project(":flink-core"))
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 
 description = "flink-s3-fs-base"

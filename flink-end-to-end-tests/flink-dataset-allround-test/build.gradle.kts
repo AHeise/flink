@@ -1,4 +1,5 @@
 dependencies {
+    implementation(project(":flink-core"))
     compileOnly(project(":flink-java"))
 }
 

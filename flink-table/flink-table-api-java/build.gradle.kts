@@ -4,7 +4,7 @@ dependencies {
     implementation(project(":flink-table:flink-table-common"))
     implementation(project(":flink-annotations"))
     implementation(project(":flink-core"))
-    testImplementation(project(":flink-table:flink-table-common"))
+    testImplementation(project(path = ":flink-table:flink-table-common", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 
