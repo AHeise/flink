@@ -18,7 +18,7 @@ dependencies {
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(Libs.chill_2_11)
     testImplementation(project(":flink-runtime"))
-    testImplementation(project(":flink-core"))
+    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
     testImplementation(Libs.joda_time)
     testImplementation(Libs.joda_convert)
 }

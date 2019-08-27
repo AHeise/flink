@@ -9,6 +9,7 @@ dependencies {
     compileOnly(project(":flink-core"))
     compileOnly(project(":flink-runtime"))
     compileOnly(project(":flink-metrics:flink-metrics-core"))
+    testImplementation(project(":flink-core"))
 }
 
 description = "flink-metrics-prometheus"
