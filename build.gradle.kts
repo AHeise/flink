@@ -1,3 +1,5 @@
+import org.gradle.plugins.ide.idea.model.IdeaLanguageLevel
+
 buildscript {
     repositories {
         mavenCentral()
@@ -22,6 +24,10 @@ subprojects {
     configure<JavaPluginConvention> {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    tasks.withType<JavaCompile> {
+        options.encoding = "UTF-8"
     }
 
     repositories {

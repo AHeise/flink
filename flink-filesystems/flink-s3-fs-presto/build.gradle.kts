@@ -4,9 +4,8 @@ dependencies {
     implementation(Libs.presto_hive)
     implementation(Libs.hadoop_apache2)
     implementation(project(":flink-filesystems:flink-hadoop-fs"))
-    testImplementation(project(":flink-core"))
-    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
-    testImplementation(project(":flink-filesystems:flink-hadoop-fs"))
+    testImplementation(project(":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-filesystems:flink-hadoop-fs", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 

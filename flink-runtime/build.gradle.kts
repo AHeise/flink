@@ -5,8 +5,9 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":flink-core"))
-    implementation(project(":flink-java"))
+    api(project(":flink-core"))
+    api(project(":flink-java"))
+
     implementation(project(":flink-queryable-state:flink-queryable-state-client-java"))
     implementation(project(":flink-filesystems:flink-hadoop-fs"))
     implementation(Libs.flink_shaded_hadoop_2)

@@ -6,6 +6,7 @@ dependencies {
     compileOnly(project(":flink-core"))
     compileOnly(project(":flink-runtime"))
     compileOnly(project(":flink-queryable-state:flink-queryable-state-client-java"))
+    compileOnly(Libs.flink_shaded_netty)
 }
 
 description = "flink-queryable-state-runtime"

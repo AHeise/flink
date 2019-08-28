@@ -7,10 +7,10 @@ dependencies {
     implementation(Libs.aws_java_sdk_s3)
     implementation(Libs.aws_java_sdk_kms)
     implementation(Libs.aws_java_sdk_dynamodb)
-    testImplementation(project(":flink-core"))
-    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = "testArtifacts"))
     testImplementation(project(":flink-filesystems:flink-fs-hadoop-shaded"))
-    testImplementation(project(":flink-filesystems:flink-hadoop-fs"))
+    testImplementation(project(":flink-filesystems:flink-hadoop-fs", configuration = "testArtifacts"))
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     compileOnly(project(":flink-core"))
 }
 

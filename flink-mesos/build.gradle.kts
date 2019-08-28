@@ -6,6 +6,7 @@ dependencies {
     implementation(Libs.mesos)
     implementation(Libs.fenzo_core)
     implementation(Libs.flink_shaded_netty)
+    implementation(Libs.grizzled_slf4j_2_11)
     testImplementation(Libs.scalatest_2_11)
     testImplementation(Libs.curator_test)
     testImplementation(Libs.akka_testkit_2_11)

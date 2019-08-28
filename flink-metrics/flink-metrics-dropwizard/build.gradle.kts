@@ -1,6 +1,6 @@
 dependencies {
     implementation(Libs.metrics_core)
-    testImplementation(project(":flink-metrics:flink-metrics-core"))
+    testImplementation(project(":flink-metrics:flink-metrics-core", configuration = "testArtifacts"))
     testImplementation(project(":flink-core"))
     testImplementation(project(":flink-runtime"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))

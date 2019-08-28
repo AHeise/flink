@@ -3,10 +3,11 @@ plugins {
 }
 
 dependencies {
-    implementation(Libs.jsr305)
+    api(project(":flink-core"))
     api(Libs.kryo)
+
+    implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
-    implementation(project(":flink-core"))
     implementation(project(":flink-annotations"))
     implementation(Libs.flink_shaded_asm_6)
     implementation(Libs.commons_lang3)
