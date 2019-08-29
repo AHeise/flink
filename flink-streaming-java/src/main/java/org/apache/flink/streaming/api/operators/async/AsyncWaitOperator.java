@@ -46,8 +46,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
@@ -113,11 +116,15 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Thread running the emitter. */
 	private transient Thread emitterThread;
 
+	/** Mailbox executor used to yield while waiting for buffers to empty. */
+	private final transient MailboxExecutor mailboxExecutor;
+
 	public AsyncWaitOperator(
-			AsyncFunction<IN, OUT> asyncFunction,
+			@Nonnull AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,
 			int capacity,
-			AsyncDataStream.OutputMode outputMode) {
+			@Nonnull AsyncDataStream.OutputMode outputMode,
+			@Nonnull MailboxExecutor mailboxExecutor) {
 		super(asyncFunction);
 
 		// TODO this is a temporary fix for the problems described under FLINK-13063 at the cost of breaking chains for
@@ -130,6 +137,8 @@ public class AsyncWaitOperator<IN, OUT>
 		this.outputMode = Preconditions.checkNotNull(outputMode, "outputMode");
 
 		this.timeout = timeout;
+
+		this.mailboxExecutor = Preconditions.checkNotNull(mailboxExecutor, "mailboxExecutor");
 	}
 
 	@Override
@@ -167,7 +176,12 @@ public class AsyncWaitOperator<IN, OUT>
 		super.open();
 
 		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
+		this.emitter = new Emitter<>(
+				checkpointingLock,
+				this.mailboxExecutor,
+				output,
+				queue,
+				this);
 
 		// start the emitter thread
 		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
@@ -397,25 +411,31 @@ public class AsyncWaitOperator<IN, OUT>
 	 * @throws InterruptedException if the current thread has been interrupted
 	 */
 	private <T> void addAsyncBufferEntry(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
-
 		pendingStreamElementQueueEntry = streamElementQueueEntry;
 
-		while (!queue.tryPut(streamElementQueueEntry)) {
-			// we wait for the emitter to notify us if the queue has space left again
-			checkpointingLock.wait();
+		// remove when processor timers are migrated.
+		if (Thread.holdsLock(this.checkpointingLock)) {
+			while (!queue.tryPut(streamElementQueueEntry)) {
+				if (!mailboxExecutor.tryYield()) {
+					this.checkpointingLock.wait(1);
+				}
+			}
+		} else {
+			while (!queue.tryPut(streamElementQueueEntry)) {
+				mailboxExecutor.yield();
+			}
 		}
 
 		pendingStreamElementQueueEntry = null;
 	}
 
 	private void waitInFlightInputsFinished() throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
+		assert (Thread.holdsLock(this.checkpointingLock));
 
 		while (!queue.isEmpty()) {
-			// wait for the emitter thread to output the remaining elements
-			// for that he needs the checkpointing lock and thus we have to free it
-			checkpointingLock.wait();
+			if (!mailboxExecutor.tryYield()) {
+				this.checkpointingLock.wait(1);
+			}
 		}
 	}
 
