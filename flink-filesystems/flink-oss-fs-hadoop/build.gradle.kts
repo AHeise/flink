@@ -7,5 +7,5 @@ dependencies {
     testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
     testImplementation(project(path = ":flink-filesystems:flink-hadoop-fs", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    compileOnly(project(":flink-core"))
+    implementation(project(":flink-core"))
 }

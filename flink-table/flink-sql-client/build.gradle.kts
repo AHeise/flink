@@ -8,19 +8,24 @@ dependencies {
     implementation(project(":flink-table:flink-table-planner"))
     implementation(project(":flink-table:flink-table-planner-blink"))
     implementation(project(":flink-table:flink-table-runtime-blink"))
+    implementation(project(":flink-connectors:flink-connector-hive"))
+    implementation(Libs.hadoop_mapreduce_client_core)
     implementation(Libs.jline_terminal)
     implementation(Libs.jline_reader)
     implementation(Libs.flink_shaded_jackson)
-    testImplementation(project(":flink-runtime"))
+    implementation(Libs.commons_cli)
+
+    testImplementation(project(":flink-runtime", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-clients"))
-    testImplementation(project(":flink-connectors:flink-connector-hive"))
+    testImplementation(project(":flink-clients", configuration = "testArtifacts"))
+    testImplementation(project(":flink-connectors:flink-connector-hive", configuration = "testArtifacts"))
     testImplementation(project(":flink-connectors:flink-hadoop-compatibility"))
     testImplementation(Libs.hive_metastore)
     testImplementation(Libs.hive_exec)
     testImplementation(Libs.hadoop_common)
-    compileOnly(project(":flink-connectors:flink-connector-hive"))
-    compileOnly(Libs.hadoop_mapreduce_client_core)
+    testImplementation(Libs.flink_shaded_guava)
 }
 
 description = "flink-sql-client"
+
+flinkExclude(group = "org.apache.calcite", name = "calcite-core")

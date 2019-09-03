@@ -1,21 +1,26 @@
 dependencies {
-    implementation(Libs.kafka_clients)
+    api(Libs.kafka_clients)
+
+    implementation(project(":flink-streaming-java"))
+    implementation(project(":flink-table:flink-table-api-java-bridge"))
+    implementation(project(":flink-table:flink-table-planner"))
+    implementation(Libs.flink_shaded_jackson)
+    implementation(Libs.commons_collections)
+
+    testImplementation(project(":flink-metrics:flink-metrics-jmx"))
+    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
+    testImplementation(project(":flink-tests", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-table:flink-table-planner", configuration = "testArtifacts"))
+    testImplementation(project(":flink-table:flink-table-common", configuration = "testArtifacts"))
+    testImplementation(Libs.hadoop_minikdc)
     testImplementation(Libs.kafka_2_11)
     testImplementation(Libs.zkclient)
     testImplementation(Libs.curator_test)
-    testImplementation(project(":flink-metrics:flink-metrics-jmx"))
-    testImplementation(project(":flink-streaming-java"))
-    testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-tests"))
-    testImplementation(project(":flink-runtime"))
-    testImplementation(project(":flink-core"))
-    testImplementation(project(":flink-table:flink-table-planner"))
-    testImplementation(project(":flink-table:flink-table-common"))
-    testImplementation(Libs.hadoop_minikdc)
-    compileOnly(Libs.flink_shaded_jackson)
-    compileOnly(project(":flink-streaming-java"))
-    compileOnly(project(":flink-table:flink-table-api-java-bridge"))
-    compileOnly(project(":flink-table:flink-table-planner"))
+    testImplementation(Libs.flink_shaded_guava)
 }
 
 description = "flink-connector-kafka-base"
+
+flinkCreateTestJar()

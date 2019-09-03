@@ -11,3 +11,5 @@ dependencies {
 }
 
 description = "flink-clients"
+
+flinkCreateTestJar()

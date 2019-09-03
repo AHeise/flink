@@ -1,8 +1,8 @@
 dependencies {
-    implementation(Libs.amqp_client)
-    testImplementation(project(":flink-streaming-java"))
-    testImplementation(project(":flink-runtime"))
-    compileOnly(project(":flink-streaming-java"))
+    api(Libs.amqp_client)
+    api(project(":flink-streaming-java"))
+
+    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
 }
 
 description = "flink-connector-rabbitmq"

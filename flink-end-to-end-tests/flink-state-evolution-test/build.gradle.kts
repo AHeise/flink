@@ -1,7 +1,7 @@
 dependencies {
     implementation(project(":flink-formats:flink-avro"))
-    compileOnly(project(":flink-java"))
-    compileOnly(project(":flink-streaming-java"))
+    implementation(project(":flink-java"))
+    implementation(project(":flink-streaming-java"))
     compile(Libs.avro)
 }
 

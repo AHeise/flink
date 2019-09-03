@@ -7,7 +7,7 @@ dependencies {
     implementation(Libs.aws_java_sdk_dynamodb)
     implementation(Libs.hadoop_aws)
     implementation(Libs.commons_io)
-    compileOnly(project(":flink-core"))
+    implementation(project(":flink-core"))
     testImplementation(project(":flink-core"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }

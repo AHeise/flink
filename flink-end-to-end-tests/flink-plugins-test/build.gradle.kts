@@ -1,3 +1,3 @@
 dependencies {
-    compileOnly(project(":flink-core"))
+    implementation(project(":flink-core"))
 }

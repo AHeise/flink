@@ -10,7 +10,8 @@ dependencies {
     implementation(Libs.commons_math3)
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-tests"))
-    testImplementation(project(":flink-core"))
+    testImplementation(project(":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-optimizer"))
 }
 
 description = "flink-gelly-examples"

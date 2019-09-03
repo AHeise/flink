@@ -11,7 +11,7 @@ dependencies {
     testImplementation(project(":flink-filesystems:flink-fs-hadoop-shaded"))
     testImplementation(project(":flink-filesystems:flink-hadoop-fs", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    compileOnly(project(":flink-core"))
+    implementation(project(":flink-core"))
 }
 
 description = "flink-s3-fs-hadoop"

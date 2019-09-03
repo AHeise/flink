@@ -1,10 +1,13 @@
 dependencies {
     implementation(Libs.py4j)
     implementation(Libs.pyrolite)
-    compileOnly(project(":flink-core"))
-    compileOnly(project(":flink-java"))
-    compileOnly(project(":flink-streaming-java"))
-    compileOnly(project(":flink-table:flink-table-common"))
+    implementation(Libs.commons_lang3)
+    implementation(Libs.commons_cli)
+    implementation(project(":flink-core"))
+    implementation(project(":flink-java"))
+    implementation(project(":flink-clients"))
+    implementation(project(":flink-streaming-java"))
+    implementation(project(":flink-table:flink-table-common"))
 }
 
 description = "flink-python"

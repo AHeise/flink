@@ -5,8 +5,8 @@ dependencies {
     testImplementation(project(":flink-tests"))
     testImplementation(project(":flink-runtime"))
     testImplementation(project(":flink-core"))
-    compileOnly(project(":flink-streaming-java"))
-    compileOnly(project(":flink-java"))
+    implementation(project(":flink-streaming-java"))
+    implementation(project(":flink-java"))
 }
 
 description = "flink-state-processor-api(")

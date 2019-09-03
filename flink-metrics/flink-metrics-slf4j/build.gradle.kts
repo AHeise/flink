@@ -4,8 +4,8 @@ dependencies {
     testImplementation(project(":flink-metrics:flink-metrics-core", configuration = "testArtifacts"))
     testImplementation(project(":flink-runtime"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    compileOnly(project(":flink-annotations"))
-    compileOnly(project(":flink-metrics:flink-metrics-core"))
+    implementation(project(":flink-annotations"))
+    implementation(project(":flink-metrics:flink-metrics-core"))
 }
 
 description = "flink-metrics-slf4j"

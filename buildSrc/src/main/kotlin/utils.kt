@@ -1,4 +1,6 @@
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Dependency
+import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.tasks.ScalaSourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.tasks.Jar
@@ -11,7 +13,9 @@ import org.gradle.kotlin.dsl.*
  */
 fun Project.flinkCreateTestJar() {
     val testArtifacts by configurations.creating {
-        extendsFrom(configurations.get("testRuntime"))
+        extendsFrom(configurations["testRuntime"])
+        extendsFrom(configurations["testApi"])
+        extendsFrom(configurations["api"])
     }
 
     val testJar by tasks.register<Jar>("testJar") {
@@ -24,6 +28,9 @@ fun Project.flinkCreateTestJar() {
         add("testArtifacts", testJar)
     }
 }
+
+fun DependencyHandler.`testApi`(dependencyNotation: Any): Dependency? =
+    add("testApi", dependencyNotation)
 
 /**
  * Configures the current project to compile Scala and Java together instead of one after the other.
@@ -52,6 +59,25 @@ fun Project.flinkJointScalaJavaCompilation() {
                 setSrcDirs(emptyList<String>())
             }
         }
+    }
+}
+
+/**
+ * Ensures all artifacts of the dependency/group to be of the specific version
+ */
+fun Project.flinkForceDependencyVersion(group: String? = null, name: String? = null, version: Any?) {
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if ((group == null || target.group == group) && (name == null || target.name == name)) {
+                useVersion(version.toString())
+            }
+        }
+    }
+}
+
+fun Project.flinkExclude(group: String? = null, name: String? = null) {
+    configurations.all {
+        exclude(group = group, module = name)
     }
 }
 

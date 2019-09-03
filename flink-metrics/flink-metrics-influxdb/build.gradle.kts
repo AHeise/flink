@@ -5,8 +5,8 @@ dependencies {
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(Libs.wiremock)
     api(project(":flink-core"))
-    compileOnly(project(":flink-runtime"))
-    compileOnly(project(":flink-metrics:flink-metrics-core"))
+    implementation(project(":flink-runtime"))
+    implementation(project(":flink-metrics:flink-metrics-core"))
 }
 
 description = "flink-metrics-influxdb"

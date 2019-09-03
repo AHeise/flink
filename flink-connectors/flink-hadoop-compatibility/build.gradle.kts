@@ -1,10 +1,17 @@
+plugins {
+    scala
+}
+
 dependencies {
-    implementation(project(":flink-core"))
-    testImplementation(project(":flink-java"))
+    api(Libs.flink_shaded_hadoop_2)
+    api(project(":flink-core"))
+
+    implementation(project(":flink-java"))
+    implementation(project(":flink-scala"))
+
+    testImplementation(project(":flink-core", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    compileOnly(project(":flink-java"))
-    compileOnly(project(":flink-scala"))
-    compileOnly(Libs.flink_shaded_hadoop_2)
+    testImplementation(project(":flink-java", configuration = "testArtifacts"))
 }
 
 description = "flink-hadoop-compatibility"

@@ -6,9 +6,10 @@ dependencies {
     implementation(Libs.commons_lang3)
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(project(":flink-runtime"))
-    testImplementation(Libs.hadoop_hdfs)
+    testImplementation(project(":flink-runtime", configuration = "testArtifacts"))
+    testImplementation("${Libs.hadoop_hdfs}:tests")
     testImplementation(Libs.hadoop_common)
+    testImplementation(Libs.flink_shaded_guava)
 }
 
 description = "flink-yarn"

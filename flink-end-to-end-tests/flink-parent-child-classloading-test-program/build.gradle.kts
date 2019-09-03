@@ -1,5 +1,6 @@
 dependencies {
-    compile(project(":flink-streaming-java"))
+    implementation(project(":flink-streaming-java"))
+    implementation(project(":flink-java"))
 }
 
 description = "flink-parent-child-classloading-test-program"

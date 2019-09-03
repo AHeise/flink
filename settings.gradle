@@ -1,3 +1,16 @@
+// allow plugins to be downloaded from the following repositories
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        // needed for avro plugin
+        jcenter()
+        maven {
+            name "JCenter Gradle Plugins"
+            url  "https://dl.bintray.com/gradle/gradle-plugins"
+        }
+    }
+}
+
 rootProject.name = "flink"
 include(":flink-annotations")
 include(":flink-shaded-curator")
@@ -59,6 +72,7 @@ include(":flink-formats:flink-csv")
 include(":flink-formats")
 include(":flink-examples:flink-examples-batch")
 include(":flink-examples:flink-examples-streaming")
+// TODO: gradle
 //include(":flink-examples:flink-examples-table")
 include(":flink-examples:flink-examples-build-helper:flink-examples-streaming-twitter")
 include(":flink-examples:flink-examples-build-helper:flink-examples-streaming-state-machine")
@@ -162,4 +176,5 @@ include(":flink-walkthroughs:flink-walkthrough-common")
 include(":flink-walkthroughs:flink-walkthrough-table-java")
 include(":flink-walkthroughs:flink-walkthrough-table-scala")
 include(":flink-walkthroughs")
+// TODO: gradle
 //include(":flink-scala-shell")

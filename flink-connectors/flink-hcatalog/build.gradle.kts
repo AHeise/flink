@@ -1,10 +1,15 @@
+plugins {
+    scala
+}
+
 dependencies {
-    compileOnly(project(":flink-core"))
-    implementation(project(":flink-connectors:flink-hadoop-compatibility"))
+    api(project(":flink-connectors:flink-hadoop-compatibility"))
+    api(project(":flink-core"))
+
+    implementation(project(":flink-java"))
     implementation(Libs.hcatalog_core)
-    compileOnly(project(":flink-java"))
-    compileOnly(Libs.scala_library)
-    compileOnly(Libs.flink_shaded_hadoop_2)
+    implementation(Libs.scala_library)
+    implementation(Libs.flink_shaded_hadoop_2)
 }
 
 description = "flink-hcatalog"

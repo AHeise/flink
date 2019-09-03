@@ -7,8 +7,8 @@ dependencies {
     implementation(Libs.scala_library)
     implementation(Libs.scala_reflect)
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    compileOnly(project(":flink-table:flink-table-api-scala-bridge"))
-//    compileOnly(project(":flink-table:flink-table-planner"))
+    implementation(project(":flink-table:flink-table-api-scala-bridge"))
+//    implementation(project(":flink-table:flink-table-planner"))
 }
 
 description = "flink-scala-shell"

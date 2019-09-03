@@ -1,17 +1,18 @@
 dependencies {
-    implementation(Libs.cassandra_driver_core)
+    api(Libs.cassandra_driver_core)
+
+    implementation(project(":flink-streaming-scala"))
+    implementation(project(":flink-scala"))
+    implementation(project(":flink-table:flink-table-api-java-bridge"))
+    implementation(project(":flink-table:flink-table-planner"))
     implementation(Libs.cassandra_driver_mapping)
-    implementation(Libs.guava)
-    testImplementation(project(":flink-runtime"))
-    testImplementation(project(":flink-streaming-java"))
+    implementation(Libs.flink_shaded_guava)
+
+    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
     testImplementation(project(":flink-tests"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
+    testImplementation(project(":flink-queryable-state:flink-queryable-state-client-java"))
     testImplementation(Libs.cassandra_all)
-    compileOnly(project(":flink-streaming-java"))
-    compileOnly(project(":flink-streaming-scala"))
-    compileOnly(project(":flink-table:flink-table-api-java-bridge"))
-    compileOnly(project(":flink-table:flink-table-planner"))
-    compileOnly(Libs.scala_library)
 }
 
 description = "flink-connector-cassandra"

@@ -1,5 +1,5 @@
 dependencies {
-    compileOnly(project(":flink-core"))
+    implementation(project(":flink-core"))
     implementation(project(":flink-filesystems:flink-s3-fs-base"))
     implementation(Libs.presto_hive)
     implementation(Libs.hadoop_apache2)

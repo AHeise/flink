@@ -1,5 +1,3 @@
-import org.gradle.plugins.ide.idea.model.IdeaLanguageLevel
-
 buildscript {
     repositories {
         mavenCentral()
@@ -21,6 +19,12 @@ allprojects {
 subprojects {
     apply(plugin = "java-library")
 
+    configurations.register("testApi") {
+        extendsFrom(configurations["api"])
+        configurations["testImplementation"].extendsFrom(this)
+        isTransitive = true
+    }
+
     configure<JavaPluginConvention> {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -30,9 +34,12 @@ subprojects {
         options.encoding = "UTF-8"
     }
 
+    tasks.withType<ScalaCompile> {
+        options.encoding = "UTF-8"
+    }
+
     repositories {
         mavenCentral()
-        mavenLocal()
         maven(url = "https://packages.confluent.io/maven/")
     }
 

@@ -1,6 +1,7 @@
 dependencies {
     implementation(project(":flink-connectors:flink-connector-elasticsearch6"))
-    compileOnly(project(":flink-streaming-java"))
+    implementation(project(":flink-streaming-java"))
+//    implementation(Libs.http)
 }
 
 description = "flink-elasticsearch6-test"

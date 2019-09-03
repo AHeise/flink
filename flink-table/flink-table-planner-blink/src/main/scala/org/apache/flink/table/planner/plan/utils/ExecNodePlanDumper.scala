@@ -61,7 +61,7 @@ object ExecNodePlanDumper {
       withOutputType: Boolean = false,
       withResource: Boolean = false): String = {
     doConvertTreeToString(
-      node,
+      null, // TODO: gradle
       detailLevel = detailLevel,
       withExecNodeId = withExecNodeId,
       withRetractTraits = withRetractTraits,

@@ -63,8 +63,6 @@ object Versions {
 
   const val okhttp: String = "3.7.0" // available: "4.1.0"
 
-  const val chill2_11: String = "0.7.6"
-
   const val chill_2_11: String = "0.7.6" // available: "0.9.3"
 
   const val hbc_core: String = "2.2.0"
@@ -193,8 +191,6 @@ object Versions {
 
   const val org_elasticsearch_client: String = "6.3.1" // available: "7.3.0"
 
-  const val transport_netty4_client: String = "6.3.1" // available: "7.3.0"
-
   const val elasticsearch: String = "2.3.5" // available: "7.3.0"
 
   const val hamcrest_all: String = "1.3"
@@ -220,11 +216,13 @@ object Versions {
   // updated from 1.16.22 to 1.18.2 because of https://github.com/rzwitserloot/lombok/issues/1716
   const val lombok: String = "1.18.2" // available: "1.18.8"
 
-  const val reflections: String = "0.9.8" // available: "0.9.11"
+  const val reflections: String = "0.9.10" // available: "0.9.11"
 
   const val org_scala_lang: String = "2.11.12" // available: "2.13.0"
 
   const val org_scalatest: String = "3.0.0"
+
+  const val scala_parser_combinators_2_11: String = "1.1.1"
 
   const val irclib: String = "1.10"
 

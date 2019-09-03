@@ -1,9 +1,10 @@
 dependencies {
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(":flink-streaming-java"))
-    compileOnly(project(":flink-runtime"))
-    compileOnly(project(":flink-clients"))
-    compileOnly(Libs.commons_cli)
+    implementation(project(":flink-runtime"))
+    implementation(project(":flink-clients"))
+    implementation(Libs.commons_cli)
+    testImplementation(Libs.flink_shaded_guava)
 }
 
 description = "flink-container"

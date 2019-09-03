@@ -417,6 +417,16 @@ object Libs {
    */
   const val hbase_server: String = "org.apache.hbase:hbase-server:" + Versions.org_apache_hbase
 
+    /**
+     * https://hbase.apache.org
+     */
+    const val hbase_client: String = "org.apache.hbase:hbase-client:" + Versions.org_apache_hbase
+
+    /**
+     * https://hbase.apache.org
+     */
+    const val hbase_common: String = "org.apache.hbase:hbase-common:" + Versions.org_apache_hbase
+
   /**
    * http://maven.apache.org
    */
@@ -454,7 +464,7 @@ object Libs {
   /**
    * https://kafka.apache.org
    */
-  const val kafka_2_11: String = "org.apache.kafka:kafka_2.11:" + Versions.kafka_2_11
+  const val kafka_2_11: String = "org.apache.kafka:kafka_2.11:" + Versions.kafka
 
   const val log4j_: String = "org.apache.logging.log4j:log4j-:" + Versions.log4j_
 
@@ -528,8 +538,14 @@ object Libs {
   /**
    * https://github.com/elastic/elasticsearch
    */
+  const val transport_netty3_client: String = "org.elasticsearch.plugin:transport-netty3-client:" +
+          Versions.org_elasticsearch_client
+
+  /**
+   * https://github.com/elastic/elasticsearch
+   */
   const val transport_netty4_client: String = "org.elasticsearch.plugin:transport-netty4-client:" +
-      Versions.transport_netty4_client
+      Versions.org_elasticsearch_client
 
   /**
    * https://github.com/elastic/elasticsearch
@@ -611,15 +627,12 @@ object Libs {
 
   const val scala_r: String = "org.scala-lang:scala-r:" + Versions.org_scala_lang
 
+  const val scala_parser_combinators_2_11: String = "org.scala-lang.modules:scala-parser-combinators_2.11:" + Versions.scala_parser_combinators_2_11
+
   /**
    * https://www.scala-lang.org/
    */
   const val scala_reflect: String = "org.scala-lang:scala-reflect:" + Versions.org_scala_lang
-
-  /**
-   * http://www.artima.com/scalatest/
-   */
-  const val scalatest: String = "org.scalatest:scalatest:" + Versions.org_scalatest
 
   /**
    * http://www.scalatest.org

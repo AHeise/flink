@@ -1,9 +1,11 @@
 dependencies {
-    compileOnly(Libs.flink_shaded_jackson)
-    compileOnly(project(":flink-core"))
+    api(project(":flink-core"))
+    api(project(":flink-table:flink-table-common"))
+    api(Libs.flink_shaded_jackson)
+
+    compileOnly(project(":flink-annotations"))
+
     testImplementation(project(":flink-core"))
-    implementation(project(":flink-annotations"))
-    compileOnly(project(":flink-table:flink-table-common"))
     testImplementation(project(path = ":flink-table:flink-table-common", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
