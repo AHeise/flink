@@ -8,7 +8,7 @@ dependencies {
     api(project(":flink-core"))
     api(Libs.kryo)
 
-    implementation(project(":flink-annotations"))
+    compileOnly(project(":flink-annotations"))
     implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
     implementation(Libs.flink_shaded_asm_6)

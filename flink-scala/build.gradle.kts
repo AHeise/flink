@@ -11,7 +11,7 @@ dependencies {
     implementation(Libs.slf4j_api)
     implementation(project(":flink-core"))
     implementation(project(":flink-java"))
-    implementation(project(":flink-annotations"))
+    compileOnly(project(":flink-annotations"))
     implementation(project(":flink-metrics:flink-metrics-core"))
     implementation(Libs.flink_shaded_guava)
     implementation(Libs.scala_reflect)

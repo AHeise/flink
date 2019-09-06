@@ -4,7 +4,7 @@ dependencies {
     testImplementation(project(":flink-core"))
     testImplementation(project(":flink-runtime"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    implementation(project(":flink-annotations"))
+    compileOnly(project(":flink-annotations"))
     implementation(project(":flink-metrics:flink-metrics-core"))
 }
 

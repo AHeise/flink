@@ -1,5 +1,5 @@
 dependencies {
-    implementation(project(":flink-annotations"))
+    compileOnly(project(":flink-annotations"))
     implementation(project(":flink-core"))
     implementation(project(":flink-runtime"))
     implementation(project(":flink-metrics:flink-metrics-core"))

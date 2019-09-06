@@ -8,7 +8,7 @@ dependencies {
     api(Libs.avro)
     api(project(":flink-core"))
 
-    implementation(project(":flink-annotations"))
+    compileOnly(project(":flink-annotations"))
     implementation(project(":flink-table:flink-table-common"))
     implementation(Libs.joda_time)
     implementation(Libs.jsr305)

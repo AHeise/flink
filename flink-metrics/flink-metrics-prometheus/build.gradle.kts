@@ -5,7 +5,7 @@ dependencies {
     testImplementation(project(":flink-metrics:flink-metrics-core", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(Libs.unirest_java)
-    implementation(project(":flink-annotations"))
+    compileOnly(project(":flink-annotations"))
     implementation(project(":flink-core"))
     implementation(project(":flink-runtime"))
     implementation(project(":flink-metrics:flink-metrics-core"))

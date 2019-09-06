@@ -2,7 +2,7 @@ dependencies {
     implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
     implementation(project(":flink-core"))
-    implementation(project(":flink-annotations"))
+    compileOnly(project(":flink-annotations"))
     api(Libs.flink_shaded_hadoop_2)
     implementation(Libs.commons_lang3)
     testImplementation("${Libs.hadoop_hdfs}:tests")

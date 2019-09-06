@@ -1,6 +1,7 @@
 // allow plugins to be downloaded from the following repositories
 pluginManagement {
     repositories {
+        mavenCentral()
         gradlePluginPortal()
         // needed for avro plugin
         jcenter()
