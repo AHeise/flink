@@ -14,6 +14,8 @@ import org.gradle.plugin.use.PluginDependencySpec
 object Versions {
 
   const val baseScala: String = "2.11"
+  
+  const val flink_shaded_version: String = "8.0"
 
   const val zkclient: String = "0.7" // available: "0.11"
 
@@ -117,19 +119,21 @@ object Versions {
 
   const val derby: String = "10.14.2.0" // available: "10.15.1.3"
 
-  const val flink_shaded_asm_6: String = "6.2.1-7.0"
+  const val flink_shaded_asm_6: String = "6.2.1-${flink_shaded_version}"
 
-  const val flink_shaded_guava: String = "18.0-7.0"
+  const val flink_shaded_asm_7: String = "7.1-${flink_shaded_version}"
 
-  const val flink_shaded_hadoop_2: String = "2.4.1-7.0"
+  const val flink_shaded_guava: String = "18.0-${flink_shaded_version}"
 
-  const val flink_shaded_jackson_module_jsonschema: String = "2.9.8-7.0"
+  const val flink_shaded_hadoop_2: String = "2.4.1-${flink_shaded_version}"
 
-  const val flink_shaded_jackson: String = "2.9.8-7.0"
+  const val flink_shaded_jackson_module_jsonschema: String = "2.9.8-${flink_shaded_version}"
 
-  const val flink_shaded_netty_tcnative_dynamic: String = "2.0.25.Final-7.0"
+  const val flink_shaded_jackson: String = "2.9.8-${flink_shaded_version}"
 
-  const val flink_shaded_netty: String = "4.1.32.Final-7.0"
+  const val flink_shaded_netty_tcnative_dynamic: String = "2.0.25.Final-${flink_shaded_version}"
+
+  const val flink_shaded_netty: String = "4.1.39.Final-${flink_shaded_version}"
 
   const val hadoop_aliyun: String = "3.1.0" // available: "3.2.0"
 
@@ -176,6 +180,8 @@ object Versions {
   const val log4j_to_slf4j: String = "2.9.1" // available: "2.12.1"
 
   const val mesos: String = "1.0.1" // available: "1.8.1"
+
+  const val netlib: String = "1.1.2"
 
   const val nifi_site_to_site_client: String = "1.6.0" // available: "1.9.2"
 

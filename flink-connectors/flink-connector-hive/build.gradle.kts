@@ -15,6 +15,7 @@ dependencies {
     testImplementation(project(":flink-table:flink-table-api-java", configuration = "testArtifacts"))
     testImplementation(project(":flink-table:flink-table-planner-blink", configuration = "testArtifacts"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-table:flink-table-planner"))
     testImplementation(project(":flink-java"))
     testImplementation(project(":flink-clients"))

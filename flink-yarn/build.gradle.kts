@@ -4,6 +4,7 @@ dependencies {
     implementation(project(":flink-filesystems:flink-hadoop-fs"))
     implementation(Libs.flink_shaded_hadoop_2)
     implementation(Libs.commons_lang3)
+
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(":flink-runtime", configuration = "testArtifacts"))
@@ -13,3 +14,5 @@ dependencies {
 }
 
 description = "flink-yarn"
+
+flinkCreateTestJar()

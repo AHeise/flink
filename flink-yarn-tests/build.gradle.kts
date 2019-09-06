@@ -4,7 +4,7 @@ dependencies {
     testImplementation(project(":flink-dist"))
     testImplementation(project(":flink-clients", configuration = "testArtifacts"))
     testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
-    testImplementation(project(":flink-yarn"))
+    testImplementation(project(":flink-yarn", configuration = "testArtifacts"))
     testImplementation(project(":flink-examples:flink-examples-batch"))
     testImplementation(project(":flink-examples:flink-examples-streaming"))
     testImplementation(Libs.hadoop_common)

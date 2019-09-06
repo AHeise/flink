@@ -1,7 +1,9 @@
 description = "flink-metrics-core"
 
 dependencies {
-    testImplementation(Libs.junit)
     implementation(Libs.slf4j_api)
+
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
+    testImplementation(Libs.junit)
 }
 flinkCreateTestJar()

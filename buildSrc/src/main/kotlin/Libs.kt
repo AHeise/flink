@@ -331,8 +331,9 @@ object Libs {
   /**
    * http://flink.apache.org
    */
-  const val flink_shaded_asm_6: String = "org.apache.flink:flink-shaded-asm-6:" +
-      Versions.flink_shaded_asm_6
+
+  const val flink_shaded_asm: String = "org.apache.flink:flink-shaded-asm-7:" +
+      Versions.flink_shaded_asm_7
 
   /**
    * http://flink.apache.org
@@ -466,8 +467,6 @@ object Libs {
    */
   const val kafka_2_11: String = "org.apache.kafka:kafka_2.11:" + Versions.kafka
 
-  const val log4j_: String = "org.apache.logging.log4j:log4j-:" + Versions.log4j_
-
   /**
    * https://logging.apache.org/log4j/2.x/
    */
@@ -483,6 +482,8 @@ object Libs {
    * http://mesos.apache.org
    */
   const val mesos: String = "org.apache.mesos:mesos:" + Versions.mesos
+
+  const val netlib_core: String = "com.github.fommil.netlib:core:" + Versions.netlib
 
   /**
    * http://nifi.apache.org

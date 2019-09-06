@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     // for some reasons scala compiler requires everything in a method signature to be in the classpath even though it's only used in private methods...
-    api(Libs.flink_shaded_asm_6)
+    api(Libs.flink_shaded_asm)
     api(Libs.commons_lang3)
     api(Libs.scala_library)
 

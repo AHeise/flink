@@ -10,11 +10,11 @@ import org.gradle.jvm.tasks.Jar
 
 import org.gradle.kotlin.dsl.*
 
-//import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-//import com.github.jengelman.gradle.plugins.shadow.transformers.*
-//import org.gradle.api.file.FileTreeElement
-//import org.gradle.api.tasks.util.PatternSet
-//import org.apache.tools.zip.ZipOutputStream
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.*
+import org.gradle.api.file.FileTreeElement
+import org.gradle.api.tasks.util.PatternSet
+import org.apache.tools.zip.ZipOutputStream
 
 /**
  * Configures the current project to provide a test jar under the
@@ -92,38 +92,40 @@ fun Project.flinkExclude(group: String? = null, name: String? = null) {
         exclude(group = group, module = name)
     }
 }
-//
-//inline fun ShadowJar.flinkInclude(spec: Spec<in ResolvedDependency>, noinline configuration: PatternFilterable.() -> Unit) {
-//    dependencies {
-//        include(spec)
-//    }
-//    val patternSpec = PatternSet()
-//    configuration(patternSpec)
-//    transform(FilteringResourceTransformer(patternSpec.getAsSpec()))
-//}
-//
-//data class FilteringResourceTransformer(val spec: Spec<FileTreeElement>) : Transformer {
-//    override fun canTransformResource(element: FileTreeElement): Boolean {
-////        def path = element.relativePath.pathString
-////                if (path.endsWith(resource)) {
-////                    return true
-////                }
-//
-//        return false
-//    }
-//
-//    override fun transform(context: TransformerContext): Unit {
-//        // no op
-//    }
-//
-//    override fun hasTransformedResource(): Boolean {
-//        return false
-//    }
-//
-//    override fun modifyOutputStream(os: ZipOutputStream, preserveFileTimestamps: Boolean): Unit {
-//        // no op
-//    }
-//}
+
+inline fun ShadowJar.flinkInclude(spec: Spec<in ResolvedDependency>, noinline configuration: PatternFilterable.() -> Unit) {
+    dependencies {
+        include(spec)
+    }
+    val patternSpec = PatternSet()
+    configuration(patternSpec)
+    transform(FilteringResourceTransformer(patternSpec.getAsSpec()))
+}
+
+data class FilteringResourceTransformer(val spec: Spec<FileTreeElement>) : Transformer {
+    override fun canTransformResource(element: FileTreeElement): Boolean {
+        val path = element.relativePath.pathString
+        println("Checking $element")
+        if (spec.isSatisfiedBy(element)) {
+            println("Satisfied by $element")
+//            return true
+        }
+
+        return false
+    }
+
+    override fun transform(context: TransformerContext): Unit {
+        // no op
+    }
+
+    override fun hasTransformedResource(): Boolean {
+        return false
+    }
+
+    override fun modifyOutputStream(p0: shadow.org.apache.tools.zip.ZipOutputStream?, p1: Boolean) {
+
+    }
+}
 
 /**
  * Configures the current project to first compile Scala, then Java. The default order is the other

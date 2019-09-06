@@ -11,7 +11,7 @@ dependencies {
     compileOnly(project(":flink-annotations"))
     implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
-    implementation(Libs.flink_shaded_asm_6)
+    implementation(Libs.flink_shaded_asm)
     implementation(Libs.commons_lang3)
     implementation(Libs.commons_math3)
 

@@ -14,7 +14,7 @@ dependencies {
     implementation(Libs.commons_io)
     implementation(Libs.flink_shaded_netty)
     implementation(Libs.flink_shaded_guava)
-    implementation(Libs.flink_shaded_asm_6)
+    implementation(Libs.flink_shaded_asm)
     implementation(Libs.flink_shaded_jackson)
     implementation(Libs.commons_lang3)
     implementation(Libs.commons_cli)

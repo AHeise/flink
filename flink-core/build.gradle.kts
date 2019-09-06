@@ -4,12 +4,12 @@ dependencies {
     implementation(Libs.slf4j_api)
     implementation(Libs.jsr305)
     implementation(project(":flink-metrics:flink-metrics-core"))
-    implementation(Libs.flink_shaded_asm_6)
     implementation(Libs.commons_lang3)
     implementation(Libs.kryo)
     implementation(Libs.commons_collections)
     implementation(Libs.commons_compress)
     implementation(Libs.flink_shaded_guava)
+    implementation(Libs.flink_shaded_asm)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(Libs.commons_io)
