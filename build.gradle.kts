@@ -1,10 +1,20 @@
+import com.gradle.scan.plugin.BuildScanExtension
+import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact
+
 plugins {
     id("de.fayard.buildSrcVersions") version "0.4.2"
-    id("com.gradle.build-scan") version "2.1"
+    id("com.gradle.build-scan") version "2.1" apply false
     id("org.nosphere.apache.rat") version "0.5.2"
 }
 
-apply("$rootDir/gradle/dependencies.gradle")
+if (!gradle.startParameter.isOffline) {
+    apply(plugin = "com.gradle.build-scan")
+
+    configure<BuildScanExtension> {
+        termsOfServiceUrl = "https://gradle.com/terms-of-service"
+        termsOfServiceAgree = "yes"
+    }
+}
 
 allprojects {
     group = "org.apache.flink"
@@ -12,13 +22,13 @@ allprojects {
 }
 
 subprojects {
+    if(project.subprojects.isNotEmpty()) {
+        return@subprojects
+    }
     apply(plugin = "java-library")
 
-    configurations.register("testApi") {
-        extendsFrom(configurations["api"])
-        configurations["testImplementation"].extendsFrom(this)
-        isTransitive = true
-    }
+    flinkSetupScalaIfNeeded()
+    flinkRegisterTestApi()
 
     configure<JavaPluginConvention> {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -36,10 +46,6 @@ subprojects {
     repositories {
         mavenCentral()
         maven(url = "https://packages.confluent.io/maven/")
-    }
-
-    tasks.withType<JavaCompile>().configureEach {
-        options.encoding = "UTF-8"
     }
 
     dependencies {
@@ -64,28 +70,13 @@ subprojects {
         include("**/*Test.*")
     }
 
-    tasks.withType<Jar> {
-        exclude("log4j.properties", "log4j-test.properties")
-    }
-    // force reproducible builds; https://docs.gradle.org/5.6/userguide/working_with_files.html#sec:reproducible_archives
-    tasks.withType<AbstractArchiveTask>().configureEach {
-        isPreserveFileTimestamps = false
-        isReproducibleFileOrder = true
-    }
-
-    tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>().configureEach {
-        mergeServiceFiles()
-        transform(com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer().apply {
-            projectName = "Apache Flink"
-        })
-    }
+    flinkSetupPublising()
 }
 
 tasks.rat {
-    excludeFile.set(file("$rootDir/.gitignore"))
-}
-
-buildScan {
-    termsOfServiceUrl = "https://gradle.com/terms-of-service"
-    termsOfServiceAgree = "yes"
+    file("$rootDir/.gitignore").forEachLine { exclude(it) }
+    file("$rootDir/tools/rat.excludes").useLines { lines ->
+        lines.filterNot { it.startsWith("#") || it.isEmpty() }
+                .forEach { exclude(it) }
+    }
 }

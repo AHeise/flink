@@ -31,7 +31,7 @@ import org.apache.hadoop.mapreduce.{Job, InputFormat => MapreduceInputFormat}
   * It provides methods to create Flink InputFormat wrappers for Hadoop
   * [[org.apache.hadoop.mapred.InputFormat]] and [[org.apache.hadoop.mapreduce.InputFormat]].
   *
-  * Key value pairs produced by the Hadoop InputFormats are converted into [[Tuple2]] where
+  * Key value pairs produced by the Hadoop InputFormats are converted into [[scala.Tuple2]] where
   * the first field is the key and the second field is the value.
   *
   */
