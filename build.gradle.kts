@@ -27,7 +27,6 @@ subprojects {
     }
     apply(plugin = "java-library")
 
-    flinkSetupScalaIfNeeded()
     flinkRegisterTestApi()
 
     configure<JavaPluginConvention> {
@@ -71,6 +70,7 @@ subprojects {
     }
 
     flinkSetupPublising()
+    flinkSetupScalaIfNeeded()
 }
 
 tasks.rat {

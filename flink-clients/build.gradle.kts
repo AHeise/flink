@@ -7,7 +7,7 @@ dependencies {
     implementation(Libs.scala_library) // we need this because ClusterClient uses FiniteDuration
     implementation(Libs.flink_shaded_netty) // we need this because RestClusterClient uses netty classes
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(project(path = ":flink-runtime", configuration = "testArtifacts"))
+    testImplementation(project(":flink-runtime", configuration = "testArtifacts"))
 }
 
 description = "flink-clients"

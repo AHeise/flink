@@ -1,40 +1,30 @@
 import org.gradle.api.Project
-import org.gradle.api.Task
-import org.gradle.api.artifacts.Dependency
-import org.gradle.api.artifacts.ResolvedDependency
-import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.specs.Spec
-import org.gradle.api.tasks.ScalaSourceSet
 import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.api.tasks.util.PatternFilterable
 import org.gradle.jvm.tasks.Jar
 
 import org.gradle.kotlin.dsl.*
 
-import org.gradle.api.artifacts.PublishArtifact
 import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.TaskProvider
-import org.gradle.api.tasks.bundling.AbstractArchiveTask
 import org.gradle.api.tasks.javadoc.Javadoc
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
-import org.gradle.api.component.AdhocComponentWithVariants
-import org.gradle.api.component.ComponentWithVariants
-import org.gradle.api.plugins.internal.JavaConfigurationVariantMapping
-import org.gradle.api.tasks.scala.ScalaDoc
+import groovy.util.Node
+import groovy.util.NodeList
+import org.gradle.api.artifacts.*
+import org.gradle.api.attributes.Attribute
 
 /**
  * Some "constants" as extension properties.
  */
-val Project.TEST_JAR: String
-    get() = "testJar"
+val TEST_JAR = "testJar"
 
-val Project.TEST_ARTIFACTS: String
-    get() = "testArtifacts"
+val TEST_ARTIFACTS = "testArtifacts"
 
+val CLASSIFIER_ATTRIBUTE = Attribute.of("classifier", String::class.java)
 /**
  * Configures the current project to provide a test jar under the
  * "testArtifacts" configuration.
@@ -44,6 +34,10 @@ fun Project.flinkCreateTestJar() {
         extendsFrom(configurations["testRuntime"])
         extendsFrom(configurations["testApi"])
         extendsFrom(configurations["api"])
+
+        attributes {
+            attribute(CLASSIFIER_ATTRIBUTE, "test")
+        }
     }
 
     val testJar by tasks.register<Jar>(TEST_JAR) {
@@ -57,21 +51,16 @@ fun Project.flinkCreateTestJar() {
     }
 
     configure<PublishingExtension> {
-        publications {
-            named("main", MavenPublication::class) {
-                val additionalTestDependenies = configurations["testRuntimeClasspath"].dependencies - configurations["runtimeClasspath"].dependencies
-                if(additionalTestDependenies.isNotEmpty()) {
-                    pom.withXml {
-                        asNode().appendNode("dependencies").let { depNode ->
-                            additionalTestDependenies.forEach {
-                                depNode.appendNode("dependency").apply {
-                                    appendNode("groupId", it.group)
-                                    appendNode("artifactId", it.name)
-                                    appendNode("version", it.version)
-                                    appendNode("scope", "test")
-                                }
-                            }
-                        }
+        publications.named("main", MavenPublication::class) {
+            pom.withXml {
+                val root = asNode()
+                val dependencies = (root.get("dependencies") as NodeList?)?.get(0) as Node?
+                (dependencies ?: root.appendNode("dependencies")).let { depNode ->
+                    val additionalTestDependenies = configurations["testRuntimeClasspath"].allDependencies -
+                            configurations["runtimeClasspath"].allDependencies
+
+                    additionalTestDependenies.forEach { dependency ->
+                        addTestDependency(depNode, dependency)
                     }
                 }
             }
@@ -79,7 +68,41 @@ fun Project.flinkCreateTestJar() {
     }
 }
 
-fun Project.flinkSetupPublising() {
+private fun Project.addTestDependency(depNode: Node, dependency: Dependency?) {
+    depNode.appendNode("dependency").apply {
+        when (dependency) {
+            is ProjectDependency -> {
+                val classifier = dependency.targetConfiguration?.let {
+                    configurations[it].attributes.getAttribute(CLASSIFIER_ATTRIBUTE)
+                }
+                appendDependency(dependency, classifier = classifier)
+            }
+            is ExternalModuleDependency -> {
+                if (dependency.artifacts.isEmpty()) {
+                    appendDependency(dependency)
+                } else {
+                    for (artifact in dependency.artifacts) {
+                        appendDependency(dependency, extension = artifact.extension, classifier = artifact.classifier)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+private fun Node.appendDependency(dependency: ModuleDependency, extension: String? = null,
+                                   classifier: String? = null) {
+    appendNode("groupId", dependency.group)
+    appendNode("artifactId", dependency.name)
+    appendNode("version", dependency.version)
+    appendNode("scope", "test")
+    extension?.also { appendNode("packaging", it) }
+    classifier?.also { appendNode("classifier", it) }
+}
+
+
+    fun Project.flinkSetupPublising() {
     apply(plugin = "maven-publish")
 
     // build jar containing all (main) source files
@@ -129,6 +152,7 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     apply(plugin = "com.github.johnrengelman.shadow")
 
     val shadowJar by tasks.existing(ShadowJar::class) {
+        // remove 'all' classifier, we want to replace the original jar by the shaded version
         archiveClassifier.set(null as String?)
         // publish still uses old classifier
         classifier = null
