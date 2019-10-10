@@ -6,3 +6,10 @@ dependencies {
 }
 
 description = "flink-connector-twitter"
+
+tasks.withType<ShadowJar> {
+    relocate("com.google", "org.apache.flink.twitter.shaded.com.google") {
+        exclude("com.google.protobuf.**")
+        exclude("com.google.inject.**")
+    }
+}

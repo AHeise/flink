@@ -4,3 +4,5 @@ dependencies {
 }
 
 description = "flink-elasticsearch2-test"
+
+flinkSetMainClass("org.apache.flink.streaming.tests.Elasticsearch2SinkExample")

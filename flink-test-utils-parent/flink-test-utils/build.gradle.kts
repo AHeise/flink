@@ -28,11 +28,12 @@ licenseReport {
 //    filters = arrayOf<com.github.jk1.license.filter.DependencyFilter>(com.github.jk1.license.filter.LicenseBundleNormalizer())
 }
 
-tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>().configureEach {
-    // TODO: gradle: check if this is actually helping at all; it's not a direct dependency, so the shaded stuff is only partially used
-    relocate("org.jboss.netty", "org.apache.flink.shaded.testutils.org.jboss.netty")
-    exclude("META-INF/maven/io.netty/**")
+tasks.withType<ShadowJar>().configureEach {
     dependencies {
         include(dependency("io.netty:netty"))
     }
+
+    // TODO: gradle: check if this is actually helping at all; it's not a direct dependency, so the shaded stuff is only partially used
+    relocate("org.jboss.netty", "org.apache.flink.shaded.testutils.org.jboss.netty")
+    exclude("META-INF/maven/io.netty/**")
 }

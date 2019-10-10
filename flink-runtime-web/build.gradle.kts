@@ -15,3 +15,5 @@ dependencies {
 }
 
 description = "flink-runtime-web"
+
+flinkSetMainClass("org.apache.flink.runtime.webmonitor.testutils.ParameterProgram")

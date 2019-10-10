@@ -15,3 +15,14 @@ dependencies {
 }
 
 description = "flink-s3-fs-hadoop"
+
+tasks.withType<ShadowJar> {
+    //  relocate the references to Hadoop to match the shaded Hadoop config
+    relocate("org.apache.hadoop", "org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop")
+    //  relocate the AWS dependencies
+    relocate("com.amazon", "org.apache.flink.fs.s3base.shaded.com.amazon")
+    //  relocated S3 hadoop dependencies
+    relocate("javax.xml.bind", "org.apache.flink.fs.s3hadoop.shaded.javax.xml.bind")
+    //  shade Flink's Hadoop FS utility classes
+    relocate("org.apache.flink.runtime.util", "org.apache.flink.fs.s3hadoop.common")
+}

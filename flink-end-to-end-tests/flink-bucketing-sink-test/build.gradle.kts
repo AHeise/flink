@@ -5,3 +5,5 @@ dependencies {
 }
 
 description = "flink-bucketing-sink-test"
+
+flinkSetMainClass("org.apache.flink.streaming.tests.BucketingSinkTestProgram")

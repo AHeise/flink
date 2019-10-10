@@ -5,3 +5,5 @@ dependencies {
 }
 
 description = "flink-stream-state-ttl-test"
+
+flinkSetMainClass("org.apache.flink.streaming.tests.DataStreamStateTTLTestProgram")

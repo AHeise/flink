@@ -8,3 +8,8 @@ dependencies {
 }
 
 description = "flink-metrics-datadog"
+
+tasks.withType<ShadowJar> {
+    relocate("okhttp3", "org.apache.flink.shaded.okhttp3")
+    relocate("okio", "org.apache.flink.shaded.okio")
+}

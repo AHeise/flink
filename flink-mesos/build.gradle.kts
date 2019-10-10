@@ -25,3 +25,8 @@ dependencies {
 description = "flink-mesos"
 
 flinkJointScalaJavaCompilation()
+
+tasks.withType<ShadowJar> {
+    relocate("com.google.protobuf", "org.apache.flink.mesos.shaded.com.google.protobuf")
+    relocate("com.fasterxml.jackson", "org.apache.flink.mesos.shaded.com.fasterxml.jackson")
+}

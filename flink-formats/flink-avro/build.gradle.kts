@@ -1,5 +1,3 @@
-import com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask
-
 plugins {
     id("com.commercehub.gradle.plugin.avro") version "0.15.1"
 }
@@ -9,6 +7,7 @@ dependencies {
     api(project(":flink-core"))
 
     compileOnly(project(":flink-annotations"))
+
     implementation(project(":flink-table:flink-table-common"))
     implementation(Libs.joda_time)
     implementation(Libs.jsr305)
@@ -25,7 +24,7 @@ dependencies {
 
 description = "flink-avro"
 
-tasks.withType<GenerateAvroJavaTask>().named("generateTestAvroJava") {
+tasks.withType<com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask>().named("generateTestAvroJava") {
     setSource(file("src/test/resources/avro"))
     stringType = "CharSequence"
     setEnableDecimalLogicalType("false")

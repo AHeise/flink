@@ -41,3 +41,26 @@ tasks.withType<ScalaCompile>().configureEach {
 
 flinkJointScalaJavaCompilation()
 flinkCreateTestJar()
+
+tasks.withType<ShadowJar> {
+    exclude("org-apache-calcite-jdbc.properties")
+    exclude("common.proto")
+    exclude("requests.proto")
+    exclude("responses.proto")
+    exclude("codegen/**")
+    exclude("META-INF/services/java.sql.Driver")
+
+
+    //  Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig
+    // relocate("org.apache.calcite", "org.apache.flink.calcite.shaded.org.apache.calcite")
+
+    //  Calcite's dependencies
+    relocate("com.google", "org.apache.flink.calcite.shaded.com.google")
+    relocate("com.jayway", "org.apache.flink.calcite.shaded.com.jayway")
+    relocate("com.fasterxml", "org.apache.flink.calcite.shaded.com.fasterxml")
+    relocate("org.apache.commons.codec", "org.apache.flink.calcite.shaded.org.apache.commons.codec")
+
+    //  flink-table-planner dependencies
+    //  not relocated for now, because we need to change the contents of the properties field otherwise
+    // relocate("org.codehaus", "org.apache.flink.table.shaded.org.codehaus")
+}

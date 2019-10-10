@@ -6,3 +6,5 @@ dependencies {
 }
 
 description = "flink-state-evolution-test"
+
+flinkSetMainClass("org.apache.flink.test.StatefulStreamingJob")

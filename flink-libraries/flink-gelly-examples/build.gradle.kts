@@ -15,3 +15,5 @@ dependencies {
 }
 
 description = "flink-gelly-examples"
+
+flinkSetMainClass("org.apache.flink.graph.Runner")

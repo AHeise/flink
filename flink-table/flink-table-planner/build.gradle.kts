@@ -28,5 +28,31 @@ dependencies {
 description = "flink-table-planner"
 
 flinkJointScalaJavaCompilation()
-
 flinkCreateTestJar()
+
+tasks.withType<ShadowJar> {
+    // excluded all these files for a clean flink-table-planner jar
+    exclude("org-apache-calcite-jdbc.properties")
+    exclude("common.proto")
+    exclude("requests.proto")
+    exclude("responses.proto")
+    exclude("codegen/**")
+    exclude("META-INF/*.SF")
+    exclude("META-INF/*.DSA")
+    exclude("META-INF/*.RSA")
+    exclude("META-INF/services/java.sql.Driver")
+
+    //  Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig
+    // relocate("org.apache.calcite", "org.apache.flink.calcite.shaded.org.apache.calcite")
+
+    //  Calcite's dependencies
+    relocate("com.google", "org.apache.flink.calcite.shaded.com.google")
+    relocate("com.jayway", "org.apache.flink.calcite.shaded.com.jayway")
+    relocate("com.fasterxml", "org.apache.flink.calcite.shaded.com.fasterxml")
+    relocate("org.apache.commons.codec", "org.apache.flink.calcite.shaded.org.apache.commons.codec")
+
+    //  flink-table-planner dependencies
+    relocate("org.joda", "org.apache.flink.table.shaded.org.joda")
+    //  not relocated for now, because we need to change the contents of the properties field otherwise
+    // relocate("org.codehaus", "org.apache.flink.table.shaded.org.codehaus")
+}

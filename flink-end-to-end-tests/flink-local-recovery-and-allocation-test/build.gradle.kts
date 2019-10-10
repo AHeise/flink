@@ -5,3 +5,5 @@ dependencies {
 }
 
 description = "flink-local-recovery-and-allocation-test"
+
+flinkSetMainClass("org.apache.flink.streaming.tests.StickyAllocationAndLocalRecoveryTestJob")

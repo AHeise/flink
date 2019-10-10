@@ -4,3 +4,5 @@ dependencies {
 }
 
 description = "flink-stream-sql-test"
+
+flinkSetMainClass("org.apache.flink.sql.tests.StreamSQLTestProgram")

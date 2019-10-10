@@ -13,3 +13,7 @@ dependencies {
 }
 
 description = "flink-metrics-prometheus"
+
+tasks.withType<ShadowJar> {
+    relocate("io.prometheus.client", "org.apache.flink.shaded.io.prometheus.client")
+}

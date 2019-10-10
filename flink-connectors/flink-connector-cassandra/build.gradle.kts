@@ -16,3 +16,13 @@ dependencies {
 }
 
 description = "flink-connector-cassandra"
+
+tasks.withType<ShadowJar> {
+
+    relocate("com.google", "org.apache.flink.cassandra.shaded.com.google") {
+        exclude("com.google.protobuf.**")
+        exclude("com.google.inject.**")
+    }
+    //  Relocate to datastax' package where it expects shaded netty versions; see https://issues.apache.org/jira/browse/FLINK-8295
+    relocate("io.netty", "com.datastax.shaded.netty")
+}

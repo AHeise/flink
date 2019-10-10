@@ -5,3 +5,5 @@ dependencies {
 }
 
 description = "flink-batch-sql-test"
+
+flinkSetMainClass("org.apache.flink.sql.tests.BatchSQLTestProgram")

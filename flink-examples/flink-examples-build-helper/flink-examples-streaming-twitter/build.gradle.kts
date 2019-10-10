@@ -3,3 +3,5 @@ dependencies {
 }
 
 description = "flink-examples-streaming-twitter"
+
+flinkSetMainClass("org.apache.flink.streaming.examples.twitter.TwitterExample")

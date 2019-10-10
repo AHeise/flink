@@ -1,5 +1,3 @@
-import com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask
-
 plugins {
     id("com.commercehub.gradle.plugin.avro") version "0.15.1"
 }
@@ -24,7 +22,7 @@ dependencies {
 
 description = "flink-parquet"
 
-tasks.withType<GenerateAvroJavaTask>().named("generateTestAvroJava") {
+tasks.withType<com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask>().named("generateTestAvroJava") {
     setSource(file("src/test/resources/avro"))
     stringType = "CharSequence"
 }

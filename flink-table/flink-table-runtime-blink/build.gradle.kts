@@ -20,3 +20,8 @@ dependencies {
 description = "flink-table-runtime-blink"
 
 flinkCreateTestJar()
+
+tasks.withType<ShadowJar> {
+    //  Relocate org.lz4:lz4-java
+    relocate("net.jpountz", "org.apache.flink.table.shaded.net.jpountz")
+}

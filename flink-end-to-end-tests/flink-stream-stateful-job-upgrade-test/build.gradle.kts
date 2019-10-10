@@ -4,3 +4,5 @@ dependencies {
 }
 
 description = "flink-stream-stateful-job-upgrade-test"
+
+flinkSetMainClass("org.apache.flink.streaming.tests.StatefulStreamJobUpgradeTestProgram")

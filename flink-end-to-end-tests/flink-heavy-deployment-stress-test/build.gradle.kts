@@ -5,3 +5,5 @@ dependencies {
 }
 
 description = "flink-heavy-deployment-stress-test"
+
+flinkSetMainClass("org.apache.flink.deployment.HeavyDeploymentStressTestProgram")

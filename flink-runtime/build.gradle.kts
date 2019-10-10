@@ -51,3 +51,27 @@ tasks.withType<Test> {
 
 flinkJointScalaJavaCompilation()
 flinkCreateTestJar()
+
+
+tasks.withType<ShadowJar> {
+    // io.netty:netty
+    // Only some of these licenses actually apply to the JAR and have been manually placed in this module's resources directory.
+    exclude("META-INF/license")
+    // Only parts of NOTICE file actually apply to the netty JAR and have been manually copied into this modules's NOTICE file.
+    exclude("META-INF/NOTICE.txt")
+    // *
+    exclude("META-INF/maven/io.netty/**")
+    exclude("META-INF/maven/org.uncommons.maths/**")
+
+    relocate("org.jboss.netty", "org.apache.flink.shaded.akka.org.jboss.netty")
+    relocate("org.uncommons.math", "org.apache.flink.shaded.akka.org.uncommons.math")
+    //  IMPORTANT: This must be kept in sync with flink-connector-kafka-0.8
+    relocate("org.apache.curator", "org.apache.flink.shaded.curator.org.apache.curator") {
+        // Do not relocate curator-test. This leads to problems for downstream users of runtime test classes that make
+        // use of it as the relocated dependency is not included in the test-jar.-->
+        exclude("org.apache.curator.test.**")
+    }
+    relocate("org.apache.zookeeper", "org.apache.flink.shaded.zookeeper.org.apache.zookeeper")
+    //  jute is already shaded into the ZooKeeper jar
+    relocate("org.apache.jute", "org.apache.flink.shaded.zookeeper.org.apache.zookeeper.jute")
+}

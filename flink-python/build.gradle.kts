@@ -11,3 +11,8 @@ dependencies {
 }
 
 description = "flink-python"
+
+tasks.withType<ShadowJar> {
+    relocate("py4j", "org.apache.flink.api.python.shaded.py4j")
+    relocate("net.razorvine", "org.apache.flink.api.python.shaded.net.razorvine")
+}

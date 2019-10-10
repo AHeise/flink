@@ -8,3 +8,5 @@ dependencies {
 }
 
 description = "flink-container"
+
+flinkSetMainClass("org.apache.flink.container.entrypoint.TestJob")

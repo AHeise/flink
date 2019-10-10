@@ -1,5 +1,4 @@
 import com.gradle.scan.plugin.BuildScanExtension
-import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact
 
 plugins {
     id("de.fayard.buildSrcVersions") version "0.4.2"
@@ -69,7 +68,7 @@ subprojects {
         include("**/*Test.*")
     }
 
-    flinkSetupPublising()
+    flinkSetupPublishing()
     flinkSetupScalaIfNeeded()
 }
 

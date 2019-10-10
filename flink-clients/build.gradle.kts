@@ -12,4 +12,5 @@ dependencies {
 
 description = "flink-clients"
 
-flinkCreateTestJar()
+flinkCreateTestJar("org.apache.flink.client.testjar.WordCount")
+

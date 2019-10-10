@@ -10,26 +10,34 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.javadoc.Javadoc
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
 import groovy.util.Node
 import groovy.util.NodeList
+import org.gradle.api.GradleException
+import org.gradle.api.Task
 import org.gradle.api.artifacts.*
+import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Attribute
+import org.gradle.api.file.FileCollection
+import org.gradle.api.plugins.JavaApplication
+import java.net.URLClassLoader
 
-/**
- * Some "constants" as extension properties.
- */
-val TEST_JAR = "testJar"
+// use typealias to keep customized shading options shorter
+typealias ShadowJar = com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-val TEST_ARTIFACTS = "testArtifacts"
+const val TEST_JAR = "testJar"
+
+const val TEST_ARTIFACTS = "testArtifacts"
 
 val CLASSIFIER_ATTRIBUTE = Attribute.of("classifier", String::class.java)
+
+fun DependencyHandler.shade(dependencyNotation: Any): Dependency? =
+        add("shade", dependencyNotation)
 /**
  * Configures the current project to provide a test jar under the
  * "testArtifacts" configuration.
  */
-fun Project.flinkCreateTestJar() {
+fun Project.flinkCreateTestJar(mainClass: String? = null) {
     configurations.create(TEST_ARTIFACTS) {
         extendsFrom(configurations["testRuntime"])
         extendsFrom(configurations["testApi"])
@@ -40,7 +48,13 @@ fun Project.flinkCreateTestJar() {
         }
     }
 
-    val testJar by tasks.register<Jar>(TEST_JAR) {
+    val testJar by tasks.register<ShadowJar>(TEST_JAR) {
+        if (mainClass != null) {
+            manifest {
+                attributes(mapOf("Main-Class" to mainClass))
+            }
+        }
+
         archiveClassifier.set("tests")
         val testSourceSet = project.the<SourceSetContainer>()["test"]
         from(testSourceSet.output)
@@ -68,6 +82,37 @@ fun Project.flinkCreateTestJar() {
     }
 }
 
+var Project.flinkSetMainClass(mainClass: String) {
+    apply(plugin = "application")
+
+    configure<JavaApplication> {
+        mainClassName = mainClass
+    }
+
+    if (logger.isDebugEnabled) {
+        tasks.named<ShadowJar>("shadowJar") {
+            doLast {
+                verifyClassExists(outputs.files, mainClass)
+            }
+        }
+    }
+}
+
+private fun Task.verifyClassExists(files: FileCollection, mainClass: String) {
+    class MainChecker : URLClassLoader(files.map { it.toURI().toURL() }.toTypedArray()) {
+        fun hasClass(name: String?): Boolean = try {
+            super.findClass(name)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    if (!MainChecker().hasClass(mainClass)) {
+        throw GradleException("Unknown class $mainClass for project $project")
+    }
+}
+
 private fun Project.addTestDependency(depNode: Node, dependency: Dependency?) {
     depNode.appendNode("dependency").apply {
         when (dependency) {
@@ -90,19 +135,21 @@ private fun Project.addTestDependency(depNode: Node, dependency: Dependency?) {
     }
 }
 
-
-private fun Node.appendDependency(dependency: ModuleDependency, extension: String? = null,
+private fun Node.appendDependency(dependency: ModuleDependency, extension: String = "jar",
                                    classifier: String? = null) {
     appendNode("groupId", dependency.group)
     appendNode("artifactId", dependency.name)
     appendNode("version", dependency.version)
     appendNode("scope", "test")
-    extension?.also { appendNode("packaging", it) }
-    classifier?.also { appendNode("classifier", it) }
+    if (extension != "jar") {
+        appendNode("packaging", extension)
+    }
+    if (classifier != null) {
+        appendNode("classifier", classifier)
+    }
 }
 
-
-    fun Project.flinkSetupPublising() {
+fun Project.flinkSetupPublishing() {
     apply(plugin = "maven-publish")
 
     // build jar containing all (main) source files
@@ -165,6 +212,9 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
 
         // global excludes
         exclude("log4j.properties", "log4j-test.properties")
+        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+
+        // exclude( com.google.code.findbugs:jsr305 )
     }
 
     // add shadow jar as requirement for full build

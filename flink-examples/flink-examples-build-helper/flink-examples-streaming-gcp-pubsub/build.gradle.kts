@@ -4,3 +4,9 @@ dependencies {
 }
 
 description = "flink-examples-streaming-gcp-pubsub"
+
+tasks.withType<ShadowJar> {
+    relocate("com.google", "org.apache.flink.streaming.examples.gcp.pubsub.shaded.com.google")
+}
+
+flinkSetMainClass("org.apache.flink.streaming.examples.gcp.pubsub.PubSubExample")

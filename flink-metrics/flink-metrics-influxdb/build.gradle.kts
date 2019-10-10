@@ -10,3 +10,11 @@ dependencies {
 }
 
 description = "flink-metrics-influxdb"
+
+tasks.withType<ShadowJar> {
+    relocate("org.influxdb", "org.apache.flink.metrics.influxdb.shaded.org.influxdb")
+    relocate("com.squareup.moshi", "org.apache.flink.metrics.influxdb.shaded.com.squareup.moshi")
+    relocate("okhttp3", "org.apache.flink.metrics.influxdb.shaded.okhttp3")
+    relocate("okio", "org.apache.flink.metrics.influxdb.shaded.okio")
+    relocate("retrofit2", "org.apache.flink.metrics.influxdb.shaded.retrofit2")
+}

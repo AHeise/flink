@@ -22,3 +22,8 @@ dependencies {
 description = "flink-connector-kafka-0.8"
 
 flinkForceDependencyVersion(group = "org.apache.kafka", version = project.property("kafka.version"))
+
+tasks.withType<ShadowJar> {
+    //  IMPORTANT: This must be kept in sync with flink-runtime
+    relocate("org.apache.curator", "org.apache.flink.shaded.curator.org.apache.curator")
+}

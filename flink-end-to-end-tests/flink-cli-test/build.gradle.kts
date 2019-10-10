@@ -4,3 +4,5 @@ dependencies {
 }
 
 description = "flink-cli-test"
+
+flinkSetMainClass("org.apache.flink.graph.Runner")

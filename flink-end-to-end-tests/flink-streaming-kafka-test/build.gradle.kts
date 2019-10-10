@@ -5,3 +5,5 @@ dependencies {
 }
 
 description = "flink-streaming-kafka-test"
+
+flinkSetMainClass("org.apache.flink.streaming.kafka.test.KafkaExample")

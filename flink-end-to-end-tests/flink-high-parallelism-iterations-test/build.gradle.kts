@@ -5,3 +5,5 @@ dependencies {
 }
 
 description = "flink-high-parallelism-iterations-test"
+
+flinkSetMainClass("org.apache.flink.batch.HighParallelismIterationsTestProgram")
