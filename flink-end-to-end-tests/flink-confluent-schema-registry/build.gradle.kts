@@ -1,6 +1,6 @@
 plugins {
     id("com.commercehub.gradle.plugin.avro") version "0.15.1"
-    }
+}
 
 dependencies {
     implementation(project(":flink-connectors:flink-connector-kafka-0.10"))

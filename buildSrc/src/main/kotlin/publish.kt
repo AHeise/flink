@@ -1,4 +1,3 @@
-import org.gradle.api.Project
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.tasks.Jar
 
@@ -13,8 +12,7 @@ import org.gradle.api.tasks.javadoc.Javadoc
 import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
 import groovy.util.Node
 import groovy.util.NodeList
-import org.gradle.api.GradleException
-import org.gradle.api.Task
+import org.gradle.api.*
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Attribute
@@ -32,32 +30,42 @@ const val TEST_ARTIFACTS = "testArtifacts"
 val CLASSIFIER_ATTRIBUTE = Attribute.of("classifier", String::class.java)
 
 fun DependencyHandler.shade(dependencyNotation: Any): Dependency? =
-        add("shade", dependencyNotation)
+        add("shadow", dependencyNotation)
 /**
  * Configures the current project to provide a test jar under the
  * "testArtifacts" configuration.
  */
-fun Project.flinkCreateTestJar(mainClass: String? = null) {
-    configurations.create(TEST_ARTIFACTS) {
-        extendsFrom(configurations["testRuntime"])
-        extendsFrom(configurations["testApi"])
-        extendsFrom(configurations["api"])
+fun Project.flinkCreateTestJar(mainClass: String? = null, artifactName: String? = null, configuration: Action<ShadowJar>? = null) {
+    try {
+        configurations.register(TEST_ARTIFACTS) {
+            extendsFrom(configurations["testRuntime"])
+            extendsFrom(configurations["testApi"])
+            extendsFrom(configurations["api"])
 
-        attributes {
-            attribute(CLASSIFIER_ATTRIBUTE, "test")
+            attributes {
+                attribute(CLASSIFIER_ATTRIBUTE, "test")
+            }
         }
+    } catch (exception: InvalidUserDataException) {
+        // there is currently no lazy way to check if a configuration already exists
     }
 
-    val testJar by tasks.register<ShadowJar>(TEST_JAR) {
+    val testJar by tasks.register<ShadowJar>(artifactName ?: TEST_JAR) {
         if (mainClass != null) {
             manifest {
                 attributes(mapOf("Main-Class" to mainClass))
             }
         }
 
-        archiveClassifier.set("tests")
+        if (artifactName != null) {
+            archiveBaseName.set(artifactName)
+        } else {
+            archiveClassifier.set("tests")
+        }
         val testSourceSet = project.the<SourceSetContainer>()["test"]
         from(testSourceSet.output)
+
+        configuration?.execute(this)
     }
 
     artifacts {
@@ -82,7 +90,7 @@ fun Project.flinkCreateTestJar(mainClass: String? = null) {
     }
 }
 
-var Project.flinkSetMainClass(mainClass: String) {
+fun Project.flinkSetMainClass(mainClass: String) {
     apply(plugin = "application")
 
     configure<JavaApplication> {
@@ -91,6 +99,8 @@ var Project.flinkSetMainClass(mainClass: String) {
 
     if (logger.isDebugEnabled) {
         tasks.named<ShadowJar>("shadowJar") {
+            archiveBaseName.set(mainClass.substringAfterLast("."))
+
             doLast {
                 verifyClassExists(outputs.files, mainClass)
             }

@@ -1,11 +1,13 @@
 dependencies {
-    implementation(project(":flink-filesystems:flink-hadoop-fs"))
-    implementation(project(":flink-filesystems:flink-fs-hadoop-shaded"))
-    implementation(Libs.hadoop_azure)
-    implementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(Libs.azure)
-    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
     implementation(project(":flink-core"))
+
+    shade(project(":flink-filesystems:flink-hadoop-fs"))
+    shade(project(":flink-filesystems:flink-fs-hadoop-shaded"))
+    shade(Libs.hadoop_azure)
+
+    testImplementation(Libs.azure)
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
+    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
 }
 
 description = "flink-azure-fs-hadoop"

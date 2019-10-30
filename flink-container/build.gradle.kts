@@ -10,3 +10,7 @@ dependencies {
 description = "flink-container"
 
 flinkSetMainClass("org.apache.flink.container.entrypoint.TestJob")
+
+tasks.named<ShadowJar>("shadowJar") {
+    archiveBaseName.set("maven")
+}

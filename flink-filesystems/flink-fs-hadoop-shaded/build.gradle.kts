@@ -1,5 +1,5 @@
 dependencies {
-    implementation(Libs.hadoop_common)
+    shade(Libs.hadoop_common)
 }
 
 description = "flink-filesystems :: flink-fs-hadoop-shaded"

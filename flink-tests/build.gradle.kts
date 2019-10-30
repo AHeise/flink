@@ -37,3 +37,5 @@ description = "flink-tests"
 
 flinkCreateTestJar()
 flinkJointScalaJavaCompilation()
+
+// TODO: gradle create jars for the different test programs

@@ -1,8 +1,8 @@
 dependencies {
-    api(project(":flink-connectors:flink-connector-elasticsearch-base"))
-
-    implementation(Libs.elasticsearch)
     implementation(project(":flink-streaming-java"))
+
+    shade(Libs.elasticsearch)
+    shade(project(":flink-connectors:flink-connector-elasticsearch-base"))
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-streaming-java"))

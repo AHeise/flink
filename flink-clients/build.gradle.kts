@@ -14,3 +14,6 @@ description = "flink-clients"
 
 flinkCreateTestJar("org.apache.flink.client.testjar.WordCount")
 
+tasks.named<ShadowJar>("shadowJar") {
+    archiveBaseName.set("maven")
+}

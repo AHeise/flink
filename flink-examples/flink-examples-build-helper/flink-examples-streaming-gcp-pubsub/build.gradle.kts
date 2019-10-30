@@ -10,3 +10,7 @@ tasks.withType<ShadowJar> {
 }
 
 flinkSetMainClass("org.apache.flink.streaming.examples.gcp.pubsub.PubSubExample")
+
+tasks.named<ShadowJar>("shadowJar") {
+    archiveBaseName.set("PubSub")
+}

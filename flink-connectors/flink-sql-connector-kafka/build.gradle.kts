@@ -1,5 +1,5 @@
 dependencies {
-    api(project(":flink-connectors:flink-connector-kafka"))
+    shade(project(":flink-connectors:flink-connector-kafka"))
 }
 
 description = "flink-sql-connector-kafka"

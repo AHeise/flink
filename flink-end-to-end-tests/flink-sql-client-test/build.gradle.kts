@@ -11,3 +11,7 @@ dependencies {
 }
 
 description = "flink-sql-client-test"
+
+tasks.named<ShadowJar>("shadowJar") {
+    archiveBaseName.set("SqlToolbox")
+}

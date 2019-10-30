@@ -5,8 +5,4 @@ dependencies {
 
 description = "flink-parent-child-classloading-test-program"
 
-tasks.withType<ShadowJar> {
-    archiveBaseName.set("ClassLoaderTestProgram")
-}
-
 flinkSetMainClass("org.apache.flink.streaming.tests.ClassLoaderTestProgram")

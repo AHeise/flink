@@ -29,3 +29,7 @@ tasks.withType<com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask>().named(
     stringType = "CharSequence"
     setEnableDecimalLogicalType("false")
 }
+
+tasks.named<ShadowJar>("shadowJar") {
+    archiveBaseName.set("maven")
+}

@@ -47,7 +47,7 @@ subprojects {
     }
 
     dependencies {
-        // TODO move these to only the modules that need them and remove them
+        // TODO: gradle move these to only the modules that need them and remove them
         "implementation"(Libs.slf4j_api)
         "implementation"(Libs.jsr305)
         "testImplementation"(Libs.junit)
