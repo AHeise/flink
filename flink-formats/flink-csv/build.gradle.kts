@@ -6,7 +6,7 @@ dependencies {
     compileOnly(project(":flink-annotations"))
 
     testImplementation(project(":flink-core"))
-    testImplementation(project(path = ":flink-table:flink-table-common", configuration = "testArtifacts"))
+    testImplementation(project(path = ":flink-table:flink-table-common", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 

@@ -7,12 +7,17 @@ dependencies {
     implementation(project(":flink-table:flink-table-planner"))
     implementation(Libs.cassandra_driver_mapping)
     implementation(Libs.flink_shaded_guava)
+    implementation(Libs.jsr305)
 
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
     testImplementation(project(":flink-tests"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-queryable-state:flink-queryable-state-client-java"))
     testImplementation(Libs.cassandra_all)
+    testImplementation(Libs.mockito_core)
+    testImplementation(Libs.powermock_module_junit4)
+    testImplementation(Libs.powermock_api_mockito2)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-connector-cassandra"

@@ -16,13 +16,16 @@ dependencies {
     implementation(Libs.janino)
     implementation(Libs.calcite_core)
     implementation(Libs.joda_time)
+    implementation(Libs.jsr305)
 
-    testImplementation(project(":flink-table:flink-table-common", configuration = "testArtifacts"))
+    testImplementation(project(":flink-table:flink-table-common", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-tests", configuration = "testArtifacts"))
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-tests", configuration = TEST_JAR))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-state-backends:flink-statebackend-rocksdb"))
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
+    testImplementation(Libs.mockito_core)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-table-planner"

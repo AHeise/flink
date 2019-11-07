@@ -13,13 +13,13 @@ dependencies {
     implementation(Libs.jsr305)
     implementation(Libs.kryo)
 
-    testImplementation(project(":flink-table:flink-table-common", configuration = "testArtifacts"))
+    testImplementation(project(":flink-table:flink-table-common", configuration = TEST_JAR))
     testImplementation(project(":flink-table:flink-table-api-java-bridge"))
-    testImplementation(project(":flink-table:flink-table-planner", configuration = "testArtifacts"))
-    testImplementation(project(":flink-streaming-scala", configuration = "testArtifacts"))
+    testImplementation(project(":flink-table:flink-table-planner", configuration = TEST_JAR))
+    testImplementation(project(":flink-streaming-scala", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
-    testImplementation(project(":flink-runtime", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
+    testImplementation(project(":flink-runtime", configuration = TEST_JAR))
 }
 
 description = "flink-avro"

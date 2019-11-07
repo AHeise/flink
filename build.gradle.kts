@@ -2,22 +2,19 @@ import com.gradle.scan.plugin.BuildScanExtension
 
 plugins {
     id("de.fayard.buildSrcVersions") version "0.4.2"
-    id("com.gradle.build-scan") version "2.1" apply false
     id("org.nosphere.apache.rat") version "0.5.2"
-}
-
-if (!gradle.startParameter.isOffline) {
-    apply(plugin = "com.gradle.build-scan")
-
-    configure<BuildScanExtension> {
-        termsOfServiceUrl = "https://gradle.com/terms-of-service"
-        termsOfServiceAgree = "yes"
-    }
 }
 
 allprojects {
     group = "org.apache.flink"
     version = "1.10-SNAPSHOT"
+}
+
+if (!gradle.startParameter.isOffline) {
+    configure<BuildScanExtension> {
+        termsOfServiceUrl = "https://gradle.com/terms-of-service"
+        termsOfServiceAgree = "yes"
+    }
 }
 
 subprojects {
@@ -43,20 +40,6 @@ subprojects {
 
     repositories {
         mavenCentral()
-        maven(url = "https://packages.confluent.io/maven/")
-    }
-
-    dependencies {
-        // TODO: gradle move these to only the modules that need them and remove them
-        "implementation"(Libs.slf4j_api)
-        "implementation"(Libs.jsr305)
-        "testImplementation"(Libs.junit)
-        "testImplementation"(Libs.mockito_core)
-        "testImplementation"(Libs.powermock_module_junit4)
-        "testImplementation"(Libs.powermock_api_mockito2)
-        "testImplementation"(Libs.hamcrest_all)
-        "testImplementation"(Libs.slf4j_log4j12)
-        "testImplementation"(Libs.log4j)
     }
 
     tasks.withType<Test>().configureEach {
@@ -71,6 +54,8 @@ subprojects {
     flinkSetupPublishing()
     flinkSetupScalaIfNeeded()
 }
+
+gradle.flinkAddScalaVersionToArtifactsIfNeeded()
 
 tasks.rat {
     file("$rootDir/.gitignore").forEachLine { exclude(it) }

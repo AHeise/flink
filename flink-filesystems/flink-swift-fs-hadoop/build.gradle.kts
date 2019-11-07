@@ -1,8 +1,12 @@
 dependencies {
-    implementation(project(":flink-filesystems:flink-hadoop-fs"))
-    implementation(Libs.hadoop_client)
-    implementation(Libs.hadoop_openstack)
+    compileOnly(project(":flink-annotations"))
+
     implementation(project(":flink-core"))
+    implementation(project(":flink-filesystems:flink-hadoop-fs")) {
+        exclude("org.apache.flink", "flink-shaded-hadoop-2")
+    }
+    implementation(Libs.hadoop_openstack)
+
     testImplementation(project(":flink-core"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }

@@ -8,21 +8,24 @@ dependencies {
     api(Libs.commons_lang3)
     api(Libs.scala_library)
 
-    implementation(Libs.slf4j_api)
+    compileOnly(project(":flink-annotations"))
+
     implementation(project(":flink-core"))
     implementation(project(":flink-java"))
-    compileOnly(project(":flink-annotations"))
     implementation(project(":flink-metrics:flink-metrics-core"))
+    implementation(Libs.slf4j_api)
     implementation(Libs.flink_shaded_guava)
     implementation(Libs.scala_reflect)
     implementation(Libs.scala_compiler)
-    testImplementation(Libs.scalatest_2_11)
-    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(Libs.chill_2_11)
+
     testImplementation(project(":flink-runtime"))
-    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
+    testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
+    testImplementation(Libs.scalatest_2_11)
+    testImplementation(Libs.chill_2_11)
     testImplementation(Libs.joda_time)
     testImplementation(Libs.joda_convert)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-scala"

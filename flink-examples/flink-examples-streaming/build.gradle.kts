@@ -13,7 +13,7 @@ dependencies {
     implementation(Libs.commons_io)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
 }
 
 description = "flink-examples-streaming"

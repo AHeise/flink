@@ -7,7 +7,7 @@ dependencies {
 
     testImplementation(Libs.azure)
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
 }
 
 description = "flink-azure-fs-hadoop"

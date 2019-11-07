@@ -8,10 +8,12 @@ dependencies {
 
     implementation(project(":flink-java"))
     implementation(project(":flink-scala"))
+    implementation(Libs.slf4j_api)
 
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-java", configuration = "testArtifacts"))
+    testImplementation(project(":flink-java", configuration = TEST_JAR))
+    testImplementation(Libs.mockito_core)
 }
 
 description = "flink-hadoop-compatibility"

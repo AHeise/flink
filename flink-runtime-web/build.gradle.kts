@@ -6,12 +6,18 @@ dependencies {
     implementation(Libs.flink_shaded_jackson)
     implementation(Libs.javassist)
     implementation(Libs.commons_io)
+    implementation(Libs.jsr305)
+    implementation(Libs.slf4j_api)
+
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
     testImplementation(Libs.curator_test)
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
     testImplementation(Libs.flink_shaded_jackson_module_jsonschema)
     testImplementation(Libs.scala_library)
+    testImplementation(Libs.hamcrest_all)
+    testImplementation(Libs.slf4j_log4j12)
+    testImplementation(Libs.mockito_core)
 }
 
 description = "flink-runtime-web"

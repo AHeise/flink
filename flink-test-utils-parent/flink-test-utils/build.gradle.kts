@@ -1,6 +1,3 @@
-import org.gradle.api.plugins.internal.DefaultAdhocSoftwareComponent
-import org.gradle.api.plugins.internal.JavaConfigurationVariantMapping
-
 plugins {
     id("com.github.johnrengelman.shadow")
     id("com.github.jk1.dependency-license-report")
@@ -12,8 +9,9 @@ dependencies {
 
     implementation(project(":flink-runtime"))
     implementation(project(":flink-optimizer"))
-    implementation(project(":flink-runtime", configuration = "testArtifacts"))
+    implementation(project(":flink-runtime", configuration = TEST_JAR))
     implementation(project(":flink-streaming-java"))
+    implementation(Libs.jsr305)
 
     shadow(Libs.flink_shaded_netty)
     implementation(Libs.curator_test)
@@ -28,7 +26,7 @@ licenseReport {
 //    filters = arrayOf<com.github.jk1.license.filter.DependencyFilter>(com.github.jk1.license.filter.LicenseBundleNormalizer())
 }
 
-tasks.withType<ShadowJar>().configureEach {
+tasks.withType<ShadowJar> {
     dependencies {
         include(dependency("io.netty:netty"))
     }

@@ -1,6 +1,9 @@
 dependencies {
     implementation(project(":flink-connectors:flink-connector-gcp-pubsub"))
     implementation(project(":flink-examples:flink-examples-streaming"))
+    implementation(Libs.slf4j_api)
+
+    testImplementation(Libs.slf4j_log4j12)
 }
 
 description = "flink-examples-streaming-gcp-pubsub"

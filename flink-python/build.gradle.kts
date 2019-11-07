@@ -8,6 +8,11 @@ dependencies {
     implementation(project(":flink-clients"))
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-table:flink-table-common"))
+    implementation(Libs.jsr305)
+    implementation(Libs.slf4j_api)
+
+    testImplementation(Libs.slf4j_log4j12)
+    testImplementation(Libs.junit)
 }
 
 description = "flink-python"

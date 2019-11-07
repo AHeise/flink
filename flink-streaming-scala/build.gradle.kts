@@ -12,8 +12,8 @@ dependencies {
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
-    testImplementation(project(":flink-tests", configuration = "testArtifacts"))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
+    testImplementation(project(":flink-tests", configuration = TEST_JAR))
     testImplementation(Libs.scalatest_2_11)
 }
 

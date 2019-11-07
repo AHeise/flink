@@ -10,9 +10,9 @@ dependencies {
     shade(Libs.aws_java_sdk_kms)
     shade(Libs.aws_java_sdk_dynamodb)
 
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-filesystems:flink-fs-hadoop-shaded"))
-    testImplementation(project(":flink-filesystems:flink-hadoop-fs", configuration = "testArtifacts"))
+    testImplementation(project(":flink-filesystems:flink-hadoop-fs", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 

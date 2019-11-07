@@ -6,9 +6,9 @@ dependencies {
     implementation(Libs.flink_shaded_guava)
     implementation(Libs.scala_library)
 
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
-    testImplementation(project(":flink-optimizer", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
+    testImplementation(project(":flink-optimizer", configuration = TEST_JAR))
     testImplementation(project(":flink-runtime-web"))
     testImplementation(project(":flink-clients"))
     testImplementation(project(":flink-java"))
@@ -20,7 +20,7 @@ dependencies {
     testImplementation(project(":flink-connectors:flink-hadoop-compatibility"))
     testImplementation(project(":flink-optimizer"))
     testImplementation(project(":flink-state-backends:flink-statebackend-rocksdb"))
-    testImplementation(project(":flink-runtime", configuration = "testArtifacts"))
+    testImplementation(project(":flink-runtime", configuration = TEST_JAR))
     testImplementation(Libs.flink_shaded_hadoop_2)
     testImplementation(Libs.flink_shaded_jackson)
     testImplementation(Libs.flink_shaded_netty)
@@ -31,6 +31,8 @@ dependencies {
     testImplementation(Libs.joda_convert)
     testImplementation(Libs.oshi_core)
     testImplementation(Libs.reflections)
+    testImplementation(Libs.mockito_core)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-tests"

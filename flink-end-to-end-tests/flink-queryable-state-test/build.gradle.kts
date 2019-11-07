@@ -12,7 +12,7 @@ description = "flink-queryable-state-test"
 flinkSetMainClass("org.apache.flink.streaming.tests.queryablestate.QsStateProducer")
 
 val testJar by tasks.register<ShadowJar>("QsStateClient") {
-    configurations = listOf(project.configurations["implementation"])
+    configurations = listOf(project.configurations["runtimeClasspath"])
 
     include("org.apache.flink:flink-queryable-state-test*")
 

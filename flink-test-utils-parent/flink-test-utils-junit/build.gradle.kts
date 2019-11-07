@@ -1,6 +1,7 @@
 dependencies {
-    implementation(Libs.junit)
-    implementation(Libs.slf4j_api)
+    api(Libs.junit)
+    api(Libs.slf4j_api)
+
     implementation(Libs.jsr305)
 }
 

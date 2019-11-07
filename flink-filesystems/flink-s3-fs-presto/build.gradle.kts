@@ -1,12 +1,13 @@
 dependencies {
     shade(project(":flink-core"))
     shade(project(":flink-filesystems:flink-s3-fs-base"))
+    shade(project(":flink-filesystems:flink-hadoop-fs"))
     shade(Libs.presto_hive)
     shade(Libs.hadoop_apache2)
-    shade(project(":flink-filesystems:flink-hadoop-fs"))
+    implementation(Libs.jsr305)
 
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
-    testImplementation(project(":flink-filesystems:flink-hadoop-fs", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
+    testImplementation(project(":flink-filesystems:flink-hadoop-fs", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 

@@ -1,5 +1,5 @@
 dependencies {
-    implementation(project(":flink-connectors:flink-connector-elasticsearch2"))
+    implementation(project(":flink-connectors:flink-connector-elasticsearch2", configuration = SHADED))
     implementation(project(":flink-streaming-java"))
 }
 

@@ -1,12 +1,15 @@
 dependencies {
-    implementation(project(":flink-streaming-java"))
-
     shade(Libs.elasticsearch)
     shade(project(":flink-connectors:flink-connector-elasticsearch-base"))
 
+    implementation(Libs.jsr305)
+    implementation(Libs.slf4j_api)
+    implementation(project(":flink-streaming-java"))
+
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-streaming-java"))
-    testImplementation(project(":flink-connectors:flink-connector-elasticsearch-base", configuration = "testArtifacts"))
+    testImplementation(project(":flink-connectors:flink-connector-elasticsearch-base", configuration = TEST_JAR))
+    testImplementation(Libs.slf4j_log4j12)
 }
 
 description = "flink-connector-elasticsearch2"
@@ -55,7 +58,7 @@ tasks.withType<ShadowJar> {
 
     relocate("org.apache", "org.apache.flink.streaming.connectors.elasticsearch2.shaded.org.apache") {
         //  keep flink classes as they are (exceptions as above)
-            exclude("org.apache.flink.**")
+        exclude("org.apache.flink.**")
         exclude("org.apache.log4j.**")
     }
 

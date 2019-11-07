@@ -11,9 +11,9 @@ dependencies {
 //    implementation(Libs.flink_shaded_hadoop_2_uber)
     implementation(Libs.hive_exec)
 
-    testImplementation(project(":flink-table:flink-table-common", configuration = "testArtifacts"))
-    testImplementation(project(":flink-table:flink-table-api-java", configuration = "testArtifacts"))
-    testImplementation(project(":flink-table:flink-table-planner-blink", configuration = "testArtifacts"))
+    testImplementation(project(":flink-table:flink-table-common", configuration = TEST_JAR))
+    testImplementation(project(":flink-table:flink-table-api-java", configuration = TEST_JAR))
+    testImplementation(project(":flink-table:flink-table-planner-blink", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-table:flink-table-planner"))

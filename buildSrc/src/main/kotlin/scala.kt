@@ -1,4 +1,11 @@
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.artifacts.component.ComponentArtifactIdentifier
+import org.gradle.api.artifacts.component.ComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+import org.gradle.api.invocation.Gradle
 import org.gradle.api.tasks.ScalaSourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.tasks.Jar
@@ -12,17 +19,38 @@ import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
 
 /**
- * Tests if there is scala-library in classpath and caches the result.
+ * Bread-first tests if there is scala-library in classpath and caches the result.
  */
 fun Project.flinkMainDependsOnScala(): Boolean =
-        extra.properties.getOrPut("flinkMainDependsOnScala") {
-            configurations["compileClasspath"].allDependencies.any { it.name == "scala-library" }
-        } as Boolean
+    extra.properties.getOrPut("flinkMainDependsOnScala") {
+        configurations["compileClasspath"].resolvedConfiguration.resolvedArtifacts.any {
+            it.name == "scala-library"
+        } or
+        configurations["compileClasspath"].resolvedConfiguration.resolvedArtifacts.any {
+            flinkDependsOnScala(it)
+        }
+    } as Boolean
 
 fun Project.flinkTestDependsOnScala(): Boolean =
-        extra.properties.getOrPut("flinkTestDependsOnScala") {
-            configurations["testCompileClasspath"].allDependencies.any { it.name == "scala-library" }
-        } as Boolean
+    extra.properties.getOrPut("flinkTestDependsOnScala") {
+        configurations["testCompileClasspath"].resolvedConfiguration.resolvedArtifacts.any {
+            it.name == "scala-library"
+        } or
+        configurations["compileClasspath"].resolvedConfiguration.resolvedArtifacts.any {
+            flinkDependsOnScala(it)
+        }
+    } as Boolean
+
+private fun Project.flinkDependsOnScala(artifact: ResolvedArtifact): Boolean {
+    val id = artifact.id.componentIdentifier
+    return if (id is ProjectComponentIdentifier) {
+        when (artifact.name) {
+            "main" -> project(id.projectPath).flinkMainDependsOnScala()
+            TEST_JAR -> project(id.projectPath).flinkTestDependsOnScala()
+            else -> false
+        }
+    } else false
+}
 
 fun Project.flinkSetupScalaIfNeeded() {
     plugins.withType<ScalaPlugin> {
@@ -32,23 +60,26 @@ fun Project.flinkSetupScalaIfNeeded() {
         flinkJointScalaJavaCompilation()
         flinkJointJavadoc()
     }
+}
 
-    // add scala version to all artifacts when scala is a dependency (even without scala plugin)
-    tasks.withType<Jar>().configureEach {
-        val isTestJar = name.startsWith("test")
-        if(!isTestJar && flinkMainDependsOnScala()) {
-            archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
-        }
-        else if(isTestJar && flinkTestDependsOnScala()) {
-            archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
-        }
-    }
+fun Gradle.flinkAddScalaVersionToArtifactsIfNeeded() {
+    taskGraph.whenReady {
+        // add scala version to all artifacts when scala is a dependency (even without scala plugin)
+        allTasks.filterIsInstance(Jar::class.java).forEach { jar ->
+            jar.apply {
+                val isTestJar = name.startsWith("test")
+                if (!isTestJar && project.flinkMainDependsOnScala()) {
+                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
 
-    configure<PublishingExtension> {
-        if(flinkMainDependsOnScala()) {
-            val main by publications.existing(MavenPublication::class) {
-                // sync artifact id if we added scala version
-                artifactId = (tasks["shadowJar"] as Jar).archiveBaseName.get()
+                    project.configure<PublishingExtension> {
+                        val main by publications.existing(MavenPublication::class) {
+                            // sync artifact id if we added scala version
+                            artifactId = archiveBaseName.get()
+                        }
+                    }
+                } else if (isTestJar && project.flinkTestDependsOnScala()) {
+                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+                }
             }
         }
     }

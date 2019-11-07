@@ -30,14 +30,15 @@ dependencies {
     implementation(Libs.chill_2_11)
     implementation(project(":flink-shaded-curator"))
     implementation(Libs.oshi_core)
+    implementation(Libs.jsr305)
 
     shade(Libs.flink_shaded_hadoop_2)
     shade(Libs.akka_remote_2_11)
     shade(Libs.zookeeper)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(project(path = ":flink-metrics:flink-metrics-core", configuration = "testArtifacts"))
-    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(path = ":flink-metrics:flink-metrics-core", configuration = TEST_JAR))
+    testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
     testImplementation(Libs.flink_shaded_netty_tcnative_dynamic)
     testImplementation(Libs.curator_test)
     testImplementation(Libs.scalatest_2_11)
@@ -45,15 +46,18 @@ dependencies {
     testImplementation(Libs.akka_testkit_2_11)
     testImplementation(Libs.reflections)
     testImplementation(Libs.jcip_annotations)
+    testImplementation(Libs.hamcrest_all)
+    testImplementation(Libs.mockito_core)
+    testImplementation(Libs.powermock_api_mockito2)
+    testImplementation(Libs.powermock_module_junit4)
 }
 
 tasks.withType<Test> {
     maxHeapSize = "1024m"
 }
 
-flinkJointScalaJavaCompilation()
+//flinkJointScalaJavaCompilation()
 flinkCreateTestJar()
-
 
 tasks.withType<ShadowJar> {
     // io.netty:netty

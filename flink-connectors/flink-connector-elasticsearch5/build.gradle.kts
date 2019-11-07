@@ -2,12 +2,13 @@ dependencies {
     api(project(":flink-connectors:flink-connector-elasticsearch-base"))
 
     implementation(Libs.transport)
-    implementation(Libs.transport_netty3_client)
+    implementation(Libs.transport_netty4_client)
     implementation(Libs.log4j_to_slf4j)
+    implementation(Libs.jsr305)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-streaming-java"))
-    testImplementation(project(":flink-connectors:flink-connector-elasticsearch-base", configuration = "testArtifacts"))
+    testImplementation(project(":flink-connectors:flink-connector-elasticsearch-base", configuration = TEST_JAR))
     testImplementation(Libs.log4j_core)
 }
 

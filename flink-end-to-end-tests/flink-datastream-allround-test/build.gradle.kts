@@ -8,7 +8,8 @@ dependencies {
     implementation(project(":flink-state-backends:flink-statebackend-rocksdb"))
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
+    testImplementation(Libs.log4j)
 }
 
 description = "flink-datastream-allround-test"

@@ -8,12 +8,14 @@ dependencies {
     implementation(project(":flink-core"))
     implementation(Libs.commons_lang3)
 
+    testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation("${Libs.hadoop_hdfs}:tests")
     testImplementation("${Libs.hadoop_common}:tests") {
         exclude("jdk.tools", "jdk.tools")
     }
-    testImplementation(project(path = ":flink-core", configuration = "testArtifacts"))
-    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
+    testImplementation(Libs.hamcrest_all)
+    testImplementation(Libs.mockito_core)
 }
 
 description = "flink-hadoop-fs"

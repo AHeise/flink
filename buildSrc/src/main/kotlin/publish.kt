@@ -18,6 +18,8 @@ import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.file.FileCollection
 import org.gradle.api.plugins.JavaApplication
+import org.gradle.api.provider.Provider
+import org.gradle.api.publish.tasks.GenerateModuleMetadata
 import java.net.URLClassLoader
 
 // use typealias to keep customized shading options shorter
@@ -25,19 +27,26 @@ typealias ShadowJar = com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 const val TEST_JAR = "testJar"
 
-const val TEST_ARTIFACTS = "testArtifacts"
+private const val SHADE = "shade"
+
+const val SHADED = "shaded"
+
+private const val TEST_SHADE = "testShade"
 
 val CLASSIFIER_ATTRIBUTE = Attribute.of("classifier", String::class.java)
 
+fun DependencyHandler.testShade(dependencyNotation: Any): Dependency? =
+        add(TEST_SHADE, dependencyNotation)
+
 fun DependencyHandler.shade(dependencyNotation: Any): Dependency? =
-        add("shadow", dependencyNotation)
+        add(SHADE, dependencyNotation)
 /**
  * Configures the current project to provide a test jar under the
  * "testArtifacts" configuration.
  */
 fun Project.flinkCreateTestJar(mainClass: String? = null, artifactName: String? = null, configuration: Action<ShadowJar>? = null) {
     try {
-        configurations.register(TEST_ARTIFACTS) {
+        configurations.register(TEST_JAR) {
             extendsFrom(configurations["testRuntime"])
             extendsFrom(configurations["testApi"])
             extendsFrom(configurations["api"])
@@ -69,7 +78,7 @@ fun Project.flinkCreateTestJar(mainClass: String? = null, artifactName: String? 
     }
 
     artifacts {
-        add(TEST_ARTIFACTS, testJar)
+        add(TEST_JAR, testJar)
     }
 
     configure<PublishingExtension> {
@@ -97,10 +106,10 @@ fun Project.flinkSetMainClass(mainClass: String) {
         mainClassName = mainClass
     }
 
-    if (logger.isDebugEnabled) {
-        tasks.named<ShadowJar>("shadowJar") {
-            archiveBaseName.set(mainClass.substringAfterLast("."))
+    tasks.named<ShadowJar>("shadowJar") {
+        archiveBaseName.set(mainClass.substringAfterLast("."))
 
+        if (logger.isDebugEnabled) {
             doLast {
                 verifyClassExists(outputs.files, mainClass)
             }
@@ -145,8 +154,10 @@ private fun Project.addTestDependency(depNode: Node, dependency: Dependency?) {
     }
 }
 
-private fun Node.appendDependency(dependency: ModuleDependency, extension: String = "jar",
-                                   classifier: String? = null) {
+private fun Node.appendDependency(
+        dependency: ModuleDependency,
+        extension: String = "jar",
+        classifier: String? = null) {
     appendNode("groupId", dependency.group)
     appendNode("artifactId", dependency.name)
     appendNode("version", dependency.version)
@@ -179,12 +190,8 @@ fun Project.flinkSetupPublishing() {
         from(javadoc.get().destinationDir)
     }
 
-    val shadowJar = flinkSetupShading()
-
-    // disable regular jar task, we use only output of shadow
-    tasks.named<org.gradle.api.tasks.bundling.Jar>("jar").configure {
-        enabled = false
-    }
+    flinkSetupShading()
+    val actualJar = getMainJar()
 
     // tweak ALL jars (shaded, sources, javadoc)
     tasks.withType<org.gradle.api.tasks.bundling.Jar>().configureEach {
@@ -198,17 +205,75 @@ fun Project.flinkSetupPublishing() {
             register<MavenPublication>("main") {
                 from(components["java"])
 
-                // replace the non-shaded jar and add javadoc and sources
-                setArtifacts(listOf(shadowJar, javadocJar, sourceJar).map { LazyPublishArtifact(it) })
+                setArtifacts(listOf(actualJar, javadocJar, sourceJar).map { LazyPublishArtifact(it) })
             }
         }
+    }
+
+    tasks.withType<GenerateModuleMetadata> {
+        dependsOn(actualJar)
+    }
+}
+
+private fun Project.getMainJar(): Provider<Jar> {
+    val jar = tasks.named<Jar>("jar")
+    val shadowJar = tasks.named<Jar>("shadowJar")
+
+    // only one of jar or shadowJar will produce an output; also add javadoc and sources
+    return providers.provider {
+        if (jar.get().shouldRun) jar.get() else shadowJar.get()
     }
 }
 
 fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     apply(plugin = "com.github.johnrengelman.shadow")
 
-    val shadowJar by tasks.existing(ShadowJar::class) {
+    configurations.register(SHADE) {
+        configurations["implementation"].extendsFrom(this)
+    }
+
+    configurations.register(SHADED) {
+    }
+
+    val shadowJar by tasks.existing(ShadowJar::class)
+
+    // disable regular jar task iff shadowJar produces output
+    tasks.named<org.gradle.api.tasks.bundling.Jar>("jar").configure {
+        onlyIf { !shadowJar.get().shouldRun }
+    }
+
+    artifacts {
+        add(SHADED, shadowJar)
+    }
+
+    configurations.register(TEST_SHADE) {
+        extendsFrom(configurations["testRuntime"])
+        extendsFrom(configurations["testApi"])
+        extendsFrom(configurations["api"])
+
+        attributes {
+            attribute(CLASSIFIER_ATTRIBUTE, "test")
+        }
+    }
+
+    tasks.named<ShadowJar>("shadowJar") {
+        onlyIf {
+            // do we actually have anything to shade?
+            val shadedDependencies = project.configurations[SHADE]
+            !shadedDependencies.isEmpty || includes.isNotEmpty()
+        }
+        // create ad-hoc configuration containing all jars that should be shaded
+        // we are using a configuration as that eases the exclusion of transitive dependencies
+        doFirst {
+            // do we actually have anything to shade?
+            val shadedNoDist = this@flinkSetupShading.configurations.create("shadeWithoutFlinkDist")
+            this@flinkSetupShading.dependencies {
+                shadedNoDist(project.configurations[SHADE] -
+                    rootProject.project(":flink-dist").configurations["runtimeClasspath"])
+            }
+            configurations = listOf(shadedNoDist)
+        }
+
         // remove 'all' classifier, we want to replace the original jar by the shaded version
         archiveClassifier.set(null as String?)
         // publish still uses old classifier
@@ -229,7 +294,7 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
 
     // add shadow jar as requirement for full build
     tasks.named("build").configure {
-        dependsOn(tasks.withType<ShadowJar>())
+        dependsOn(getMainJar())
     }
 
     return shadowJar

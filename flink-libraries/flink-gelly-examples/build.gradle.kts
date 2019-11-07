@@ -8,9 +8,11 @@ dependencies {
     implementation(Libs.flink_shaded_jackson)
     implementation(Libs.commons_lang3)
     implementation(Libs.commons_math3)
+    implementation(Libs.jsr305)
+
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-tests"))
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-optimizer"))
 }
 

@@ -15,15 +15,16 @@ dependencies {
     implementation(Libs.flink_shaded_jackson)
     implementation(Libs.commons_cli)
 
-    testImplementation(project(":flink-runtime", configuration = "testArtifacts"))
+    testImplementation(project(":flink-runtime", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-clients", configuration = "testArtifacts"))
-    testImplementation(project(":flink-connectors:flink-connector-hive", configuration = "testArtifacts"))
+    testImplementation(project(":flink-clients", configuration = TEST_JAR))
+    testImplementation(project(":flink-connectors:flink-connector-hive", configuration = TEST_JAR))
     testImplementation(project(":flink-connectors:flink-hadoop-compatibility"))
     testImplementation(Libs.hive_metastore)
     testImplementation(Libs.hive_exec)
     testImplementation(Libs.hadoop_common)
     testImplementation(Libs.flink_shaded_guava)
+    testImplementation(Libs.mockito_core)
 }
 
 description = "flink-sql-client"

@@ -1,5 +1,7 @@
 dependencies {
     implementation(project(":flink-core"))
+    implementation(Libs.slf4j_api)
+    implementation(Libs.jsr305)
 
     shade(project(":flink-filesystems:flink-fs-hadoop-shaded"))
     shade(project(":flink-filesystems:flink-hadoop-fs"))
@@ -12,6 +14,9 @@ dependencies {
 
     testImplementation(project(":flink-core"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
+    testImplementation(Libs.slf4j_log4j12)
+    testImplementation(Libs.mockito_core)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-s3-fs-base"

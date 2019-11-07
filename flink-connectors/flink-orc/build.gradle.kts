@@ -9,6 +9,9 @@ dependencies {
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-clients"))
+    testImplementation(Libs.mockito_core)
+    testImplementation(Libs.powermock_module_junit4)
+    testImplementation(Libs.powermock_api_mockito2)
 }
 
 description = "flink-orc"

@@ -23,10 +23,14 @@ dependencies {
     implementation(Libs.flink_shaded_guava)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-table:flink-table-runtime-blink", configuration = "testArtifacts"))
-    testImplementation(project(":flink-streaming-java", configuration = "testArtifacts"))
+    testImplementation(project(":flink-table:flink-table-runtime-blink", configuration = TEST_JAR))
+    testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
     testImplementation(project(":flink-state-backends:flink-statebackend-rocksdb"))
     testImplementation(project(":flink-table:flink-sql-parser"))
+    testImplementation(Libs.mockito_core)
+    testImplementation(Libs.powermock_module_junit4)
+    testImplementation(Libs.powermock_api_mockito2)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-table-planner-blink"

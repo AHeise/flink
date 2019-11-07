@@ -5,8 +5,8 @@ dependencies {
     implementation(Libs.commons_math3)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
-    testImplementation(project(":flink-core", configuration = "testArtifacts"))
-    testImplementation(project(":flink-optimizer", configuration = "testArtifacts"))
+    testImplementation(project(":flink-core", configuration = TEST_JAR))
+    testImplementation(project(":flink-optimizer", configuration = TEST_JAR))
 }
 
 description = "flink-gelly"

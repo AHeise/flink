@@ -8,16 +8,18 @@ dependencies {
     api(project(":flink-table:flink-table-common"))
     api(Libs.parquet_avro)
     api(Libs.parquet_hadoop)
-    implementation(Libs.flink_shaded_hadoop_2)
 
     implementation(project(":flink-table:flink-table-api-java-bridge"))
     implementation(project(":flink-table:flink-table-planner"))
     implementation(Libs.fastutil)
+    implementation(Libs.flink_shaded_hadoop_2)
+    implementation(Libs.jsr305)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-streaming-java"))
     testImplementation(project(":flink-formats:flink-avro"))
     testImplementation(Libs.flink_shaded_guava)
+    testImplementation(Libs.mockito_core)
 }
 
 description = "flink-parquet"

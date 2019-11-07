@@ -11,6 +11,9 @@ dependencies {
 
     implementation(project(":flink-scala"))
     implementation(project(":flink-streaming-scala"))
+
+    testImplementation(Libs.junit)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-table-api-scala-bridge"

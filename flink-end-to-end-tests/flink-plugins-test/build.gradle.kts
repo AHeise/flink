@@ -1,4 +1,6 @@
 dependencies {
+    api(Libs.jsr305)
+
     implementation(project(":flink-core"))
 }
 
