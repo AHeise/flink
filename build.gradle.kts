@@ -52,10 +52,9 @@ subprojects {
     }
 
     flinkSetupPublishing()
-    flinkSetupScalaIfNeeded()
 }
 
-gradle.flinkAddScalaVersionToArtifactsIfNeeded()
+flinkSetupScalaProjects()
 
 tasks.rat {
     file("$rootDir/.gitignore").forEachLine { exclude(it) }

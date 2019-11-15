@@ -4,7 +4,7 @@ dependencies {
     implementation(project(":flink-core"))
     implementation(project(":flink-java"))
     implementation(project(":flink-runtime"))
-    implementation(project(path = ":flink-runtime", configuration = TEST_JAR))
+    implementation(project(":flink-runtime", configuration = TEST_JAR))
     implementation(project(":flink-table:flink-table-api-java"))
     implementation(project(":flink-metrics:flink-metrics-prometheus"))
     implementation(project(":flink-runtime-web"))

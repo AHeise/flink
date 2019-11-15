@@ -9,6 +9,7 @@ import org.gradle.api.invocation.Gradle
 import org.gradle.api.tasks.ScalaSourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.tasks.Jar
+import kotlin.apply as kotlinApply
 
 import org.gradle.kotlin.dsl.*
 
@@ -17,6 +18,7 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
+import org.gradle.kotlin.dsl.support.delegates.ProjectDelegate
 
 /**
  * Bread-first tests if there is scala-library in classpath and caches the result.
@@ -52,27 +54,37 @@ private fun Project.flinkDependsOnScala(artifact: ResolvedArtifact): Boolean {
     } else false
 }
 
-fun Project.flinkSetupScalaIfNeeded() {
-    plugins.withType<ScalaPlugin> {
-        // no need to check classpath if we know that the scala plugin has been added
-        extra.properties["flinkMainDependsOnScala"] = true
-        extra.properties["flinkTestDependsOnScala"] = true
-        flinkJointScalaJavaCompilation()
-        flinkJointJavadoc()
+fun Project.flinkSetupScalaProjects() {
+    subprojects {
+        plugins.withType<ScalaPlugin> {
+            // no need to check classpath if we know that the scala plugin has been added
+            extra.properties["flinkMainDependsOnScala"] = true
+            extra.properties["flinkTestDependsOnScala"] = true
+            flinkJointScalaJavaCompilation()
+
+            val scalaCompilerPlugin by configurations.creating
+
+            dependencies {
+                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${Versions.org_scala_lang}:0.13")
+            }
+        }
     }
+
+    flinkAddScalaVersionToArtifactsForScalaProjects()
+    flinkJointJavadocForScalaProjects()
 }
 
-fun Gradle.flinkAddScalaVersionToArtifactsIfNeeded() {
-    taskGraph.whenReady {
+fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
+    gradle.taskGraph.whenReady {
         // add scala version to all artifacts when scala is a dependency (even without scala plugin)
         allTasks.filterIsInstance(Jar::class.java).forEach { jar ->
-            jar.apply {
+            jar.kotlinApply {
                 val isTestJar = name.startsWith("test")
                 if (!isTestJar && project.flinkMainDependsOnScala()) {
                     archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
 
                     project.configure<PublishingExtension> {
-                        val main by publications.existing(MavenPublication::class) {
+                        publications.named<MavenPublication>("main") {
                             // sync artifact id if we added scala version
                             artifactId = archiveBaseName.get()
                         }
@@ -131,21 +143,23 @@ fun Project.flinkCompileScalaFirst() {
 //    }
 }
 
-fun Project.flinkJointJavadoc() {
-    val scalaCompilerPlugin by configurations.creating
 
-    dependencies {
-        scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${Versions.org_scala_lang}:0.13")
-    }
+fun Project.flinkJointJavadocForScalaProjects() {
+    gradle.taskGraph.whenReady {
+        allTasks.filter { it.name == "javadoc" }.forEach { doc ->
+            doc.project.kotlinApply {
+                tasks.withType<ScalaCompile>().configureEach {
+                    scalaCompileOptions.additionalParameters = listOf(
+                            "-Xplugin:" + configurations["scalaCompilerPlugin"].asPath,
+                            "-P:genjavadoc:out=$buildDir/generated/java")
+                }
 
-    tasks.withType<ScalaCompile> {
-        scalaCompileOptions.additionalParameters = listOf(
-                "-Xplugin:" + scalaCompilerPlugin.asPath,
-                "-P:genjavadoc:out=$buildDir/generated/java")
-    }
+                tasks.withType<Javadoc> {
+                    dependsOn(tasks.named("compileScala"))
+                    setSource(listOf(project.the<SourceSetContainer>()["main"].allJava, "$buildDir/generated/java"))
+                }
 
-    tasks.withType<Javadoc> {
-        dependsOn(tasks.named("compileScala"))
-        setSource(listOf(project.the<SourceSetContainer>()["main"].allJava, "$buildDir/generated/java"))
+            }
+        }
     }
 }

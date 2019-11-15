@@ -14,6 +14,7 @@ dependencies {
     testImplementation(Libs.hadoop_minikdc)
     testImplementation(Libs.flink_shaded_guava)
     testImplementation(Libs.curator_test)
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-yarn-tests"

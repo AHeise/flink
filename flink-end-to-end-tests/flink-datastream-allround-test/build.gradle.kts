@@ -1,6 +1,6 @@
 plugins {
-    id("com.commercehub.gradle.plugin.avro") version "0.15.1"
-    }
+    id("com.commercehub.gradle.plugin.avro") version "0.16.0"
+}
 
 dependencies {
     implementation(project(":flink-formats:flink-avro"))

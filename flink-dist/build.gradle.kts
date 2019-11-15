@@ -51,6 +51,8 @@ dependencies {
     implementation(project(":flink-queryable-state:flink-queryable-state-runtime"))
     implementation(project(":flink-python"))
     implementation(Libs.flink_shaded_netty_tcnative_dynamic)
+
+    testImplementation(Libs.hamcrest_all)
 }
 
 description = "flink-dist"
