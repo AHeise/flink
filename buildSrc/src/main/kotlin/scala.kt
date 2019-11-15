@@ -14,6 +14,7 @@ import kotlin.apply as kotlinApply
 import org.gradle.kotlin.dsl.*
 
 import org.gradle.api.plugins.scala.ScalaPlugin
+import org.gradle.api.plugins.scala.ScalaPluginExtension
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.javadoc.Javadoc
@@ -63,6 +64,10 @@ fun Project.flinkSetupScalaProjects() {
             flinkJointScalaJavaCompilation()
 
             val scalaCompilerPlugin by configurations.creating
+
+            configure<ScalaPluginExtension> {
+                zincVersion.set("1.3.1")
+            }
 
             dependencies {
                 scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${Versions.org_scala_lang}:0.13")
@@ -148,17 +153,19 @@ fun Project.flinkJointJavadocForScalaProjects() {
     gradle.taskGraph.whenReady {
         allTasks.filter { it.name == "javadoc" }.forEach { doc ->
             doc.project.kotlinApply {
-                tasks.withType<ScalaCompile>().configureEach {
-                    scalaCompileOptions.additionalParameters = listOf(
-                            "-Xplugin:" + configurations["scalaCompilerPlugin"].asPath,
-                            "-P:genjavadoc:out=$buildDir/generated/java")
-                }
+                val scalaCompile = tasks.withType<ScalaCompile>()
+                if(scalaCompile.isNotEmpty()) {
+                    scalaCompile.configureEach {
+                        scalaCompileOptions.additionalParameters = listOf(
+                                "-Xplugin:" + configurations["scalaCompilerPlugin"].asPath,
+                                "-P:genjavadoc:out=$buildDir/generated/java")
+                    }
 
-                tasks.withType<Javadoc> {
-                    dependsOn(tasks.named("compileScala"))
-                    setSource(listOf(project.the<SourceSetContainer>()["main"].allJava, "$buildDir/generated/java"))
+                    tasks.withType<Javadoc> {
+                        dependsOn(tasks.withType<ScalaCompile>())
+                        setSource(listOf(project.the<SourceSetContainer>()["main"].allJava, "$buildDir/generated/java"))
+                    }
                 }
-
             }
         }
     }

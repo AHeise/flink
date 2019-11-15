@@ -10,24 +10,16 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.javadoc.Javadoc
 
 import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
-import org.apache.tools.ant.taskdefs.Java
 import org.gradle.api.*
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Attribute
-import org.gradle.api.component.AdhocComponentWithVariants
-import org.gradle.api.component.Artifact
 import org.gradle.api.file.FileCollection
 import org.gradle.api.plugins.JavaApplication
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.api.plugins.internal.DefaultAdhocSoftwareComponent
-import org.gradle.api.plugins.internal.JavaConfigurationVariantMapping
 import org.gradle.api.provider.Provider
-import org.gradle.api.publish.maven.MavenArtifact
 import org.gradle.api.publish.maven.tasks.GenerateMavenPom
-import org.gradle.api.publish.tasks.GenerateModuleMetadata
-import org.gradle.internal.impldep.org.apache.maven.Maven
 import java.net.URLClassLoader
 
 // use typealias to keep customized shading options shorter
@@ -36,8 +28,6 @@ typealias ShadowJar = com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 const val TEST_JAR = "testJar"
 
 private const val SHADE = "shade"
-
-const val SHADED = "shaded"
 
 const val PUBLISH = "publish"
 
@@ -197,7 +187,10 @@ private fun Project.getMainJar(): Provider<Jar> {
 
     // only one of jar or shadowJar will produce an output; also add javadoc and sources
     return providers.provider {
-        if (jar.get().shouldRun) jar.get() else shadowJar.get()
+        if (!project.extra.has("mainJar")) {
+            project.extra["mainJar"] = if (shadowJar.get().shouldRun) shadowJar.get() else jar.get()
+        }
+        project.extra["mainJar"] as Jar
     }
 }
 
@@ -208,17 +201,10 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
         configurations["implementation"].extendsFrom(this)
     }
 
-    configurations.register(SHADED) {
-    }
-
     configurations.register(PUBLISH) {
     }
 
     val shadowJar by tasks.existing(ShadowJar::class)
-
-    artifacts {
-        add(SHADED, shadowJar)
-    }
 
     configurations.register(TEST_SHADE) {
         extendsFrom(configurations["testRuntime"])
@@ -233,8 +219,7 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     tasks.named<ShadowJar>("shadowJar") {
         onlyIf {
             // do we actually have anything to shade?
-            val shadedDependencies = project.configurations[SHADE]
-            !shadedDependencies.isEmpty || includes.isNotEmpty()
+            project.configurations[SHADE].dependencies.isNotEmpty() || includes.isNotEmpty()
         }
         // create ad-hoc configuration containing all jars that should be shaded
         // we are using a configuration as that eases the exclusion of transitive dependencies
@@ -280,13 +265,14 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
 
     val mainJar = getMainJar()
 
-    project.configurations["archives"].apply {
+    configurations["archives"].apply {
         artifacts.remove(artifacts.find { it.toString().contains("jar") })
     }
 
-    artifacts.add(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, mainJar)
-    artifacts.add(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, mainJar)
-    artifacts.add(Dependency.ARCHIVES_CONFIGURATION, mainJar)
+    val mainArtifact = LazyPublishArtifact(mainJar)
+    artifacts.add(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, mainArtifact)
+    artifacts.add(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, mainArtifact)
+    artifacts.add(Dependency.ARCHIVES_CONFIGURATION, mainArtifact)
 
     // add shadow jar as requirement for full build
     tasks.named("build").configure {

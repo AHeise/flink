@@ -1,9 +1,13 @@
 import groovy.util.Node
+import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.internal.TaskInternal
+import org.gradle.api.internal.project.ProjectStateInternal
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.get
 
 val TaskInternal.shouldRun
@@ -59,3 +63,22 @@ private fun Node.appendDependency(
     }
 }
 
+//val lazyConfigurations
+fun <T : Task> T.configureLazily(block: T.() -> Unit) {
+    if (project.state.executed) {
+        this.block()
+    } else {
+        project.afterEvaluate {
+            this@configureLazily.block()
+        }
+    }
+}
+fun Project.configureLazily(block: Project.() -> Unit) {
+    if (state.executed) {
+        this.block()
+    } else {
+        afterEvaluate {
+            this@configureLazily.block()
+        }
+    }
+}
