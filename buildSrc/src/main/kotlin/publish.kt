@@ -59,7 +59,7 @@ fun Project.flinkCreateTestJar(mainClass: String? = null, artifactName: String? 
         // there is currently no lazy way to check if a configuration already exists
     }
 
-    val testJar by tasks.register<ShadowJar>(artifactName ?: TEST_JAR) {
+    val testJar = tasks.register<ShadowJar>(artifactName ?: TEST_JAR) {
         if (mainClass != null) {
             manifest {
                 attributes(mapOf("Main-Class" to mainClass))
@@ -77,8 +77,21 @@ fun Project.flinkCreateTestJar(mainClass: String? = null, artifactName: String? 
         configuration?.execute(this)
     }
 
+    // lazy mechanism to provide a shaded jar for downstream projects/tasks
+    // if the shaded jar is not used in this build, nothing will be materialized
+    val testArtifact = LazyPublishArtifact(memorizingProvider {
+        // only when this project's jar is needed, check if it has scala dependencies
+        testJar.get().apply {
+            println("$project $artifactName - test jar")
+            // and add the scala version to the jar name
+            if (flinkTestDependsOnScala()) {
+                archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+            }
+        }
+    })
+
     artifacts {
-        add(TEST_JAR, testJar)
+        add(TEST_JAR, testArtifact)
     }
 }
 
@@ -144,7 +157,6 @@ fun Project.flinkSetupPublishing() {
     }
 
     flinkSetupShading()
-    val actualJar = getMainJar()
 
     // tweak ALL jars (shaded, sources, javadoc)
     tasks.withType<org.gradle.api.tasks.bundling.Jar>().configureEach {
@@ -176,22 +188,9 @@ fun Project.flinkSetupPublishing() {
         }
     }
 
-    tasks.withType<GenerateMavenPom> {
-        dependsOn(actualJar)
-    }
-}
-
-private fun Project.getMainJar(): Provider<Jar> {
-    val jar = tasks.named<Jar>("jar")
-    val shadowJar = tasks.named<Jar>("shadowJar")
-
-    // only one of jar or shadowJar will produce an output; also add javadoc and sources
-    return providers.provider {
-        if (!project.extra.has("mainJar")) {
-            project.extra["mainJar"] = if (shadowJar.get().shouldRun) shadowJar.get() else jar.get()
-        }
-        project.extra["mainJar"] as Jar
-    }
+//    tasks.withType<GenerateMavenPom> {
+//        dependsOn(actualJar)
+//    }
 }
 
 fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
@@ -217,20 +216,16 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     }
 
     tasks.named<ShadowJar>("shadowJar") {
-        onlyIf {
-            // do we actually have anything to shade?
-            project.configurations[SHADE].dependencies.isNotEmpty() || includes.isNotEmpty()
-        }
         // create ad-hoc configuration containing all jars that should be shaded
         // we are using a configuration as that eases the exclusion of transitive dependencies
         doFirst {
             // do we actually have anything to shade?
             val shadedNoDist = this@flinkSetupShading.configurations.create("shadeWithoutFlinkDist")
-            this@flinkSetupShading.dependencies {
-                shadedNoDist(project.configurations[SHADE] -
-                    rootProject.project(":flink-dist").configurations["runtimeClasspath"])
-                PUBLISH(project.configurations["runtimeClasspath"] - shadedNoDist)
-            }
+//            this@flinkSetupShading.dependencies {
+//                shadedNoDist(project.configurations[SHADE] -
+//                    rootProject.project(":flink-dist").configurations["runtimeClasspath"])
+//                PUBLISH(project.configurations["runtimeClasspath"] - shadedNoDist)
+//            }
             configurations = listOf(shadedNoDist)
         }
 
@@ -252,32 +247,32 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
         // exclude( com.google.code.findbugs:jsr305 )
     }
 
-    // disable regular jar task iff shadowJar produces output
+    // disable regular jar task
     tasks.named<org.gradle.api.tasks.bundling.Jar>("jar").configure {
-        onlyIf { !shadowJar.get().shouldRun }
-        dependsOn(shadowJar)
-        doFirst {
-            this@flinkSetupShading.dependencies {
-                PUBLISH(configurations["runtimeClasspath"])
-            }
-        }
+        enabled = false
     }
 
-    val mainJar = getMainJar()
-
+    // remove the jar from the default artifacts, replace it subsequently with the shaded jar
+    // this jar will be used for downstream project/tasks and publishing
     configurations["archives"].apply {
         artifacts.remove(artifacts.find { it.toString().contains("jar") })
     }
 
-    val mainArtifact = LazyPublishArtifact(mainJar)
+    // lazy mechanism to provide a shaded jar for downstream projects/tasks
+    // if the shaded jar is not used in this build, nothing will be materialized
+    val mainArtifact = LazyPublishArtifact(memorizingProvider {
+            // only when this project's jar is needed, check if it has scala dependencies
+            shadowJar.get().apply {
+                println("$project - main jar")
+                // and add the scala version to the jar name
+                if (flinkMainDependsOnScala()) {
+                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+                }
+            }
+        })
     artifacts.add(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, mainArtifact)
     artifacts.add(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, mainArtifact)
     artifacts.add(Dependency.ARCHIVES_CONFIGURATION, mainArtifact)
-
-    // add shadow jar as requirement for full build
-    tasks.named("build").configure {
-        dependsOn(mainJar)
-    }
 
     return shadowJar
 }

@@ -11,6 +11,7 @@ dependencies {
 
     implementation(project(":flink-queryable-state:flink-queryable-state-client-java"))
     implementation(project(":flink-filesystems:flink-hadoop-fs"))
+    implementation(project(":flink-shaded-curator"))
     implementation(Libs.commons_io)
     implementation(Libs.flink_shaded_netty)
     implementation(Libs.flink_shaded_guava)
@@ -28,7 +29,6 @@ dependencies {
     implementation(Libs.scopt_2_11)
     implementation(Libs.snappy_java)
     implementation(Libs.chill_2_11)
-    implementation(project(":flink-shaded-curator"))
     implementation(Libs.oshi_core)
     implementation(Libs.jsr305)
 

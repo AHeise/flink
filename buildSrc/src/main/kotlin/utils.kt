@@ -7,8 +7,10 @@ import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.internal.TaskInternal
 import org.gradle.api.internal.project.ProjectStateInternal
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.get
+import java.util.concurrent.Callable
 
 val TaskInternal.shouldRun
     get() = enabled && onlyIf.isSatisfiedBy(this)
@@ -60,6 +62,16 @@ private fun Node.appendDependency(
     }
     if (classifier != null) {
         appendNode("classifier", classifier)
+    }
+}
+
+fun <T> Project.memorizingProvider(block: () -> T): Provider<T> {
+    var cache: T? = null
+    return this.provider {
+        if (cache == null) {
+            cache = block()
+        }
+        cache
     }
 }
 
