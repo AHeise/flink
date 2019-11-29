@@ -31,8 +31,8 @@ dependencies {
     implementation(Libs.chill_2_11)
     implementation(Libs.oshi_core)
     implementation(Libs.jsr305)
+    implementation(Libs.flink_shaded_hadoop_2)
 
-    shade(Libs.flink_shaded_hadoop_2)
     shade(Libs.akka_remote_2_11)
     shade(Libs.zookeeper)
 

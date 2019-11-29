@@ -1,11 +1,14 @@
 dependencies {
-    api(Libs.flink_shaded_hadoop_2)
+    api(Libs.flink_shaded_hadoop_2) {
+        exclude(Libs.netty)
+        exclude(Libs.log4j)
+    }
 
     compileOnly(project(":flink-annotations"))
 
+    implementation(project(":flink-core"))
     implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
-    implementation(project(":flink-core"))
     implementation(Libs.commons_lang3)
 
     testImplementation(project(path = ":flink-core", configuration = TEST_JAR))

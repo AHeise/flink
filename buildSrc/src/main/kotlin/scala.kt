@@ -1,3 +1,5 @@
+import org.gradle.BuildListener
+import org.gradle.BuildResult
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
@@ -10,6 +12,7 @@ import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.execution.TaskExecutionGraph
 import org.gradle.api.execution.TaskExecutionGraphListener
 import org.gradle.api.execution.TaskExecutionListener
+import org.gradle.api.initialization.Settings
 import org.gradle.api.invocation.Gradle
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.ScalaSourceSet
@@ -105,36 +108,65 @@ fun Project.flinkSetupScalaProjects() {
 //        }
     }
 
-//    flinkAddScalaVersionToArtifactsForScalaProjects()
+    flinkAddScalaVersionToArtifactsForScalaProjects()
     flinkJointJavadocForScalaProjects()
 }
 
 fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
-    gradle.taskGraph.whenReady {
-        // add scala version to all artifacts when scala is a dependency (even without scala plugin)
-        allTasks.filterIsInstance(ShadowJar::class.java).forEach { jar ->
-            jar.kotlinApply {
-                val isTestJar = name.startsWith("test")
-                if (!isTestJar && project.flinkMainDependsOnScala()) {
-                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+    gradle.addBuildListener(object : BuildListener {
+        override fun settingsEvaluated(settings: Settings) {
+        }
 
-                    project.configure<PublishingExtension> {
-                        publications.named<MavenPublication>("main") {
-                            // sync artifact id if we added scala version
-                            artifactId = archiveBaseName.get()
-                        }
-                    }
+        override fun buildFinished(result: BuildResult) {
+        }
 
-                    project.configurations["archives"].kotlinApply {
-                        artifacts.remove(artifacts.find { it.toString().contains("jar") })
+        override fun projectsLoaded(gradle: Gradle) {
+            println("projectsLoaded")
+        }
+
+        override fun buildStarted(gradle: Gradle) {
+        }
+
+        override fun projectsEvaluated(gradle: Gradle) {
+            subprojects {
+                tasks.withType<ShadowJar>().configureEach {
+                    val isTestJar = name.startsWith("test")
+                    if (!isTestJar && project.flinkMainDependsOnScala()) {
+                        archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+
+//                        project.configure<PublishingExtension> {
+//                            publications.named<MavenPublication>("main") {
+//                                // sync artifact id if we added scala version
+//                                artifactId = archiveBaseName.get()
+//                            }
+//                        }
+                    } else if (isTestJar && project.flinkTestDependsOnScala()) {
+                        archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
                     }
-                    project.artifacts.add(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, jar)
-                } else if (isTestJar && project.flinkTestDependsOnScala()) {
-                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
                 }
             }
         }
-    }
+    })
+//    gradle.taskGraph.whenReady {
+//        // add scala version to all artifacts when scala is a dependency (even without scala plugin)
+//        allTasks.filterIsInstance(ShadowJar::class.java).forEach { jar ->
+//            jar.kotlinApply {
+//                val isTestJar = name.startsWith("test")
+//                if (!isTestJar && project.flinkMainDependsOnScala()) {
+//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+//
+//                    project.configure<PublishingExtension> {
+//                        publications.named<MavenPublication>("main") {
+//                            // sync artifact id if we added scala version
+//                            artifactId = archiveBaseName.get()
+//                        }
+//                    }
+//                } else if (isTestJar && project.flinkTestDependsOnScala()) {
+//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+//                }
+//            }
+//        }
+//    }
 }
 
 /**
