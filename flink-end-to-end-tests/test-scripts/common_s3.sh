@@ -48,6 +48,9 @@ AWS_SECRET_KEY=$IT_CASE_S3_SECRET_KEY
 
 S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/static/words"
 
+OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
+S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/$OUT"
+
 ###################################
 # Setup Flink s3 access.
 #
@@ -70,6 +73,24 @@ function s3_setup_with_provider {
   add_optional_plugin "s3-fs-$1"
   # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
   set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+}
+
+###################################
+# Fetches the result in part files into the OUTPUT_PATH.
+#
+# Globals:
+#   OUTPUT_PATH, OUT
+# Arguments:
+#   $1 - single?
+# Returns:
+#   None
+###################################
+function fetch_complete_result {
+  if [[ "$1" == true ]]; then
+    s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${OUT}" "" false
+  else
+    s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${OUT}" "part-" true
+  fi
 }
 
 source "$(dirname "$0")"/common_s3_operations.sh

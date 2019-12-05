@@ -22,18 +22,18 @@ export AWS_REGION=us-east-1
 export AWS_ACCESS_KEY_ID=access_key
 export AWS_SECRET_ACCESS_KEY=secret_key
 
-export IT_CASE_S3_BUCKET=test-data
+IT_CASE_S3_BUCKET=test-data
 
-export S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/words"
-
-export S3_OUTPUT_LOCATION="s3://$(basename "$TEST_DATA_DIR")/out/wc_out"
+S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/words"
+OUTPUT_PATH="$TEST_INFRA_DIR/$IT_CASE_S3_BUCKET/$OUT"
+S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/$OUT"
 
 function s3_start {
   echo "Spawning minio for s3 tests"
   export MINIO_CONTAINER_ID=$(docker run -d \
     -P \
-    --mount type=bind,source="$(dirname "$TEST_DATA_DIR")",target=/data \
-    -e "MINIO_ACCESS_KEY=$AWS_ACCESS_KEY_ID" -e "MINIO_SECRET_KEY=$AWS_SECRET_ACCESS_KEY" \
+    --mount type=bind,source="$TEST_INFRA_DIR",target=/data \
+    -e "MINIO_ACCESS_KEY=$AWS_ACCESS_KEY_ID" -e "MINIO_SECRET_KEY=$AWS_SECRET_ACCESS_KEY" -e "MINIO_DOMAIN=localhost" \
     minio/minio \
     server \
     /data)
@@ -44,6 +44,8 @@ function s3_start {
   echo "Started minio @ $S3_ENDPOINT"
   on_exit s3_stop
 }
+
+s3_start
 
 function s3_stop {
   docker kill "$MINIO_CONTAINER_ID"
@@ -67,8 +69,6 @@ function s3_stop {
 function s3_setup {
   add_optional_plugin "s3-fs-$1"
 
-#  s3_start
-
   set_config_key "s3.access-key" "$AWS_ACCESS_KEY_ID"
   set_config_key "s3.secret-key" "$AWS_SECRET_ACCESS_KEY"
   set_config_key "s3.endpoint" "$S3_ENDPOINT"
@@ -77,14 +77,14 @@ function s3_setup {
 }
 
 function s3_setup_with_provider {
-  s3_start
-
   add_optional_plugin "s3-fs-$1"
   # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-  set_config_key "$2" "com.amazonaws.auth.EnvironmentAsyncWaitOperatorTestVariableCredentialsProvider"
+  set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
   set_config_key "s3.endpoint" "$S3_ENDPOINT"
   set_config_key "s3.path.style.access" "true"
   set_config_key "s3.path-style-access" "true"
 }
+
+function fetch_complete_result { :; }
 
 source "$(dirname "$0")"/common_s3_operations.sh
