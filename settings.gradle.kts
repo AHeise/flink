@@ -15,6 +15,11 @@ plugins {
     id("com.gradle.enterprise") version "3.0" apply false
 }
 
+fun Settings.findProperty(propertyName: String) =
+    if (settings.extra.has(propertyName))
+        settings.extra.get(propertyName)
+    else null
+
 if (!gradle.startParameter.isOffline) {
     apply(plugin = "com.gradle.enterprise")
 
@@ -27,8 +32,9 @@ if (!gradle.startParameter.isOffline) {
             url = uri("http://35.204.219.75:3000/cache/")
             isPush = isCiServer
             credentials {
-                username = settings.extra["buildCache.user"]?.toString() ?: System.getenv()["GRADLE_BUILD_CACHE_USER"]
-                password = settings.extra["buildCache.password"]?.toString() ?:
+                username = settings.findProperty("buildCache.user")?.toString() ?:
+                        System.getenv()["GRADLE_BUILD_CACHE_USER"]
+                password = settings.findProperty("buildCache.password")?.toString() ?:
                         System.getenv()["GRADLE_BUILD_CACHE_PASSWORD"]
             }
         }
