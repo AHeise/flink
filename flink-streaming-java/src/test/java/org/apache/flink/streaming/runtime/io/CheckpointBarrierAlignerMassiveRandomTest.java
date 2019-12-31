@@ -31,6 +31,8 @@ import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Random;
 
@@ -191,6 +193,11 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 		@Override
 		public void registerBufferReceivedListener(BufferReceivedListener listener) {
+		}
+
+		@Override
+		public Collection<Buffer> getInflightBuffers(int channelIndex, long checkpointId) {
+			return Collections.emptyList();
 		}
 	}
 }
