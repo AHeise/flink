@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * A buffer-oriented runtime result writer API for producing results.
@@ -64,7 +66,16 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 *
 	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 */
-	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
+	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex, boolean insertAsHead) throws IOException;
+
+	default boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
+	}
+
+	/**
+	 * Returns the collection of in-flight buffers which would be persisted for checkpoint snapshot.
+	 */
+	Collection<Buffer> getInflightBuffers(int subpartitionIndex);
 
 	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.
