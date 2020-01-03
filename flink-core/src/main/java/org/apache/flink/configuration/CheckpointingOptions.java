@@ -139,4 +139,10 @@ public class CheckpointingOptions {
 		.withDescription(String.format("The default size of the write buffer for the checkpoint streams that write to file systems. " +
 			"The actual write buffer size is determined to be the maximum of the value of this option and option '%s'.", FS_SMALL_FILE_THRESHOLD.key()));
 
+	@Documentation.ExcludeFromDocumentation("This option is only used for testing at the moment.")
+	public static final ConfigOption<String> PERSIST_LOCATION_CONFIG = ConfigOptions
+		.key("in-flight.data.location")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("The location to which to persist in-flight data");
 }

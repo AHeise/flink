@@ -1150,6 +1150,10 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
+		public void prepareSnapshot(final long checkpointId) {
+		}
+
+		@Override
 		public void close() throws IOException {
 		}
 
@@ -1377,6 +1381,10 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public InputStatus processInput() throws Exception {
 			return isFinished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
+		}
+
+		@Override
+		public void prepareSnapshot(long checkpointId) throws IOException {
 		}
 
 		@Override
