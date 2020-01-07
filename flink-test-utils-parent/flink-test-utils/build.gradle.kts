@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":flink-runtime", configuration = TEST_JAR))
     implementation(project(":flink-streaming-java"))
     implementation(Libs.jsr305)
+    implementation(Libs.slf4j_api)
 
     shadow(Libs.flink_shaded_netty)
     implementation(Libs.curator_test)

@@ -1,7 +1,9 @@
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.kotlin.dsl.exclude
+import org.gradle.kotlin.dsl.extra
 import org.gradle.kotlin.dsl.get
 
 fun DependencyHandler.`testApi`(dependencyNotation: Any): Dependency? =
@@ -36,3 +38,21 @@ fun Project.flinkExclude(group: String? = null, name: String? = null) {
         exclude(group = group, module = name)
     }
 }
+
+fun Project.getAllProjectDependencies(): Set<ProjectDependency> =
+    extra.properties.getOrPut("allProjectDependencies") {
+        configurations["runtimeElements"].allDependencies.filterIsInstance<ProjectDependency>().flatMap {
+            setOf(it) + it.dependencyProject.getAllProjectDependencies()
+        }.toSet()
+    } as Set<ProjectDependency>
+
+fun Project.getDistProjectDependencies(configurationName: String): Set<ProjectDependency> =
+    extra.properties.getOrPut("${configurationName}DistProjectDependencies") {
+        val distProjects = project.evaluationDependsOn(":flink-dist").getAllProjectDependencies()
+        configurations[configurationName].dependencies.filterIsInstance<ProjectDependency>().flatMap {
+            if (distProjects.contains(it)) {
+                return@flatMap listOf(it)
+            }
+            it.dependencyProject.getDistProjectDependencies(configurationName)
+        }.toSet()
+    } as Set<ProjectDependency>

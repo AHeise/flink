@@ -4,7 +4,6 @@ dependencies {
 
     implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
-    implementation(project(":flink-streaming-java"))
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-streaming-java"))

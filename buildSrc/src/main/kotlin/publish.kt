@@ -1,23 +1,23 @@
-import org.gradle.api.tasks.SourceSetContainer
-
-import org.gradle.kotlin.dsl.*
-
-import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact
-import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.tasks.TaskProvider
-import org.gradle.api.tasks.javadoc.Javadoc
-
 import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
 import org.gradle.api.*
-import org.gradle.api.artifacts.*
+import org.gradle.api.artifacts.Dependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Attribute
+import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.file.FileCollection
+import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact
 import org.gradle.api.plugins.JavaApplication
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.javadoc.Javadoc
+import org.gradle.external.javadoc.StandardJavadocDocletOptions
+import org.gradle.kotlin.dsl.*
 import java.net.URLClassLoader
 
 // use typealias to keep customized shading options shorter
@@ -36,8 +36,8 @@ val CLASSIFIER_ATTRIBUTE = Attribute.of("classifier", String::class.java)
 fun DependencyHandler.testShade(dependencyNotation: Any): Dependency? =
     add(TEST_SHADE, dependencyNotation)
 
-fun DependencyHandler.shade(dependencyNotation: Any): Dependency? =
-    add(SHADE, dependencyNotation)
+//fun DependencyHandler.shade(dependencyNotation: Any): Dependency? =
+//    add(SHADE, dependencyNotation)
 /**
  * Configures the current project to provide a test jar under the
  * "testArtifacts" configuration.
@@ -157,6 +157,9 @@ fun Project.flinkSetupPublishing() {
 //    }
     tasks.named<Javadoc>("javadoc").configure {
         isFailOnError = false
+        val opts = options as StandardJavadocDocletOptions
+        // suppress warnings
+        opts.addStringOption("Xdoclint:none", "-quiet")
     }
 
     flinkSetupShading()
@@ -199,8 +202,8 @@ fun Project.flinkSetupPublishing() {
 fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     apply(plugin = "com.github.johnrengelman.shadow")
 
-    val shade = configurations.register(SHADE) {
-        configurations["compileOnly"].extendsFrom(this)
+    val shade = configurations.create(SHADE) {
+        configurations["compileClasspath"].extendsFrom(this)
         configurations["testCompileOnly"].extendsFrom(this)
         configurations["testRuntimeOnly"].extendsFrom(this)
     }
@@ -218,7 +221,7 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     }
 
     tasks.named<ShadowJar>("shadowJar") {
-        configurations = listOf(shade.get())
+        configurations = listOf(shade)
         isZip64 = true
 
         // remove 'all' classifier, we want to replace the original jar by the shaded version
@@ -256,6 +259,36 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
         val configuration = configurations[it]
         configuration.artifacts.clear()
         configuration.artifacts.add(artifact)
+    }
+
+    val classesConfigurations = listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+    classesConfigurations.forEach { compiledConfiguration ->
+        configurations[compiledConfiguration].outgoing.variants.removeIf {
+            it.attributes.getAttribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE)?.name == LibraryElements.CLASSES
+        }
+    }
+
+    configurations["default"].setExtendsFrom(listOf(configurations["archives"]))
+
+    listOf("api", "implementation").forEach { conf ->
+        // exclude dist dependencies, just before shade is resolved
+        shade.withDependencies {
+            this.filterIsInstance<ProjectDependency>().forEach { shadedDependency ->
+                shadedDependency.dependencyProject.getDistProjectDependencies(conf).forEach {
+                    println("Excluding $it from $shadedDependency($conf)")
+                    shadedDependency.exclude(mapOf("group" to it.group, "module" to it.name))
+                }
+            }
+        }
+        configurations[conf].withDependencies {
+            val excluded = shade.allDependencies.filterIsInstance<ProjectDependency>().flatMap {
+                it.dependencyProject.getDistProjectDependencies(conf)
+            }.toSet()
+            excluded.forEach {
+                println("Including $it in $conf")
+                add(it)
+            }
+        }
     }
 
     return shadowJar
