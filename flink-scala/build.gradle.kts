@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     // for some reasons scala compiler requires everything in a method signature to be in the classpath even though it's only used in private methods...
-    api(Libs.flink_shaded_asm)
+    api(Libs.flink_shaded_asm_7)
     api(Libs.commons_lang3)
     api(Libs.scala_library)
 
@@ -21,8 +21,8 @@ dependencies {
     testImplementation(project(":flink-runtime"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
-    testImplementation(Libs.scalatest_2_11)
-    testImplementation(Libs.chill_2_11)
+    testImplementation(Libs.scalatest)
+    testImplementation(Libs.chill)
     testImplementation(Libs.joda_time)
     testImplementation(Libs.joda_convert)
     testImplementation(Libs.hamcrest_all)

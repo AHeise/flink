@@ -6,7 +6,7 @@ dependencies {
     implementation(project(":flink-shaded-curator"))
     implementation(project(":flink-table:flink-table-api-java-bridge"))
     implementation(project(":flink-table:flink-table-planner"))
-    implementation(Libs.kafka_2_11)
+    implementation(Libs.kafka)
     implementation(Libs.jsr305)
 
     testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))

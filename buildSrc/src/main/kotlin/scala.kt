@@ -1,62 +1,50 @@
 import org.gradle.BuildListener
 import org.gradle.BuildResult
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.artifacts.ResolvedArtifact
-import org.gradle.api.artifacts.component.ComponentArtifactIdentifier
-import org.gradle.api.artifacts.component.ComponentIdentifier
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
-import org.gradle.api.execution.TaskExecutionGraph
-import org.gradle.api.execution.TaskExecutionGraphListener
-import org.gradle.api.execution.TaskExecutionListener
 import org.gradle.api.initialization.Settings
 import org.gradle.api.invocation.Gradle
-import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.ScalaSourceSet
 import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.jvm.tasks.Jar
 import kotlin.apply as kotlinApply
 
 import org.gradle.kotlin.dsl.*
 
 import org.gradle.api.plugins.scala.ScalaPlugin
 import org.gradle.api.plugins.scala.ScalaPluginExtension
-import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.tasks.TaskState
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
-import org.gradle.kotlin.dsl.support.delegates.ProjectDelegate
 
+val Project.scalaMinorVersion
+    get() = property("scala.binary.version")!!.toString()
 /**
  * Bread-first tests if there is scala-library in classpath and caches the result.
  */
-fun Project.flinkMainDependsOnScala(): Boolean =
-    extra.properties.getOrPut("flinkMainDependsOnScala") {
-        configurations["compileClasspath"].flinkDependsOnScala()
+fun Project.flinkIsMainDependingOnScala(): Boolean =
+    extra.properties.getOrPut("flinkIsMainDependingOnScala") {
+        flinkIsConfigurationDependingOnScala(configurations["compileClasspath"])
     } as Boolean
 
-fun Project.flinkTestDependsOnScala(): Boolean =
-    extra.properties.getOrPut("flinkTestDependsOnScala") {
-        configurations["testCompileClasspath"].flinkDependsOnScala()
+fun Project.flinkIsTestDependingOnScala(): Boolean =
+    extra.properties.getOrPut("flinkIsTestDependingOnScala") {
+        flinkIsConfigurationDependingOnScala(configurations["testCompileClasspath"])
     } as Boolean
 
-private fun Configuration.flinkDependsOnScala(): Boolean =
-    allDependencies.any {
-        it.name == "scala-library" || it.name.endsWith(Versions.baseScala)
+private fun Project.flinkIsConfigurationDependingOnScala(conf: Configuration): Boolean =
+    conf.allDependencies.any {
+        it.name == "scala-library" || it.name.endsWith(project.scalaMinorVersion)
     } ||
-    allDependencies.any {
-        flinkDependsOnScala(it)
+    conf.allDependencies.any {
+        flinkIsDependencyDependingOnScala(it)
     }
 
-private fun flinkDependsOnScala(dependency: Dependency): Boolean =
+private fun flinkIsDependencyDependingOnScala(dependency: Dependency): Boolean =
     if (dependency is ProjectDependency) {
         when (dependency.targetConfiguration) {
-            "test" -> dependency.dependencyProject.flinkTestDependsOnScala()
-            else -> dependency.dependencyProject.flinkMainDependsOnScala()
+            "test" -> dependency.dependencyProject.flinkIsTestDependingOnScala()
+            else -> dependency.dependencyProject.flinkIsMainDependingOnScala()
         }
     } else false
 
@@ -78,7 +66,7 @@ fun Project.flinkSetupScalaProjects() {
             }
 
             dependencies {
-                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${Versions.org_scala_lang}:0.13")
+                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${property("scala.version")}:0.13")
             }
         }
 
@@ -90,7 +78,7 @@ fun Project.flinkSetupScalaProjects() {
 
 //        if (project.flinkMainDependsOnScala()) {
 //            tasks.named<ShadowJar>("shadowJar") {
-//                archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+//                archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
 //            }
 //            project.configure<PublishingExtension> {
 //                publications.named<MavenPublication>("main") {
@@ -104,7 +92,7 @@ fun Project.flinkSetupScalaProjects() {
 //            }
 //            project.artifacts.add(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, jar)
 //        } else if (isTestJar && project.flinkTestDependsOnScala()) {
-//            archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+//            archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
 //        }
     }
 
@@ -131,8 +119,8 @@ fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
             subprojects {
                 tasks.withType<ShadowJar>().configureEach {
                     val isTestJar = name.startsWith("test")
-                    if (!isTestJar && project.flinkMainDependsOnScala()) {
-                        archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+                    if (!isTestJar && project.flinkIsMainDependingOnScala()) {
+                        archiveBaseName.set("${archiveBaseName.get()}_${scalaMinorVersion}")
 
 //                        project.configure<PublishingExtension> {
 //                            publications.named<MavenPublication>("main") {
@@ -140,8 +128,8 @@ fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
 //                                artifactId = archiveBaseName.get()
 //                            }
 //                        }
-                    } else if (isTestJar && project.flinkTestDependsOnScala()) {
-                        archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+                    } else if (isTestJar && project.flinkIsTestDependingOnScala()) {
+                        archiveBaseName.set("${archiveBaseName.get()}_${scalaMinorVersion}")
                     }
                 }
             }
@@ -153,7 +141,7 @@ fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
 //            jar.kotlinApply {
 //                val isTestJar = name.startsWith("test")
 //                if (!isTestJar && project.flinkMainDependsOnScala()) {
-//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
 //
 //                    project.configure<PublishingExtension> {
 //                        publications.named<MavenPublication>("main") {
@@ -162,7 +150,7 @@ fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
 //                        }
 //                    }
 //                } else if (isTestJar && project.flinkTestDependsOnScala()) {
-//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
 //                }
 //            }
 //        }

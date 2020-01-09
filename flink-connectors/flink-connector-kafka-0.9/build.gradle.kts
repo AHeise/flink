@@ -1,6 +1,6 @@
 dependencies {
     api(project(":flink-connectors:flink-connector-kafka-base")) {
-        exclude(group = "org.apache.kafka", module = "kafka_${Versions.baseScala}")
+        exclude(group = "org.apache.kafka", module = "kafka_${scalaMinorVersion}")
         exclude(group = "org.apache.kafka", module = "kafka-clients")
     }
 
@@ -17,7 +17,7 @@ dependencies {
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-table:flink-table-planner"))
     testImplementation(Libs.hadoop_minikdc)
-    testImplementation(Libs.kafka_2_11)
+    testImplementation(Libs.kafka)
     testImplementation(Libs.curator_test)
     testImplementation(Libs.mockito_core)
     testImplementation(Libs.powermock_module_junit4)

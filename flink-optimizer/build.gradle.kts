@@ -1,3 +1,5 @@
+import kotlin.reflect.full.memberProperties
+
 dependencies {
     api(project(":flink-runtime"))
 

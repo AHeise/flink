@@ -13,7 +13,7 @@ dependencies {
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-metrics:flink-metrics-jmx"))
     testImplementation(project(":flink-table:flink-table-planner"))
-    testImplementation(Libs.kafka_2_11)
+    testImplementation(Libs.kafka)
     testImplementation(Libs.curator_test)
     testImplementation(Libs.commons_collections)
     testImplementation(Libs.commons_io)

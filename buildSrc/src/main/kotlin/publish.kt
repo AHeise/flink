@@ -16,6 +16,7 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.javadoc.Javadoc
+import org.gradle.execution.DefaultSharedResource
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.kotlin.dsl.*
 import java.net.URLClassLoader
@@ -87,7 +88,7 @@ fun Project.flinkCreateTestJar(mainClass: String? = null, artifactName: String? 
 //            println("$project $artifactName - test jar")
 //            // and add the scala version to the jar name
 //            if (flinkTestDependsOnScala()) {
-//                archiveBaseName.set("${archiveBaseName.get()}_${Versions.baseScala}")
+//                archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
 //            }
 //        }
 //    })
@@ -157,6 +158,7 @@ fun Project.flinkSetupPublishing() {
 //    }
     tasks.named<Javadoc>("javadoc").configure {
         isFailOnError = false
+        options.encoding = "UTF-8"
         val opts = options as StandardJavadocDocletOptions
         // suppress warnings
         opts.addStringOption("Xdoclint:none", "-quiet")
@@ -269,6 +271,14 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     }
 
     configurations["default"].setExtendsFrom(listOf(configurations["archives"]))
+
+    var addedConstraints = false
+    shade.dependencies.whenObjectAdded {
+        if (!addedConstraints) {
+            shade.dependencyConstraints.addAll(configurations["api"].dependencyConstraints)
+            addedConstraints = true
+        }
+    }
 
     listOf("api", "implementation").forEach { conf ->
         // exclude dist dependencies, just before shade is resolved

@@ -18,7 +18,7 @@ dependencies {
     testImplementation(project(":flink-runtime"))
     testImplementation(project(":flink-metrics:flink-metrics-jmx"))
     testImplementation(project(":flink-table:flink-table-planner"))
-    testImplementation(Libs.kafka_2_11)
+    testImplementation(Libs.kafka)
     testImplementation(Libs.commons_io)
     testImplementation(Libs.commons_collections)
     testImplementation(Libs.curator_test)

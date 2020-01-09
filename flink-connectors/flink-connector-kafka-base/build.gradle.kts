@@ -16,7 +16,7 @@ dependencies {
     testImplementation(project(":flink-table:flink-table-planner", configuration = TEST_JAR))
     testImplementation(project(":flink-table:flink-table-common", configuration = TEST_JAR))
     testImplementation(Libs.hadoop_minikdc)
-    testImplementation(Libs.kafka_2_11)
+    testImplementation(Libs.kafka)
     testImplementation(Libs.zkclient)
     testImplementation(Libs.curator_test)
     testImplementation(Libs.flink_shaded_guava)

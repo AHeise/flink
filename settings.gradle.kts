@@ -16,8 +16,8 @@ plugins {
 }
 
 fun Settings.findProperty(propertyName: String) =
-    if (settings.extra.has(propertyName))
-        settings.extra.get(propertyName)
+    if (extra.has(propertyName))
+        extra.get(propertyName)
     else null
 
 if (!gradle.startParameter.isOffline) {

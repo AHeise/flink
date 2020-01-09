@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    api(Libs.scala_parser_combinators_2_11)
+    api(Libs.scala_parser_combinators)
 
     implementation(project(":flink-table:flink-table-common"))
     implementation(project(":flink-table:flink-table-api-java-bridge"))

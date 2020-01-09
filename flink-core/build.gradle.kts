@@ -1,3 +1,4 @@
+
 dependencies {
     api(project(":flink-annotations"))
 
@@ -9,7 +10,7 @@ dependencies {
     implementation(Libs.commons_collections)
     implementation(Libs.commons_compress)
     implementation(Libs.flink_shaded_guava)
-    implementation(Libs.flink_shaded_asm)
+    implementation(Libs.flink_shaded_asm_7)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(Libs.commons_io)
