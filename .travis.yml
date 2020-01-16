@@ -166,8 +166,7 @@ jobs:
       script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: tests - hadoop 2.4.1
-    - if: type = cron
-      script: ./tools/travis_controller.sh misc
+    - script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
       name: misc - hadoop 2.4.1
     - if: type = cron
@@ -206,8 +205,7 @@ jobs:
       script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: tests - scala 2.12
-    - if: type = cron
-      script: ./tools/travis_controller.sh misc
+    - script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
       name: misc - scala 2.12
     - if: type = cron
@@ -258,8 +256,7 @@ jobs:
       script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: tests - jdk 11
-    - if: type = cron
-      jdk: "openjdk11"
+    - jdk: "openjdk11"
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
       name: misc
@@ -277,8 +274,7 @@ jobs:
       rvm: 2.4.0
       name: Documentation links check
     # E2E profiles - Hadoop 2.8
-    - if: type = cron
-      stage: test
+    - stage: test
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - hadoop 2.8
@@ -307,8 +303,7 @@ jobs:
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds - hadoop 2.8
       # E2E profiles - Scala 2.12
-    - if: type = cron
-      env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
+    - env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: e2e - misc - scala 2.12
     - if: type = cron
@@ -336,8 +331,7 @@ jobs:
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds - scala 2.12
       # E2E profiles - Hadoop-free
-    - if: type = cron
-      env: PROFILE="-De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
+    - env: PROFILE="-De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc_hadoopfree.sh
       name: e2e - misc
     - if: type = cron
@@ -365,8 +359,7 @@ jobs:
       script: ./tools/travis/nightly.sh split_tpcds.sh
       name: e2e - tpcds
     # E2E profiles - Java 11
-    - if: type = cron
-      stage: test
+    - stage: test
       jdk: "openjdk11"
       env: PROFILE="-Djdk11 -Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -DincludeE2E=org.apache.flink.tests.util.categories.TravisGroup1"
       script: ./tools/travis/nightly.sh split_misc.sh
