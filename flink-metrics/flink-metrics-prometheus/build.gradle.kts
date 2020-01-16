@@ -6,9 +6,11 @@ dependencies {
     implementation(project(":flink-metrics:flink-metrics-core"))
     implementation(Libs.slf4j_api)
 
-    shade(Libs.simpleclient)
-    shade(Libs.simpleclient_httpserver)
-    shade(Libs.simpleclient_pushgateway)
+    flinkDependencyGroup(stringProperty("prometheus.version")) {
+        shade(Libs.simpleclient)
+        shade(Libs.simpleclient_httpserver)
+        shade(Libs.simpleclient_pushgateway)
+    }
 
     testImplementation(project(":flink-metrics:flink-metrics-core", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))

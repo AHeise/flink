@@ -19,6 +19,10 @@ fun Node.addDependencies(scope: String?, dependencies: Set<Dependency>) {
     }
 }
 
+fun Project.stringProperty(name: String): String = requireNotNull(property(name)) {
+        "property $name is null"
+    }.toString()
+
 private fun Node.addDependency(scope: String?, dependency: Dependency?) {
     appendNode("dependency").apply {
         when (dependency) {

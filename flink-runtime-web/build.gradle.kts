@@ -28,9 +28,9 @@ flinkCreateTestJar(mainClass = "org.apache.flink.runtime.webmonitor.handlers.uti
     include("org/apache/flink/runtime/webmonitor/handlers/utils/TestProgram.java")
 }
 flinkCreateTestJar(mainClass = "org.apache.flink.runtime.webmonitor.handlers.utils.TestProgram",
-        artifactName = project.property("test.parameterProgram.name").toString()) {
+        artifactName = stringProperty("test.parameterProgram.name").toString()) {
     include("org/apache/flink/runtime/webmonitor/handlers/utils/TestProgram.java")
 }
-flinkCreateTestJar(artifactName = project.property("test.ParameterProgramNoManifest.name").toString()) {
+flinkCreateTestJar(artifactName = stringProperty("test.ParameterProgramNoManifest.name").toString()) {
     include("org/apache/flink/runtime/webmonitor/handlers/utils/TestProgram.java")
 }

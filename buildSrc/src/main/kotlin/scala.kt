@@ -18,7 +18,7 @@ import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
 
 val Project.scalaMinorVersion
-    get() = property("scala.binary.version")!!.toString()
+    get() = stringProperty("scala.binary.version")!!.toString()
 /**
  * Bread-first tests if there is scala-library in classpath and caches the result.
  */
@@ -66,7 +66,7 @@ fun Project.flinkSetupScalaProjects() {
             }
 
             dependencies {
-                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${property("scala.version")}:0.13")
+                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${stringProperty("scala.version")}:0.13")
             }
         }
 

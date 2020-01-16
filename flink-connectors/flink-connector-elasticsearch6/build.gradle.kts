@@ -20,6 +20,6 @@ dependencies {
 
 description = "flink-connector-elasticsearch6"
 
-flinkForceDependencyVersion(name = "org.elasticsearch", version = project.property("elasticsearch.version"))
-flinkForceDependencyVersion(group = "org.elasticsearch.client", version = project.property("elasticsearch.version"))
-flinkForceDependencyVersion(group = "org.elasticsearch.plugin", version = project.property("elasticsearch.version"))
+flinkForceDependencyVersion(name = "org.elasticsearch", version = stringProperty("elasticsearch.version"))
+flinkForceDependencyVersion(group = "org.elasticsearch.client", version = stringProperty("elasticsearch.version"))
+flinkForceDependencyVersion(group = "org.elasticsearch.plugin", version = stringProperty("elasticsearch.version"))

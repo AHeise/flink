@@ -229,6 +229,7 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
         // remove 'all' classifier, we want to replace the original jar by the shaded version
         archiveClassifier.set(null as String?)
         // publish still uses old classifier
+        @Suppress("DEPRECATION")
         classifier = null
 
         // transformations
@@ -252,6 +253,7 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     // remove the jar from the default artifacts, replace it subsequently with the shaded jar
     // this jar will be used for downstream project/tasks and publishing
     val jarConfigurations = listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME,
+            @Suppress("DEPRECATION")
             JavaPlugin.RUNTIME_CONFIGURATION_NAME,
             RUNTIME_ELEMENTS_CONFIGURATION_NAME,
             "archives")

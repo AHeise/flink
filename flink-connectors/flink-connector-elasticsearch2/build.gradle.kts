@@ -1,5 +1,6 @@
 dependencies {
-    shade(Libs.elasticsearch)
+    shade(Libs.jsr305)
+    shade(Libs.elasticsearch)// + ":${stringProperty("elasticsearch.version")}")
     shade(project(":flink-connectors:flink-connector-elasticsearch-base"))
 
     implementation(Libs.jsr305)
@@ -13,9 +14,9 @@ dependencies {
 
 description = "flink-connector-elasticsearch2"
 
-flinkForceDependencyVersion(name = "org.elasticsearch", version = project.property("elasticsearch.version"))
-flinkForceDependencyVersion(group = "org.elasticsearch.client", version = project.property("elasticsearch.version"))
-flinkForceDependencyVersion(group = "org.elasticsearch.plugin", version = project.property("elasticsearch.version"))
+flinkForceDependencyVersion(group = "org.elasticsearch", version = stringProperty("elasticsearch.version"))
+flinkForceDependencyVersion(group = "org.elasticsearch.client", version = stringProperty("elasticsearch.version"))
+flinkForceDependencyVersion(group = "org.elasticsearch.plugin", version = stringProperty("elasticsearch.version"))
 
 tasks.withType<ShadowJar> {
     // *

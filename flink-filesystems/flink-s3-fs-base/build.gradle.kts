@@ -5,11 +5,16 @@ dependencies {
 
     shade(project(":flink-filesystems:flink-fs-hadoop-shaded"))
     shade(project(":flink-filesystems:flink-hadoop-fs"))
-    shade(Libs.aws_java_sdk_core)
-    shade(Libs.aws_java_sdk_s3)
-    shade(Libs.aws_java_sdk_kms)
-    shade(Libs.aws_java_sdk_dynamodb)
-    shade(Libs.hadoop_aws)
+
+    flinkDependencyGroup(version = stringProperty("fs.s3.aws.version")) {
+        shade(Libs.aws_java_sdk_core)
+        shade(Libs.aws_java_sdk_s3)
+        shade(Libs.aws_java_sdk_kms)
+        shade(Libs.aws_java_sdk_dynamodb)
+    }
+    shade(Libs.hadoop_aws + ":${stringProperty("fs.hadoopshaded.version")}") {
+        exclude("com.amazonaws","aws-java-sdk-bundle")
+    }
     shade(Libs.commons_io)
 
     testImplementation(project(":flink-core"))

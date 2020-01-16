@@ -2,13 +2,15 @@ dependencies {
     implementation(project(":flink-core"))
     
     shade(project(":flink-filesystems:flink-s3-fs-base"))
-    shade(project(":flink-filesystems:flink-hadoop-fs"))
-    shade(Libs.hadoop_aws)
-    shade(Libs.hadoop_common)
-    shade(Libs.aws_java_sdk_core)
-    shade(Libs.aws_java_sdk_s3)
-    shade(Libs.aws_java_sdk_kms)
-    shade(Libs.aws_java_sdk_dynamodb)
+//    shade(project(":flink-filesystems:flink-hadoop-fs"))
+//    shade(Libs.hadoop_aws)
+//    shade(Libs.hadoop_common)
+//    flinkDependencyGroup(version = stringProperty("fs.s3.aws.version")) {
+//        shade(Libs.aws_java_sdk_core)
+//        shade(Libs.aws_java_sdk_s3)
+//        shade(Libs.aws_java_sdk_kms)
+//        shade(Libs.aws_java_sdk_dynamodb)
+//    }
 
     testImplementation(project(":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-filesystems:flink-fs-hadoop-shaded"))
