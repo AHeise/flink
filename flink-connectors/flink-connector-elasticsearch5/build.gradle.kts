@@ -14,9 +14,13 @@ dependencies {
 
 description = "flink-connector-elasticsearch5"
 
-flinkForceDependencyVersion(name = "org.elasticsearch", version = stringProperty("elasticsearch.version"))
-flinkForceDependencyVersion(group = "org.elasticsearch.client", version = stringProperty("elasticsearch.version"))
-flinkForceDependencyVersion(group = "org.elasticsearch.plugin", version = stringProperty("elasticsearch.version"))
+flinkDependencyManagement {
+    dependencyGroup(stringProperty("elasticsearch.version")) {
+        dependency(Libs.elasticsearch)
+        dependency(Libs.transport)
+        dependency(Libs.transport_netty4_client)
+    }
+}
 
 tasks.withType<ShadowJar> {
     // *

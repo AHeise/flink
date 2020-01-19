@@ -1,299 +1,182 @@
 import groovy.lang.Closure
 import org.gradle.api.Action
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
-import org.gradle.api.artifacts.dsl.ComponentMetadataHandler
-import org.gradle.api.artifacts.dsl.ComponentModuleMetadataHandler
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.artifacts.query.ArtifactResolutionQuery
-import org.gradle.api.artifacts.transform.TransformAction
-import org.gradle.api.artifacts.transform.TransformParameters
-import org.gradle.api.artifacts.transform.TransformSpec
-import org.gradle.api.artifacts.transform.VariantTransform
-import org.gradle.api.artifacts.type.ArtifactTypeContainer
-import org.gradle.api.attributes.AttributesSchema
 import org.gradle.api.internal.artifacts.dependencies.DefaultExternalModuleDependency
-import org.gradle.api.plugins.ExtensionContainer
 import org.gradle.api.plugins.JavaLibraryPlugin
 import org.gradle.kotlin.dsl.*
 
-object CachingDependencyHandler {
+data class Module(val group: String, val name: String)
 
+interface DependencyGroupManagementHandler {
+    fun dependency(dependencyNotation: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
+}
+
+interface DependencyManagementHandler {
+    fun dependencyGroup(version: String, groupConfiguration: DependencyGroupManagementHandler.() -> Unit)
+
+    fun dependency(dependencyNotation: String, version: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
 }
 
 fun Project.flinkDependencyManagement(dependenciesHandler: Action<DependencyManagementHandler>) {
-    println("flinkDependencyManagement ${System.identityHashCode(dependenciesHandler)}")
     // only configure java/scala projects
     plugins.withType<JavaLibraryPlugin> {
-        dependencies {
-            constraints {
-                dependenciesHandler(DependencyManagementHandler(this@flinkDependencyManagement, this))
-            }
+        configurations["api"].extendsFrom(configurations.maybeCreate("all") {
+            isCanBeResolved = false
+            isCanBeConsumed = false
+        })
+        val cachingDependencyHandler = rootProject.extra.getOrPut("cachingDependencyHandler") {
+            CachingDependencyHandler(rootProject.dependencies.constraints)
         }
-    }
-}
-
-fun Project.flinkDependencyGroup(version: String, groupConfiguration: DependencyGroupManagementHandler.() -> Unit) {
-    val project = this
-    dependencies {
-        val dependencyHandler = this
-        constraints {
-//            val managementHandler = object : DependencyManagementHandler(project, this) {
-//                override fun addDependencyConstraint(configuration: String, dependencyNotation: Any, version: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint {
-//                    dependencyHandler.add(configuration, "$dependencyNotation:$version")
-//                    return super.addDependencyConstraint(configuration, dependencyNotation, version, dependencyConfiguration)
-//                }
-//            }
-            DependencyGroupManagementHandler(project, this, version).run {
-                groupConfiguration(this)
-                setupPlatform()
-            }
+        val managedDependencies = cachingDependencyHandler.getManagedDependencies(dependenciesHandler)
+        val configurationConstraints = managedDependencies.configurationConstraints.mapKeys { configurations[it.key] }
+        configurationConstraints.forEach { (conf, constraints) ->
+            conf.dependencyConstraints += constraints.constraints
         }
-    }
-}
-
-//fun Project.flinkStrictVersion(version: String, configuration: DependencyHandlerScope.() -> Unit) {
-//    dependencies {
-//        val originalHandler = this
-//
-//        val handler = object : DependencyHandlerScope by originalHandler {
-//            override fun add(configurationName: String, dependencyNotation: Any): Dependency? {
-//                originalHandler.add(configurationName, dependencyNotation) {
-//                    version {
-//                        strictly(version)
-//                    }
-//                    project.configurations
-//                }
-//            }
-//
-//            override fun add(configurationName: String, dependencyNotation: Any, configureClosure: Closure<*>): Dependency {
-//                originalHandler.add(configurationName, dependencyNotation) {
-//                    version {
-//                        strictly(version)
-//                    }
-//                    configureClosure(this)
-//                }
-//            }
-//        }
-//        configuration(handler)
-//    }
-//}
-
-///**
-// * Ensures all artifacts of the dependency/group to be of the specific version
-// */
-fun Project.flinkForceDependencyVersion(group: String? = null, name: String? = null, version: String) {
-//    dependencies {
-//        constraints {
-//
-//        }
-//    }
-    configurations.forEach { conf ->
-        conf.withDependencies {
-            val deps = this
-            deps.filter { (group?.equals(it.group) ?: true) && (name?.equals(it.name) ?: true) }
-                .filterIsInstance(ExternalDependency::class.java)
-                .forEach { d ->
-                    d.version {
-                        strictly(version)
+        configurations
+                .filter { conf -> conf.isCanBeResolved }
+                .forEach { conf ->
+                    conf.withDependencies {
+                        val constraintIndex = configurationConstraints
+                                .filterKeys { conf.hierarchy.contains(it) }
+                                .flatMap { (conf, constraints) -> constraints.constraints.map { Module(it.group, it.name) to conf } }
+                                .toMap(LinkedHashMap())
+                        forEach { dependency ->
+                            if (dependency is ExternalModuleDependency) {
+                                val lookup = Module(dependency.group, dependency.name)
+                                constraintIndex[lookup]?.also { dependencyConf ->
+                                    if (!dependency.versionConstraint.strictVersion.isNullOrEmpty()) {
+                                        require(dependencyConf.dependencyConstraints.removeIf { it.group == lookup.group && it.name == lookup.name })
+                                    }
+                                    requireNotNull(configurationConstraints[dependencyConf]).moduleConfigurer[lookup]?.invoke(dependency)
+                                }
+                            }
+                        }
                     }
                 }
-        }
+        managedDependencies.platformSetups.forEach { it.execute(project) }
     }
-//    dependencies {
-//        constraints {x
-//            components.all(ForcedVersionRule::class) {
-//                params(group, name, version)
-//            }
-//        }
-//    }
-//    dependencies {
-//        constraints {
-//            val constraint = this.create(mapOf("group" to group, "name" to name))
-//            constraint.version {
-//                strictly(version)
-//            }
-//            configurations.forEach { conf ->
-//                add(conf.name, constraint)
-//            }
-//        }
-//    }
-//    configurations.all {
-//        resolutionStrategy.eachDependency {
-//            if ((group == null || target.group == group) && (name == null || target.name == name)) {
-//                useVersion(version.toString())
-//            }
-//        }
-//    }
 }
 
-open class DependencyManagementHandler(val project: Project, private val constraintHandler: DependencyConstraintHandler): DependencyHandlerAdapter {
-    private val managedDependencyConfigurers: MutableMap<String, ManagedDependencyConfigurer> = mutableMapOf()
+fun <T> NamedDomainObjectContainer<T>.maybeCreate(name: String, configure: Action<in T>): T =
+    findByName(name) ?: create(name, configure)
 
-    fun flinkDependencyGroup(version: String, groupConfiguration: DependencyGroupManagementHandler.() -> Unit) {
-        DependencyGroupManagementHandler(project, constraintHandler, version).run {
+fun DependencyHandler.flinkDependencyGroup(version: String, groupConfiguration: DependencyHandlerScope.() -> Unit) {
+    val dependencyHandler = this
+    val groupDependencies = mutableListOf<ModuleVersionSelector>()
+    val dependencyIntercepter = object: DependencyHandler by dependencyHandler {
+        override fun add(configurationName: String, dependencyNotation: Any): Dependency? =
+            dependencyHandler.add(configurationName, dependencyNotation).also {
+                require(it is ExternalModuleDependency) { "Can only add modules to group" }
+                if (it.versionConstraint.strictVersion.isNullOrBlank()) {
+                    it.version {
+                        require(version)
+                    }
+                }
+                groupDependencies.add(it)
+            }
+
+        override fun add(configurationName: String, dependencyNotation: Any, configureClosure: Closure<*>)=
+            dependencyHandler.add(configurationName, dependencyNotation, configureClosure).also {
+                require(it is ExternalModuleDependency) { "Can only add modules to group" }
+                if (it.versionConstraint.strictVersion.isNullOrBlank()) {
+                    it.version {
+                        require(version)
+                    }
+                }
+                groupDependencies.add(it)
+            }
+    }
+    groupConfiguration(DependencyHandlerScope.of(dependencyIntercepter))
+    setupPlatform(groupDependencies)
+}
+
+private data class DependencyConfigurationConstraints(
+        val constraints: List<DependencyConstraint>,
+        val moduleConfigurer: Map<Module, ExternalModuleDependency.() -> Unit>)
+
+private data class ManagedDependencies(
+        val configurationConstraints: Map<String, DependencyConfigurationConstraints>,
+        val platformSetups: List<Action<Project>>)
+
+private class CachingDependencyHandler(val constraintHandler: DependencyConstraintHandler) {
+    private val cache = mutableMapOf<Any, ManagedDependencies>()
+
+    fun getManagedDependencies(dependenciesHandler: Action<DependencyManagementHandler>): ManagedDependencies =
+            cache.getOrPut(dependenciesHandler::class) {
+                extractConstraints(dependenciesHandler)
+            }
+
+    private fun extractConstraints(dependenciesHandler: Action<DependencyManagementHandler>): ManagedDependencies {
+        val handler = DefaultDependencyManagementHandler(constraintHandler)
+        dependenciesHandler(handler)
+        val constraints = handler.constraints.mapValues { (conf, constraints) ->
+            DependencyConfigurationConstraints(
+                    constraints,
+                    handler.managedDependencyConfigurers[conf]?.dependencyConfigurations ?: mapOf())
+        }
+        return ManagedDependencies(constraints, handler.platformSetups)
+    }
+}
+
+private inline class ManagedDependencyConfigurer(val dependencyConfigurations: MutableMap<Module, ExternalModuleDependency.() -> Unit> = mutableMapOf())
+private open class DefaultDependencyManagementHandler(private val constraintHandler: DependencyConstraintHandler): DependencyManagementHandler {
+    val constraints: MutableMap<String, MutableList<DependencyConstraint>> = mutableMapOf()
+    val managedDependencyConfigurers: MutableMap<String, ManagedDependencyConfigurer> = mutableMapOf()
+    val platformSetups: MutableList<Action<Project>> = mutableListOf()
+
+    override fun dependencyGroup(version: String, groupConfiguration: DependencyGroupManagementHandler.() -> Unit) {
+        DefaultDependencyGroupManagementHandler(this, version).run {
             groupConfiguration(this)
-            setupPlatform()
+            platformSetups += this
         }
     }
 
-    operator fun String.invoke(dependencyNotation: String, version: String): DependencyConstraint =
-        addDependencyConstraint(this, dependencyNotation, version)
-
-    operator fun String.invoke(dependencyNotation: String, version: String, dependencyConfiguration: ExternalModuleDependency.() -> Unit): DependencyConstraint =
-        addDependencyConstraint(this, dependencyNotation, version, dependencyConfiguration)
-
-    private fun splitNotation(dependencyNotation: Any): Pair<String, String> {
-        val parts = dependencyNotation.toString().split(':')
-        check(parts.size > 3) { "$dependencyNotation must have version" }
-        return parts[0] + parts[1] to parts[2]
-    }
-
-    override fun add(configurationName: String, dependencyNotation: Any): Dependency {
-        val (groupModule, version) = splitNotation(dependencyNotation)
-        return configurationName(groupModule, version).asExternalModule(configurationName)
-    }
-
-    override fun add(configurationName: String, dependencyNotation: Any, configureClosure: Closure<*>): Dependency {
-        val (groupModule, version) = splitNotation(dependencyNotation)
-        return configurationName(groupModule, version) {
-            configureClosure(this)
-        }.asExternalModule(configurationName)
-    }
+    override fun dependency(dependencyNotation: String, version: String, configuration: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint =
+            addDependencyConstraint(configuration, dependencyNotation, version, dependencyConfiguration)
 
     open fun addDependencyConstraint(configurationName: String, dependencyNotation: Any, version: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint {
-        return this@DependencyManagementHandler.constraintHandler.add(configurationName, dependencyNotation) {
+        return constraintHandler.create(dependencyNotation) {
             version {
                 strictly(version)
             }
+            constraints.getOrPut(configurationName) { mutableListOf() } += this
             if (dependencyConfiguration != null) {
                 val configurer = managedDependencyConfigurers.getOrPut(configurationName) {
-                    ManagedDependencyConfigurer.forConfiguration(project.configurations[configurationName])
+                    ManagedDependencyConfigurer()
                 }
-                configurer[this] = dependencyConfiguration
+                configurer.dependencyConfigurations[Module(group, name)] = dependencyConfiguration
             }
         }
     }
 }
 
-interface DependencyHandlerAdapter : DependencyHandler {
-    override fun platform(notation: Any): Dependency = TODO("unsupported")
+private class DefaultDependencyGroupManagementHandler(private val managementHandler: DependencyManagementHandler, private val version: String) : DependencyGroupManagementHandler, Action<Project> {
+    private val constraints = mutableListOf<DependencyConstraint>()
 
-    override fun platform(notation: Any, configureAction: Action<in Dependency>): Dependency = TODO("unsupported")
+    override fun dependency(dependencyNotation: String, configuration: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint =
+        managementHandler.dependency(dependencyNotation, version, configuration, dependencyConfiguration).also {
+            constraints.add(it)
+        }
 
-    override fun create(dependencyNotation: Any): Dependency = TODO("unsupported")
-
-    override fun create(dependencyNotation: Any, configureClosure: Closure<*>): Dependency = TODO("unsupported")
-
-    override fun testFixtures(notation: Any): Dependency = TODO("unsupported")
-
-    override fun testFixtures(notation: Any, configureAction: Action<in Dependency>): Dependency = TODO("unsupported")
-
-    override fun getExtensions(): ExtensionContainer = TODO("unsupported")
-
-    override fun gradleApi(): Dependency = TODO("unsupported")
-
-    override fun components(configureAction: Action<in ComponentMetadataHandler>) = TODO("unsupported")
-
-    override fun createArtifactResolutionQuery(): ArtifactResolutionQuery = TODO("unsupported")
-
-    override fun getModules(): ComponentModuleMetadataHandler = TODO("unsupported")
-
-    override fun getArtifactTypes(): ArtifactTypeContainer = TODO("unsupported")
-
-    override fun modules(configureAction: Action<in ComponentModuleMetadataHandler>) = TODO("unsupported")
-
-    override fun artifactTypes(configureAction: Action<in ArtifactTypeContainer>) = TODO("unsupported")
-
-    override fun localGroovy(): Dependency = TODO("unsupported")
-
-    override fun getComponents(): ComponentMetadataHandler = TODO("unsupported")
-
-    override fun enforcedPlatform(notation: Any): Dependency = TODO("unsupported")
-
-    override fun enforcedPlatform(notation: Any, configureAction: Action<in Dependency>): Dependency = TODO("unsupported")
-
-    override fun getConstraints(): DependencyConstraintHandler = TODO("unsupported")
-
-    override fun registerTransform(registrationAction: Action<in VariantTransform>) = TODO("unsupported")
-
-    override fun <T : TransformParameters?> registerTransform(actionType: Class<out TransformAction<T>>, registrationAction: Action<in TransformSpec<T>>) = TODO("unsupported")
-
-    override fun gradleTestKit(): Dependency = TODO("unsupported")
-
-    override fun constraints(configureAction: Action<in DependencyConstraintHandler>) = TODO("unsupported")
-
-    override fun getAttributesSchema(): AttributesSchema = TODO("unsupported")
-
-    override fun module(notation: Any): Dependency = TODO("unsupported")
-
-    override fun module(notation: Any, configureClosure: Closure<*>): Dependency = TODO("unsupported")
-
-    override fun project(notation: MutableMap<String, *>): Dependency = TODO("unsupported")
-
-    override fun attributesSchema(configureAction: Action<in AttributesSchema>): AttributesSchema = TODO("unsupported")
+    override fun execute(project: Project) {
+        project.dependencies.setupPlatform(constraints)
+    }
 }
 
-class DependencyGroupManagementHandler(private val project: Project, private val constraintHandler: DependencyConstraintHandler, private val version: String) : DependencyHandlerAdapter {
-    private val dependencies = mutableListOf<ModuleVersionSelector>()
-    private val managementHandler = object: DependencyManagementHandler(project, constraintHandler) {
-        override fun addDependencyConstraint(configurationName: String, dependencyNotation: Any, version: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint =
-            super.addDependencyConstraint(configurationName, dependencyNotation, version, dependencyConfiguration).also {
-                dependencies.add(it)
-            }
-    }
-
-    operator fun String.invoke(dependencyNotation: String): DependencyConstraint =
-        managementHandler.addDependencyConstraint(this, dependencyNotation, version)
-
-    operator fun String.invoke(dependencyNotation: String, dependencyConfiguration: ExternalModuleDependency.() -> Unit): DependencyConstraint =
-        managementHandler.addDependencyConstraint(this, dependencyNotation, version, dependencyConfiguration)
-
-    override fun add(configurationName: String, dependencyNotation: Any): Dependency =
-        managementHandler.addDependencyConstraint(configurationName, dependencyNotation, version)
-                .asExternalModule(configurationName)
-
-    override fun add(configurationName: String, dependencyNotation: Any, configureClosure: Closure<*>): Dependency =
-        managementHandler.addDependencyConstraint(configurationName, dependencyNotation, version) {
-            configureClosure(this)
-        }.asExternalModule(configurationName)
-
-    fun setupPlatform() {
-        check(dependencies.isNotEmpty()) { "No dependencies added" }
-        val group = dependencies[0].group
-        check(dependencies.all { it.group == group }) {
-            "Different group in dependency group (could be fine but needs to be implemented) ${dependencies.map { it.group }}"
-        }
-        managementHandler.project.dependencies.components.all(GroupAlignmentRule::class) {
-            params(group, dependencies.map { it.name })
-        }
+private fun DependencyHandler.setupPlatform(dependencies: List<ModuleVersionSelector>) {
+    check(dependencies.isNotEmpty()) { "No dependencies added" }
+    val group = org.apache.commons.lang3.StringUtils.getCommonPrefix(*dependencies.map { it.group }.distinct().toTypedArray())
+    components.all(GroupAlignmentRule::class) {
+        params(group, dependencies.map { it.name })
     }
 }
 
 private fun ModuleVersionSelector.asExternalModule(conf: String): Dependency =
     DefaultExternalModuleDependency(name, group, version, conf)
-
-private class ManagedDependencyConfigurer
-        (private val dependencyConfigurations: MutableMap<ModuleVersionSelector, ExternalModuleDependency.() -> Unit> = mutableMapOf())
-        : MutableMap<ModuleVersionSelector, ExternalModuleDependency.() -> Unit> by dependencyConfigurations {
-
-    fun dependencyAdded(dependency: Dependency) {
-        if (dependency is ExternalModuleDependency) {
-            dependencyConfigurations[dependency]
-                    ?.invoke(dependency)
-        }
-    }
-
-    companion object {
-        fun forConfiguration(configuration: Configuration): ManagedDependencyConfigurer =
-                ManagedDependencyConfigurer().also { configurer ->
-                    configuration.dependencies.whenObjectAdded {
-                        configurer.dependencyAdded(this)
-                    }
-                }
-    }
-}
 
 private open class GroupAlignmentRule @javax.inject.Inject constructor(private val group: String, dependencies: List<String>): ComponentMetadataRule {
     private val dependencyIndex: Set<String> = dependencies.toSet()
@@ -304,11 +187,3 @@ private open class GroupAlignmentRule @javax.inject.Inject constructor(private v
         }
     }
 }
-//
-//private open class ForcedVersionRule @javax.inject.Inject constructor(private val group: String?, private val name: String?, private val version: String): ComponentMetadataRule {
-//    override fun execute(ctx: ComponentMetadataContext) {
-//        if ((group?.equals(ctx.details.id.group) ?: true) && (name?.equals(ctx.details.id.name) ?: true)) {
-//            ctx.details.id.version = version
-//        }
-//    }
-//}

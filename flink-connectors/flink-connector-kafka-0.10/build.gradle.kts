@@ -4,7 +4,6 @@ dependencies {
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-table:flink-table-api-java-bridge"))
     implementation(project(":flink-table:flink-table-planner"))
-    implementation(Libs.kafka_clients)
     implementation(Libs.jsr305)
 
     testImplementation(project(":flink-streaming-java"))
@@ -24,4 +23,8 @@ dependencies {
 
 description = "flink-connector-kafka-0.10"
 
-flinkForceDependencyVersion(group = "org.apache.kafka", version = stringProperty("kafka.version"))
+flinkDependencyManagement {
+    dependencyGroup(stringProperty("kafka.version")) {
+        dependency(Libs.kafka)
+    }
+}

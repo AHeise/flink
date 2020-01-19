@@ -6,6 +6,7 @@ import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.internal.TaskInternal
+import org.gradle.api.plugins.ExtraPropertiesExtension
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.get
 
@@ -46,6 +47,11 @@ private fun Node.addDependency(scope: String?, dependency: Dependency?) {
         }
     }
 }
+
+fun <T> ExtraPropertiesExtension.getOrPut(key: String, defaultValue: () -> T): T =
+    if(has(key))
+        get(key) as T
+    else defaultValue().also { set(key, it) }
 
 private fun Node.appendDependency(
         dependency: ModuleDependency,

@@ -27,4 +27,9 @@ dependencies {
 
 description = "flink-connector-kafka-0.11"
 
-flinkForceDependencyVersion(group = "org.apache.kafka", version = stringProperty("kafka.version"))
+flinkDependencyManagement {
+    dependencyGroup(stringProperty("kafka.version")) {
+        dependency(Libs.kafka)
+        dependency(Libs.kafka_clients)
+    }
+}

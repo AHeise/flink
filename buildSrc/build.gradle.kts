@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     `kotlin-dsl`
 }
@@ -9,9 +11,15 @@ repositories {
 
 dependencies {
     api("com.github.jengelman.gradle.plugins:shadow:5.1.0")
-    implementation("com.github.jk1:gradle-license-report:1.11")
+    implementation(group = "com.github.jk1", name = "gradle-license-report", version = "1.11")
+    implementation(group = "org.apache.commons", name = "commons-lang3", version = "3.9")
 }
 
 kotlinDslPluginOptions {
     experimentalWarning.set(false)
+}
+
+val compileKotlin: KotlinCompile by tasks
+compileKotlin.kotlinOptions {
+    freeCompilerArgs = listOf("-XXLanguage:+InlineClasses")
 }

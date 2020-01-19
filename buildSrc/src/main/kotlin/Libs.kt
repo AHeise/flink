@@ -9,7 +9,7 @@ import kotlin.String
  *   `$ ./gradlew buildSrc// `
  */
 val Project.Libs
-    get() = rootProject.extra.properties.getOrPut("Libs") { LibNames(rootProject) } as LibNames
+    get() = rootProject.extra.getOrPut("Libs") { LibNames(rootProject) }
 
 class LibNames(val project: Project) {
     val scalaMinorVersion = project.scalaMinorVersion

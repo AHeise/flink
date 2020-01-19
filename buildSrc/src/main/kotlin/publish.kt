@@ -274,20 +274,17 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
 
     configurations["default"].setExtendsFrom(listOf(configurations["archives"]))
 
-    var addedConstraints = false
-    shade.dependencies.whenObjectAdded {
-        if (!addedConstraints) {
-            shade.dependencyConstraints.addAll(configurations["api"].dependencyConstraints)
-            addedConstraints = true
-        }
-    }
+    // shade and api both extend from all for common constraints/rules
+    shade.extendsFrom(configurations.maybeCreate("all") {
+        isCanBeResolved = false
+        isCanBeConsumed = false
+    })
 
     listOf("api", "implementation").forEach { conf ->
         // exclude dist dependencies, just before shade is resolved
         shade.withDependencies {
             this.filterIsInstance<ProjectDependency>().forEach { shadedDependency ->
                 shadedDependency.dependencyProject.getDistProjectDependencies(conf).forEach {
-                    println("Excluding $it from $shadedDependency($conf)")
                     shadedDependency.exclude(mapOf("group" to it.group, "module" to it.name))
                 }
             }
@@ -297,7 +294,6 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
                 it.dependencyProject.getDistProjectDependencies(conf)
             }.toSet()
             excluded.forEach {
-                println("Including $it in $conf")
                 add(it)
             }
         }

@@ -18,19 +18,19 @@ import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
 
 val Project.scalaMinorVersion
-    get() = stringProperty("scala.binary.version")!!.toString()
+    get() = stringProperty("scala.binary.version")
 /**
  * Bread-first tests if there is scala-library in classpath and caches the result.
  */
 fun Project.flinkIsMainDependingOnScala(): Boolean =
-    extra.properties.getOrPut("flinkIsMainDependingOnScala") {
+    extra.getOrPut("flinkIsMainDependingOnScala") {
         flinkIsConfigurationDependingOnScala(configurations["compileClasspath"])
-    } as Boolean
+    }
 
 fun Project.flinkIsTestDependingOnScala(): Boolean =
-    extra.properties.getOrPut("flinkIsTestDependingOnScala") {
+    extra.getOrPut("flinkIsTestDependingOnScala") {
         flinkIsConfigurationDependingOnScala(configurations["testCompileClasspath"])
-    } as Boolean
+    }
 
 private fun Project.flinkIsConfigurationDependingOnScala(conf: Configuration): Boolean =
     conf.allDependencies.any {
