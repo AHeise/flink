@@ -1,5 +1,5 @@
 dependencies {
-    api(Libs.elasticsearch)
+    api(Libs.elasticsearch version stringProperty("elasticsearch.version"))
     api(project(":flink-streaming-java"))
     api(project(":flink-table:flink-table-common"))
 

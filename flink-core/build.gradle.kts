@@ -17,13 +17,16 @@ dependencies {
     testImplementation(Libs.joda_time)
     testImplementation(Libs.joda_convert)
     testImplementation(Libs.flink_shaded_jackson)
-    testImplementation(Libs.lombok)
     testImplementation(Libs.junit)
     testImplementation(Libs.mockito_core)
     testImplementation(Libs.powermock_module_junit4)
     testImplementation(Libs.powermock_api_mockito2)
     testImplementation(Libs.hamcrest_all)
-    testAnnotationProcessor(Libs.lombok)
+
+    flinkDependencyGroup(version = "1.18.10") {
+        testImplementation(Libs.lombok)
+        testAnnotationProcessor(Libs.lombok)
+    }
 }
 
 description = "flink-core"

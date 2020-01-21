@@ -4,7 +4,7 @@ repositories {
 
 dependencies {
     api(project(":flink-formats:flink-avro"))
-    api(Libs.kafka_schema_registry_client)
+    api(Libs.kafka_schema_registry_client version "3.3.1")
 
     implementation(Libs.jsr305)
 

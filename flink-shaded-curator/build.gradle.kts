@@ -1,5 +1,5 @@
 dependencies {
-    api(Libs.curator_recipes)
+    api(Libs.curator_recipes version stringProperty("curator.version"))
 }
 
 description = "flink-shaded-curator"

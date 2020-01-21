@@ -1,5 +1,5 @@
 dependencies {
-    api(Libs.frocksdbjni)
+    api(Libs.frocksdbjni version "5.17.2-artisans-1.0")
 
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-clients"))

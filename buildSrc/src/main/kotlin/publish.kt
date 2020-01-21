@@ -13,13 +13,15 @@ import org.gradle.api.plugins.JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.javadoc.Javadoc
-import org.gradle.execution.DefaultSharedResource
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.kotlin.dsl.*
 import java.net.URLClassLoader
+import kotlin.reflect.KClass
 
 // use typealias to keep customized shading options shorter
 typealias ShadowJar = com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
@@ -222,9 +224,14 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
         }
     }
 
+    abstract class NoopService: BuildService<BuildServiceParameters.None>
+    val exclusiveManyFiles = gradle.sharedServices.registerIfAbsent("exclusiveManyFiles", NoopService::class) {
+        maxParallelUsages.set(1)
+    }
     tasks.named<ShadowJar>("shadowJar") {
         configurations = listOf(shade)
         isZip64 = true
+        usesService(exclusiveManyFiles)
 
         // remove 'all' classifier, we want to replace the original jar by the shaded version
         archiveClassifier.set(null as String?)

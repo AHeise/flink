@@ -1,5 +1,5 @@
 dependencies {
-    api(Libs.hbc_core)
+    api(Libs.hbc_core version stringProperty("hbc-core.version"))
 
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-java"))

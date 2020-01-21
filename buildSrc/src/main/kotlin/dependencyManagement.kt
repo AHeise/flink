@@ -12,28 +12,41 @@ import org.gradle.kotlin.dsl.*
 data class Module(val group: String, val name: String)
 
 interface DependencyGroupManagementHandler {
-    fun dependency(dependencyNotation: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
+    fun dependency(dependencyNotation: Any, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
+    fun dependency(group: String, name: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint =
+        dependency(mapOf("group" to group, "name" to name), configuration, dependencyConfiguration)
 }
 
 interface DependencyManagementHandler {
     fun dependencyGroup(version: String, groupConfiguration: DependencyGroupManagementHandler.() -> Unit)
 
-    fun dependency(dependencyNotation: String, version: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
+    fun dependency(dependencyNotation: Any, version: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
+
+    fun dependency(group: String, name: String, version: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint=
+        dependency(mapOf("group" to group, "name" to name), version, configuration, dependencyConfiguration)
 }
 
 fun Project.flinkDependencyManagement(dependenciesHandler: Action<DependencyManagementHandler>) {
     // only configure java/scala projects
     plugins.withType<JavaLibraryPlugin> {
-        configurations["api"].extendsFrom(configurations.maybeCreate("all") {
+        val all = configurations.maybeCreate("all") {
             isCanBeResolved = false
             isCanBeConsumed = false
-        })
+        }
+        configurations["api"].extendsFrom(all)
+        configurations["annotationProcessor"].extendsFrom(all)
+        configurations["testAnnotationProcessor"].extendsFrom(all)
         val cachingDependencyHandler = rootProject.extra.getOrPut("cachingDependencyHandler") {
             CachingDependencyHandler(rootProject.dependencies.constraints)
         }
         val managedDependencies = cachingDependencyHandler.getManagedDependencies(dependenciesHandler)
         val configurationConstraints = managedDependencies.configurationConstraints.mapKeys { configurations[it.key] }
         configurationConstraints.forEach { (conf, constraints) ->
+            if (conf.dependencyConstraints.isNotEmpty()) {
+                // remove overwritten entries
+                val constraintIndex = constraints.constraints.map { Module(it.group, it.name) }.toSet()
+                conf.dependencyConstraints.removeIf { constraintIndex.contains(Module(it.group, it.name)) }
+            }
             conf.dependencyConstraints += constraints.constraints
         }
         configurations
@@ -48,9 +61,6 @@ fun Project.flinkDependencyManagement(dependenciesHandler: Action<DependencyMana
                             if (dependency is ExternalModuleDependency) {
                                 val lookup = Module(dependency.group, dependency.name)
                                 constraintIndex[lookup]?.also { dependencyConf ->
-                                    if (!dependency.versionConstraint.strictVersion.isNullOrEmpty()) {
-                                        require(dependencyConf.dependencyConstraints.removeIf { it.group == lookup.group && it.name == lookup.name })
-                                    }
                                     requireNotNull(configurationConstraints[dependencyConf]).moduleConfigurer[lookup]?.invoke(dependency)
                                 }
                             }
@@ -135,11 +145,11 @@ private open class DefaultDependencyManagementHandler(private val constraintHand
         }
     }
 
-    override fun dependency(dependencyNotation: String, version: String, configuration: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint =
+    override fun dependency(dependencyNotation: Any, version: String, configuration: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint =
             addDependencyConstraint(configuration, dependencyNotation, version, dependencyConfiguration)
 
     open fun addDependencyConstraint(configurationName: String, dependencyNotation: Any, version: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint {
-        return constraintHandler.create(dependencyNotation) {
+        return constraintHandler.create(extractDependencyNotation(dependencyNotation)) {
             version {
                 strictly(version)
             }
@@ -152,12 +162,17 @@ private open class DefaultDependencyManagementHandler(private val constraintHand
             }
         }
     }
+
+    private fun extractDependencyNotation(dependencyNotation: Any) =
+        if (dependencyNotation is ExternalModuleDependency)
+            mapOf("group" to dependencyNotation.group, "name" to dependencyNotation.name)
+        else dependencyNotation
 }
 
 private class DefaultDependencyGroupManagementHandler(private val managementHandler: DependencyManagementHandler, private val version: String) : DependencyGroupManagementHandler, Action<Project> {
     private val constraints = mutableListOf<DependencyConstraint>()
 
-    override fun dependency(dependencyNotation: String, configuration: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint =
+    override fun dependency(dependencyNotation: Any, configuration: String, dependencyConfiguration: (ExternalModuleDependency.() -> Unit)?): DependencyConstraint =
         managementHandler.dependency(dependencyNotation, version, configuration, dependencyConfiguration).also {
             constraints.add(it)
         }

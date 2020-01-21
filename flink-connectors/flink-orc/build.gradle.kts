@@ -1,6 +1,8 @@
 dependencies {
     api(project(":flink-core"))
-    api(Libs.orc_core)
+    api(Libs.orc_core version "1.4.3") {
+        exclude(Libs.hadoop_common)
+    }
     api(Libs.flink_shaded_hadoop_2)
 
     implementation(project(":flink-streaming-scala"))

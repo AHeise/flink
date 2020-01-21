@@ -3,9 +3,9 @@ dependencies {
 
     shade(project(":flink-filesystems:flink-hadoop-fs"))
     shade(project(":flink-filesystems:flink-fs-hadoop-shaded"))
-    shade(Libs.hadoop_azure + ":${stringProperty("fs.hadoopshaded.version")}")
+    shade(Libs.hadoop_azure version stringProperty("fs.hadoopshaded.version"))
 
-    testImplementation(Libs.azure)
+    testImplementation(Libs.azure version "1.16.0")
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
 }

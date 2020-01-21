@@ -8,7 +8,7 @@ dependencies {
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-table:flink-table-api-java-bridge"))
     implementation(project(":flink-table:flink-table-planner"))
-    implementation(Libs.kafka_clients + ":${stringProperty("kafka.version")}")
+    implementation(Libs.kafka_clients version stringProperty("kafka.version"))
     implementation(Libs.flink_shaded_guava)
     implementation(Libs.commons_lang3)
     implementation(Libs.jsr305)

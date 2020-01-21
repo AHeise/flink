@@ -6,13 +6,15 @@ dependencies {
     api(project(":flink-core"))
     api(project(":flink-java"))
     api(project(":flink-table:flink-table-common"))
-    api(Libs.parquet_avro)
-    api(Libs.parquet_hadoop)
+    flinkDependencyGroup(version = stringProperty("flink.format.parquet.version")) {
+        api(Libs.parquet_avro)
+        api(Libs.parquet_hadoop)
+    }
 
     implementation(project(":flink-table:flink-table-api-java-bridge"))
     implementation(project(":flink-table:flink-table-planner"))
-    implementation(Libs.fastutil)
     implementation(Libs.flink_shaded_hadoop_2)
+    implementation(Libs.fastutil version "8.2.1")
     implementation(Libs.jsr305)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))

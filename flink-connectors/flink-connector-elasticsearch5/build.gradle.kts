@@ -3,7 +3,7 @@ dependencies {
 
     implementation(Libs.transport)
     implementation(Libs.transport_netty4_client)
-    implementation(Libs.log4j_to_slf4j)
+    implementation(Libs.log4j_to_slf4j version "2.7")
     implementation(Libs.jsr305)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))

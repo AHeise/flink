@@ -1,8 +1,10 @@
 dependencies {
     implementation(project(":flink-filesystems:flink-hadoop-fs"))
     implementation(project(":flink-filesystems:flink-fs-hadoop-shaded"))
-    implementation(Libs.hadoop_aliyun)
-    implementation(Libs.aliyun_sdk_oss)
+    flinkDependencyGroup(stringProperty("fs.hadoopshaded.version")) {
+        implementation(Libs.hadoop_aliyun)
+        implementation(Libs.aliyun_sdk_oss)
+    }
     testImplementation(project(path = ":flink-filesystems:flink-fs-hadoop-shaded", configuration = TEST_JAR))
     testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
     testImplementation(project(path = ":flink-filesystems:flink-hadoop-fs", configuration = TEST_JAR))

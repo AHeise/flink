@@ -5,7 +5,22 @@ dependencies {
     implementation(project(":flink-filesystems:flink-hadoop-fs")) {
         exclude("org.apache.flink", "flink-shaded-hadoop-2")
     }
-    implementation(Libs.hadoop_openstack)
+    flinkDependencyGroup(version = stringProperty("openstackhadoop.hadoop.version")) {
+        implementation(Libs.hadoop_client) {
+            exclude(group = "org.apache.hadoop", module = "hadoop-mapreduce-client-core")
+            exclude(group = "org.apache.hadoop", module = "hadoop-yarn-api")
+            exclude(group = "org.apache.hadoop", module = "hadoop-mapreduce-client-jobclient")
+            exclude(group = "org.apache.hadoop", module = "hadoop-mapreduce-client-app")
+            exclude(group = "org.apache.avro", module = "avro")
+            exclude(group = "javax.servlet.jsp", module = "jsp-api")
+            exclude(group = "org.apache.directory.server", module = "apacheds-kerberos-codec")
+            exclude(group = "org.apache.curator", module = "curator-client")
+            exclude(group = "org.apache.curator", module = "curator-framework")
+            exclude(group = "org.apache.curator", module = "curator-recipes")
+            exclude(group = "org.apache.zookeeper", module = "zookeeper")
+        }
+        implementation(Libs.hadoop_openstack)
+    }
 
     testImplementation(project(":flink-core"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
@@ -13,6 +28,9 @@ dependencies {
 
 description = "flink-swift-fs-hadoop"
 
+flinkDependencyManagement {
+    dependency(Libs.hadoop_common, version = stringProperty("openstackhadoop.hadoop.version"))
+}
 
 tasks.withType<ShadowJar> {
     exclude("log4j.properties")

@@ -1,6 +1,8 @@
 dependencies {
-    implementation(Libs.py4j)
-    implementation(Libs.pyrolite)
+    implementation(Libs.py4j version stringProperty("py4j.version"))
+    implementation(Libs.pyrolite version "4.13") {
+        exclude(group = "net.razorvine", module = "serpent")
+    }
     implementation(Libs.commons_lang3)
     implementation(Libs.commons_cli)
     implementation(project(":flink-core"))

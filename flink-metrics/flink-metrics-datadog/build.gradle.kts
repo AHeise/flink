@@ -1,6 +1,6 @@
 dependencies {
     implementation(Libs.slf4j_api)
-    implementation(Libs.okhttp)
+    implementation(Libs.okhttp version "3.7.0")
     implementation(project(":flink-metrics:flink-metrics-core"))
     implementation(Libs.flink_shaded_jackson)
 

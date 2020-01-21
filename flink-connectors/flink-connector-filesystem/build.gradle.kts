@@ -12,7 +12,7 @@ dependencies {
     testImplementation(project(":flink-streaming-java", configuration = TEST_JAR))
     testImplementation(project(":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-tests", configuration = TEST_JAR))
-    testImplementation("${Libs.hadoop_hdfs}:tests")
+    testImplementation(Libs.hadoop_hdfs classifier "tests")
     testImplementation(Libs.hadoop_common)
     testImplementation(Libs.hadoop_minikdc)
 }

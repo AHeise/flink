@@ -3,9 +3,28 @@ dependencies {
     implementation(project(":flink-table:flink-table-api-java"))
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-libraries:flink-cep"))
-    implementation(Libs.janino)
-    implementation(Libs.avatica_core)
-    implementation(Libs.lz4_java)
+    implementation(Libs.janino version stringProperty("janino.version"))
+    // When updating the Calcite version, make sure to update the version and dependency exclusions
+    implementation(Libs.avatica_core version "1.15.0") {
+        /*
+        Dependencies that are not needed for how we use Avatica right now.
+
+        We exclude all the dependencies of Avatica because currently we only use
+                TimeUnit, TimeUnitRange and SqlDateTimeUtils which only dependent JDK.
+
+        "mvn dependency:tree" as of Avatica 1.15:
+
+        [INFO] +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
+        */
+        exclude(group = "org.apache.calcite.avatica", module = "avatica-metrics")
+        exclude(group = "com.google.protobuf", module = "protobuf-java")
+        exclude(group = "org.apache.httpcomponents", module = "httpclient")
+        exclude(group = "org.apache.httpcomponents", module = "httpcore")
+        exclude(group = "com.fasterxml.jackson.core", module = "jackson-core")
+        exclude(group = "com.fasterxml.jackson.core", module = "jackson-annotations")
+        exclude(group = "com.fasterxml.jackson.core", module = "jackson-databind")
+    }
+    implementation(Libs.lz4_java version "1.5.0")
     implementation(Libs.flink_shaded_netty)
     implementation(Libs.flink_shaded_guava)
     implementation(Libs.flink_shaded_jackson)

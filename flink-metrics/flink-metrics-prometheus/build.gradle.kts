@@ -14,7 +14,7 @@ dependencies {
 
     testImplementation(project(":flink-metrics:flink-metrics-core", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(Libs.unirest_java)
+    testImplementation(Libs.unirest_java version "1.4.9")
     testImplementation(Libs.slf4j_log4j12)
     testImplementation(Libs.hamcrest_all)
 }

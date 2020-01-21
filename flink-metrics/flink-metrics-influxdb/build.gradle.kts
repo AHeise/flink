@@ -3,14 +3,14 @@ dependencies {
 
     implementation(project(":flink-runtime"))
     implementation(project(":flink-metrics:flink-metrics-core"))
-    implementation(Libs.influxdb_java)
+    implementation(Libs.influxdb_java version "2.14")
     implementation(Libs.slf4j_api)
     implementation(Libs.jsr305)
 
     testImplementation(project(":flink-metrics:flink-metrics-core", configuration = TEST_JAR))
     testImplementation(project(":flink-runtime", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation(Libs.wiremock)
+    testImplementation(Libs.wiremock version "2.19.0")
     testImplementation(Libs.slf4j_log4j12)
     testImplementation(Libs.mockito_core)
     testImplementation(Libs.hamcrest_all)

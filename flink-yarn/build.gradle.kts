@@ -11,7 +11,7 @@ dependencies {
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(project(":flink-runtime", configuration = TEST_JAR))
-    testImplementation("${Libs.hadoop_hdfs}:tests")
+    testImplementation(Libs.hadoop_hdfs classifier "tests")
     testImplementation(Libs.hadoop_common)
     testImplementation(Libs.flink_shaded_guava)
     testImplementation(Libs.hamcrest_all)

@@ -1,5 +1,5 @@
 dependencies {
-    api(Libs.kafka_clients)
+    api(Libs.kafka_clients version stringProperty("kafka.version"))
 
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-table:flink-table-api-java-bridge"))

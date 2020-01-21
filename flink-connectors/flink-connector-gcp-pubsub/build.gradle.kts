@@ -1,4 +1,5 @@
 dependencies {
+    api(platform("com.google.cloud:google-cloud-bom:0.80.0-alpha"))
     api(Libs.google_cloud_pubsub)
     api(project(":flink-streaming-java"))
 

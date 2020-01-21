@@ -1,9 +1,9 @@
 dependencies {
-    shade(Libs.hadoop_common) {
-        version {
-            strictly(stringProperty("fs.hadoopshaded.version"))
-        }
-    }
+    shade(Libs.hadoop_common)
+}
+
+flinkDependencyManagement {
+    dependency(Libs.hadoop_common, version = stringProperty("fs.hadoopshaded.version"))
 }
 
 description = "flink-filesystems :: flink-fs-hadoop-shaded"

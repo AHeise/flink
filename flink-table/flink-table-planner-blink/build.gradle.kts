@@ -5,22 +5,39 @@ plugins {
 dependencies {
     api(Libs.scala_parser_combinators)
 
+    compileOnly(Libs.reflections version "0.9.10") {
+        exclude(group = "com.google.code.findbugs", module = "annotations")
+        exclude(group = "com.google.guava", module = "guava")
+    }
+
     implementation(project(":flink-table:flink-table-common"))
     implementation(project(":flink-table:flink-table-api-java"))
     implementation(project(":flink-table:flink-table-api-scala"))
     implementation(project(":flink-table:flink-table-api-java-bridge"))
     implementation(project(":flink-table:flink-table-api-scala-bridge"))
-//    implementation(project(":flink-table:flink-sql-parser"))
+    implementation(project(":flink-table:flink-sql-parser")) {
+        exclude(group = "org.apache.calcite", module = "calcite-core")
+    }
     implementation(project(":flink-table:flink-table-runtime-blink"))
     implementation(project(":flink-scala"))
     implementation(project(":flink-streaming-scala"))
     implementation(project(":flink-libraries:flink-cep"))
     implementation(Libs.janino)
-    implementation(Libs.calcite_core)
-    implementation(Libs.reflections)
+    implementation(Libs.calcite_core version "1.20.0") {
+        exclude(group = "org.apache.calcite.avatica", module = "avatica-metrics")
+        exclude(group = "com.google.protobuf", module = "protobuf-java")
+        exclude(group = "org.apache.httpcomponents", module = "httpclient")
+        exclude(group = "org.apache.httpcomponents", module = "httpcore")
+        exclude(group = "org.apache.commons", module = "commons-dbcp2")
+        exclude(group = "com.esri.geometry", module = "esri-geometry-api")
+        exclude(group = "com.fasterxml.jackson.dataformat", module = "jackson-dataformat-yaml")
+        exclude(group = "com.yahoo.datasketches", module = "sketches-core")
+        exclude(group = "net.hydromatic", module = "aggdesigner-algorithm")
+    }
     implementation(Libs.scala_library)
     implementation(Libs.commons_math3)
     implementation(Libs.flink_shaded_guava)
+    implementation(Libs.jsr305)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-table:flink-table-runtime-blink", configuration = TEST_JAR))
@@ -31,6 +48,24 @@ dependencies {
     testImplementation(Libs.powermock_module_junit4)
     testImplementation(Libs.powermock_api_mockito2)
     testImplementation(Libs.hamcrest_all)
+}
+
+flinkDependencyManagement {
+
+    // Common dependency of calcite-core and flink-test-utils -->
+    dependency(group = "com.google.guava", name = "guava", version = "19.0")
+    dependencyGroup(version = stringProperty("janino.version")) {
+        // Common dependency of calcite-core and janino -->
+        dependency(group = "org.codehaus.janino", name = "commons-compiler")
+        // Common dependency of calcite-core and flink-table-planner -->
+        dependency(group = "org.codehaus.janino", name = "janino")
+    }
+    // Common dependencies within calcite-core -->
+    dependencyGroup(version = "2.9.6") {
+        dependency(group = "com.fasterxml.jackson.core", name = "jackson-annotations")
+        dependency(group = "com.fasterxml.jackson.core", name = "jackson-core")
+        dependency(group = "com.fasterxml.jackson.core", name = "jackson-databind")
+    }
 }
 
 description = "flink-table-planner-blink"

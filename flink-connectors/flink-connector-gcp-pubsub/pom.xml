@@ -37,13 +37,13 @@ under the License.
 
 	<dependencyManagement>
 		<dependencies>
-			<dependency>
+			<dependency>`
 				<!-- This is the way we get a consistent set of versions of the Google tools -->
 				<groupId>com.google.cloud</groupId>
 				<artifactId>google-cloud-bom</artifactId>
 				<version>0.80.0-alpha</version>
 				<type>pom</type>
-				<scope>import</scope>
+				<scope>import</scope>`
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

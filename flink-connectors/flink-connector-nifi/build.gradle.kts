@@ -1,5 +1,5 @@
 dependencies {
-    api(Libs.nifi_site_to_site_client)
+    api(Libs.nifi_site_to_site_client version stringProperty("nifi.version"))
     api(project(":flink-streaming-java"))
 
     implementation(Libs.slf4j_api)

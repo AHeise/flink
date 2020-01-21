@@ -5,7 +5,7 @@ dependencies {
     implementation(project(":flink-streaming-java"))
     implementation(project(":flink-table:flink-table-api-java-bridge"))
     implementation(project(":flink-table:flink-table-planner"))
-    implementation(Libs.log4j_to_slf4j)
+    implementation(Libs.log4j_to_slf4j version "2.9.1")
     implementation(Libs.jsr305)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))

@@ -1,5 +1,5 @@
 dependencies {
-    api(Libs.amqp_client)
+    api(Libs.amqp_client version stringProperty("rabbitmq.version"))
     api(project(":flink-streaming-java"))
 
     implementation(Libs.jsr305)

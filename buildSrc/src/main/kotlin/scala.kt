@@ -14,6 +14,7 @@ import org.gradle.kotlin.dsl.*
 
 import org.gradle.api.plugins.scala.ScalaPlugin
 import org.gradle.api.plugins.scala.ScalaPluginExtension
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
 
@@ -59,15 +60,15 @@ fun Project.flinkSetupScalaProjects() {
             extra.properties["flinkTestDependsOnScala"] = true
             flinkJointScalaJavaCompilation()
 
-            val scalaCompilerPlugin by configurations.creating
+//            val scalaCompilerPlugin by configurations.creating
 
             configure<ScalaPluginExtension> {
                 zincVersion.set("1.3.1")
             }
 
-            dependencies {
-                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${stringProperty("scala.version")}:0.13")
-            }
+//            dependencies {
+//                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${stringProperty("scala.version")}:0.15")
+//            }
         }
 
 //        configurations.forEach {
@@ -97,7 +98,7 @@ fun Project.flinkSetupScalaProjects() {
     }
 
     flinkAddScalaVersionToArtifactsForScalaProjects()
-    flinkJointJavadocForScalaProjects()
+//    flinkJointJavadocForScalaProjects()
 }
 
 fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
@@ -185,6 +186,14 @@ fun Project.flinkJointScalaJavaCompilation() {
             }
         }
     }
+//    tasks.named<ScalaCompile>("compileScala") {
+//        classpath += sourceSets["main"].java.classesDirectory.get().asFileTree
+//    }
+//    tasks.named<JavaCompile>("compileJava") {
+//        sourceSets["main"].withConvention(ScalaSourceSet::class) {
+//            classpath += scala
+//        }
+//    }
 }
 
 /**

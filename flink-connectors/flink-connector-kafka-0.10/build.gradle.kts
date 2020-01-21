@@ -26,5 +26,6 @@ description = "flink-connector-kafka-0.10"
 flinkDependencyManagement {
     dependencyGroup(stringProperty("kafka.version")) {
         dependency(Libs.kafka)
+        dependency(Libs.kafka_clients)
     }
 }

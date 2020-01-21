@@ -15,7 +15,7 @@ dependencies {
     implementation(Libs.flink_shaded_jackson_module_jsonschema)
     implementation(Libs.slf4j_api)
 
-    testImplementation(Libs.jsoup)
+    testImplementation(Libs.jsoup version "1.11.2")
     testImplementation(Libs.slf4j_log4j12)
     testImplementation(Libs.junit)
     testImplementation(Libs.hamcrest_all)

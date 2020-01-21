@@ -13,8 +13,8 @@ dependencies {
 
     testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    testImplementation("${Libs.hadoop_hdfs}:tests")
-    testImplementation("${Libs.hadoop_common}:tests") {
+    testImplementation(Libs.hadoop_hdfs classifier "tests" version stringProperty("hadoop.version"))
+    testImplementation(Libs.hadoop_common classifier "tests") {
         exclude("jdk.tools", "jdk.tools")
     }
     testImplementation(Libs.hamcrest_all)

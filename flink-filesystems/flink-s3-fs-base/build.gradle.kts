@@ -12,7 +12,7 @@ dependencies {
         shade(Libs.aws_java_sdk_kms)
         shade(Libs.aws_java_sdk_dynamodb)
     }
-    shade(Libs.hadoop_aws + ":${stringProperty("fs.hadoopshaded.version")}") {
+    shade(Libs.hadoop_aws version stringProperty("fs.hadoopshaded.version")) {
         exclude("com.amazonaws","aws-java-sdk-bundle")
     }
     shade(Libs.commons_io)

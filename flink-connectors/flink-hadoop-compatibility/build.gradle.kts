@@ -11,6 +11,7 @@ dependencies {
     implementation(Libs.slf4j_api)
 
     testImplementation(project(":flink-core", configuration = TEST_JAR))
+    testImplementation(project(":flink-runtime", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-java", configuration = TEST_JAR))
     testImplementation(Libs.mockito_core)

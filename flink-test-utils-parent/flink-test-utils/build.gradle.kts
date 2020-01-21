@@ -14,9 +14,10 @@ dependencies {
     implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
 
-    shadow(Libs.flink_shaded_netty)
+    shade(Libs.flink_shaded_netty)
+
     implementation(Libs.curator_test)
-    implementation(Libs.hadoop_minikdc)
+    implementation(Libs.hadoop_minikdc version stringProperty("minikdc.version"))
     implementation(Libs.scala_library)
 }
 

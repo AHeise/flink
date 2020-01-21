@@ -1,5 +1,5 @@
 dependencies {
-    implementation(Libs.tpch)
+    implementation(Libs.tpch version "0.10")
 }
 
 tasks.withType<ShadowJar> {

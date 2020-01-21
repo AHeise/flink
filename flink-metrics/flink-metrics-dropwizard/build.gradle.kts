@@ -1,7 +1,7 @@
 dependencies {
     compileOnly(project(":flink-annotations"))
 
-    implementation(Libs.metrics_core)
+    implementation(Libs.metrics_core version stringProperty("metrics.version"))
     implementation(project(":flink-metrics:flink-metrics-core"))
 
     testImplementation(project(":flink-metrics:flink-metrics-core", configuration = TEST_JAR))

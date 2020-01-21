@@ -207,6 +207,19 @@ subprojects {
         dependency(Libs.hadoop_common, version = stringProperty("hadoop.version"))
 
         dependency(Libs.flink_shaded_hadoop_2, version = "${stringProperty("hadoop.version")}-${stringProperty("flink.shaded.version")}")
+
+        dependency(Libs.chill, version = stringProperty("chill.version"))
+
+        dependencyGroup(stringProperty("powermock.version")) {
+            dependency(Libs.powermock_module_junit4, configuration = "testImplementation")
+            dependency(Libs.powermock_api_mockito2, configuration = "testImplementation") {
+                exclude(Libs.mockito_core)
+            }
+        }
+
+        dependency(Libs.hamcrest_all, version = stringProperty("hamcrest.version"), configuration = "testImplementation")
+
+        dependency(Libs.mockito_core, version = stringProperty("mockito.version"), configuration = "testImplementation")
     }
 }
 

@@ -1,14 +1,16 @@
+import org.gradle.api.Action
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Dependency
-import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.plugins.ExtraPropertiesExtension
+import org.gradle.api.internal.artifacts.dependencies.DefaultExternalModuleDependency
+import org.gradle.api.internal.artifacts.dsl.dependencies.ModuleFactoryHelper
+import org.gradle.kotlin.dsl.accessors.runtime.addDependencyTo
 import org.gradle.kotlin.dsl.exclude
 import org.gradle.kotlin.dsl.extra
 import org.gradle.kotlin.dsl.get
 
 fun DependencyHandler.`testApi`(dependencyNotation: Any): Dependency? =
-        add("testApi", dependencyNotation)
+    add("testApi", dependencyNotation)
 
 fun Project.flinkRegisterTestApi() {
     configurations.register("testApi") {
@@ -17,6 +19,19 @@ fun Project.flinkRegisterTestApi() {
         isTransitive = true
     }
 }
+
+fun <T : ModuleDependency> T.exclude(dependency: Dependency): T =
+    exclude(group = dependency.group, module = dependency.name)
+
+infix fun ExternalDependency.version(version: String): ExternalDependency =
+    DefaultExternalModuleDependency(group, name, version, targetConfiguration).also {
+        it.artifacts = this.artifacts
+    }
+
+infix fun ExternalDependency.classifier(classifier: String): ExternalDependency =
+    copy().also {
+        ModuleFactoryHelper.addExplicitArtifactsIfDefined(it, null, classifier)
+    }
 
 /**
  * Excludes all matching modules from all configurations.
