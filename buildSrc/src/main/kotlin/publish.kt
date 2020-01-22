@@ -1,4 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.TransformerContext
 import org.gradle.api.*
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ProjectDependency
@@ -6,6 +25,7 @@ import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.file.FileCollection
+import org.gradle.api.file.FileTreeElement
 import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact
 import org.gradle.api.plugins.JavaApplication
 import org.gradle.api.plugins.JavaPlugin
@@ -18,29 +38,18 @@ import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.javadoc.Javadoc
+import org.gradle.api.tasks.util.PatternSet
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.kotlin.dsl.*
+import shadow.org.apache.tools.zip.ZipOutputStream
 import java.net.URLClassLoader
 import kotlin.reflect.KClass
 
-// use typealias to keep customized shading options shorter
-typealias ShadowJar = com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 const val TEST_JAR = "testJar"
-
-private const val SHADE = "shade"
-
-const val PUBLISH = "publish"
-
-private const val TEST_SHADE = "testShade"
 
 val CLASSIFIER_ATTRIBUTE = Attribute.of("classifier", String::class.java)
 
-fun DependencyHandler.testShade(dependencyNotation: Any): Dependency? =
-    add(TEST_SHADE, dependencyNotation)
 
-//fun DependencyHandler.shade(dependencyNotation: Any): Dependency? =
-//    add(SHADE, dependencyNotation)
 /**
  * Configures the current project to provide a test jar under the
  * "testArtifacts" configuration.
@@ -201,110 +210,4 @@ fun Project.flinkSetupPublishing() {
 //    tasks.withType<GenerateMavenPom> {
 //        dependsOn(actualJar)
 //    }
-}
-
-fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
-    apply(plugin = "com.github.johnrengelman.shadow")
-
-    val shade = configurations.create(SHADE) {
-        configurations["compileClasspath"].extendsFrom(this)
-        configurations["testCompileOnly"].extendsFrom(this)
-        configurations["testRuntimeOnly"].extendsFrom(this)
-    }
-
-    val shadowJar by tasks.existing(ShadowJar::class)
-
-    configurations.register(TEST_SHADE) {
-        extendsFrom(configurations["testRuntime"])
-        extendsFrom(configurations["testApi"])
-        extendsFrom(configurations["api"])
-
-        attributes {
-            attribute(CLASSIFIER_ATTRIBUTE, "test")
-        }
-    }
-
-    abstract class NoopService: BuildService<BuildServiceParameters.None>
-    val exclusiveManyFiles = gradle.sharedServices.registerIfAbsent("exclusiveManyFiles", NoopService::class) {
-        maxParallelUsages.set(1)
-    }
-    tasks.named<ShadowJar>("shadowJar") {
-        configurations = listOf(shade)
-        isZip64 = true
-        usesService(exclusiveManyFiles)
-
-        // remove 'all' classifier, we want to replace the original jar by the shaded version
-        archiveClassifier.set(null as String?)
-        // publish still uses old classifier
-        @Suppress("DEPRECATION")
-        classifier = null
-
-        // transformations
-        mergeServiceFiles()
-        transform(ApacheNoticeResourceTransformer().apply {
-            projectName = "Apache Flink"
-        })
-
-        // global excludes
-        exclude("log4j.properties", "log4j-test.properties")
-        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
-
-        // exclude( com.google.code.findbugs:jsr305 )
-    }
-
-    // disable regular jar task
-    tasks.named<org.gradle.api.tasks.bundling.Jar>("jar").configure {
-        enabled = false
-    }
-
-    // remove the jar from the default artifacts, replace it subsequently with the shaded jar
-    // this jar will be used for downstream project/tasks and publishing
-    val jarConfigurations = listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME,
-            @Suppress("DEPRECATION")
-            JavaPlugin.RUNTIME_CONFIGURATION_NAME,
-            RUNTIME_ELEMENTS_CONFIGURATION_NAME,
-            "archives")
-
-    val artifact = LazyPublishArtifact(shadowJar)
-    jarConfigurations.forEach {
-        val configuration = configurations[it]
-        configuration.artifacts.clear()
-        configuration.artifacts.add(artifact)
-    }
-
-    val classesConfigurations = listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-    classesConfigurations.forEach { compiledConfiguration ->
-        configurations[compiledConfiguration].outgoing.variants.removeIf {
-            it.attributes.getAttribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE)?.name == LibraryElements.CLASSES
-        }
-    }
-
-    configurations["default"].setExtendsFrom(listOf(configurations["archives"]))
-
-    // shade and api both extend from all for common constraints/rules
-    shade.extendsFrom(configurations.maybeCreate("all") {
-        isCanBeResolved = false
-        isCanBeConsumed = false
-    })
-
-    listOf("api", "implementation").forEach { conf ->
-        // exclude dist dependencies, just before shade is resolved
-        shade.withDependencies {
-            this.filterIsInstance<ProjectDependency>().forEach { shadedDependency ->
-                shadedDependency.dependencyProject.getDistProjectDependencies(conf).forEach {
-                    shadedDependency.exclude(mapOf("group" to it.group, "module" to it.name))
-                }
-            }
-        }
-        configurations[conf].withDependencies {
-            val excluded = shade.allDependencies.filterIsInstance<ProjectDependency>().flatMap {
-                it.dependencyProject.getDistProjectDependencies(conf)
-            }.toSet()
-            excluded.forEach {
-                add(it)
-            }
-        }
-    }
-
-    return shadowJar
 }

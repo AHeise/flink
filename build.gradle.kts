@@ -1,14 +1,24 @@
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.staticProperties
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 plugins {
-    id("de.fayard.buildSrcVersions") version "0.4.2"
     id("org.nosphere.apache.rat") version "0.5.2"
-}
-
-allprojects {
-    group = "org.apache.flink"
-    version = "1.10-SNAPSHOT"
+    `java-library`
 }
 
 if (!gradle.startParameter.isOffline) {
@@ -18,18 +28,32 @@ if (!gradle.startParameter.isOffline) {
     }
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+allprojects {
+    group = "org.apache.flink"
+    version = "1.10-SNAPSHOT"
+
+    repositories {
+        mavenCentral()
+    }
+}
+
 subprojects {
     if(project.subprojects.isNotEmpty()) {
         return@subprojects
     }
     apply(plugin = "java-library")
 
-    flinkRegisterTestApi()
-
-    configure<JavaPluginConvention> {
+    java {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+
+    flinkRegisterTestApi()
 
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
@@ -37,10 +61,6 @@ subprojects {
 
     tasks.withType<ScalaCompile> {
         options.encoding = "UTF-8"
-    }
-
-    repositories {
-        mavenCentral()
     }
 
     tasks.withType<Test>().configureEach {
@@ -68,7 +88,7 @@ subprojects {
 
         dependency(Libs.flink_shaded_netty, version = "4.1.39.Final-${stringProperty("flink.shaded.version")}")
 
-        dependency(Libs.flink_shaded_netty_tcnative_dynamic, version = "2.0.25.Final-${stringProperty("flink.shaded.version")}", configuration = "testImplementation")
+        dependency(Libs.flink_shaded_netty_tcnative_dynamic, version = "2.0.25.Final-${stringProperty("flink.shaded.version")}")
 
         //   This manages the 'javax.annotation' annotations (JSR305)
         dependency(Libs.jsr305, version = "1.3.9")

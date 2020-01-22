@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // allow plugins to be downloaded from the following repositories
 pluginManagement {
     repositories {
@@ -69,6 +87,7 @@ include(":flink-connectors:flink-hadoop-compatibility")
 include(":flink-connectors:flink-hbase")
 include(":flink-connectors:flink-hcatalog")
 include(":flink-connectors:flink-connector-kafka-base")
+include(":flink-connectors:flink-connector-kafka-0.8")
 include(":flink-connectors:flink-connector-kafka-0.9")
 include(":flink-connectors:flink-connector-kafka-0.10")
 include(":flink-connectors:flink-connector-kafka-0.11")
@@ -92,7 +111,6 @@ include(":flink-connectors:flink-sql-connector-kafka-0.9")
 include(":flink-connectors:flink-sql-connector-kafka-0.10")
 include(":flink-connectors:flink-sql-connector-kafka-0.11")
 include(":flink-connectors:flink-sql-connector-kafka")
-include(":flink-connectors:flink-connector-kafka-0.8")
 include(":flink-connectors")
 include(":flink-formats:flink-avro")
 include(":flink-formats:flink-json")
@@ -103,8 +121,7 @@ include(":flink-formats:flink-csv")
 include(":flink-formats")
 include(":flink-examples:flink-examples-batch")
 include(":flink-examples:flink-examples-streaming")
-//// TODO: gradle
-//include(":flink-examples:flink-examples-table")
+include(":flink-examples:flink-examples-table")
 include(":flink-examples:flink-examples-build-helper:flink-examples-streaming-twitter")
 include(":flink-examples:flink-examples-build-helper:flink-examples-streaming-state-machine")
 include(":flink-examples:flink-examples-build-helper:flink-examples-streaming-gcp-pubsub")
@@ -208,4 +225,4 @@ include(":flink-walkthroughs:flink-walkthrough-table-java")
 include(":flink-walkthroughs:flink-walkthrough-table-scala")
 include(":flink-walkthroughs")
 // TODO: gradle
-//include(":flink-scala-shell")
+include(":flink-scala-shell")

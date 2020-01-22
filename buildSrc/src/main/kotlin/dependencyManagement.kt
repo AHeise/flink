@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import groovy.lang.Closure
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
@@ -7,29 +25,30 @@ import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.internal.artifacts.dependencies.DefaultExternalModuleDependency
 import org.gradle.api.plugins.JavaLibraryPlugin
+import org.gradle.api.tasks.Optional
 import org.gradle.kotlin.dsl.*
 
 data class Module(val group: String, val name: String)
 
 interface DependencyGroupManagementHandler {
-    fun dependency(dependencyNotation: Any, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
-    fun dependency(group: String, name: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint =
+    fun dependency(dependencyNotation: Any, configuration: String = "root", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
+    fun dependency(group: String, name: String, configuration: String = "root", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint =
         dependency(mapOf("group" to group, "name" to name), configuration, dependencyConfiguration)
 }
 
 interface DependencyManagementHandler {
     fun dependencyGroup(version: String, groupConfiguration: DependencyGroupManagementHandler.() -> Unit)
 
-    fun dependency(dependencyNotation: Any, version: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
+    fun dependency(dependencyNotation: Any, version: String, configuration: String = "root", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint
 
-    fun dependency(group: String, name: String, version: String, configuration: String = "all", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint=
+    fun dependency(group: String, name: String, version: String, configuration: String = "root", dependencyConfiguration: (ExternalModuleDependency.() -> Unit)? = null): DependencyConstraint=
         dependency(mapOf("group" to group, "name" to name), version, configuration, dependencyConfiguration)
 }
 
 fun Project.flinkDependencyManagement(dependenciesHandler: Action<DependencyManagementHandler>) {
     // only configure java/scala projects
     plugins.withType<JavaLibraryPlugin> {
-        val all = configurations.maybeCreate("all") {
+        val all = configurations.maybeCreate("root") {
             isCanBeResolved = false
             isCanBeConsumed = false
         }
@@ -42,11 +61,15 @@ fun Project.flinkDependencyManagement(dependenciesHandler: Action<DependencyMana
         val managedDependencies = cachingDependencyHandler.getManagedDependencies(dependenciesHandler)
         val configurationConstraints = managedDependencies.configurationConstraints.mapKeys { configurations[it.key] }
         configurationConstraints.forEach { (conf, constraints) ->
-            if (conf.dependencyConstraints.isNotEmpty()) {
-                // remove overwritten entries
-                val constraintIndex = constraints.constraints.map { Module(it.group, it.name) }.toSet()
-                conf.dependencyConstraints.removeIf { constraintIndex.contains(Module(it.group, it.name)) }
+            val constraintIndex by lazy(LazyThreadSafetyMode.NONE) {
+                constraints.constraints.map { Module(it.group, it.name) }.toSet()
             }
+            configurations
+                .filter { it.dependencyConstraints.isNotEmpty() && it.hierarchy.contains(conf) }
+                .forEach { extendedConf ->
+                    // remove overwritten entries
+                    extendedConf.dependencyConstraints.removeIf { constraintIndex.contains(Module(it.group, it.name)) }
+                }
             conf.dependencyConstraints += constraints.constraints
         }
         configurations
@@ -70,9 +93,6 @@ fun Project.flinkDependencyManagement(dependenciesHandler: Action<DependencyMana
         managedDependencies.platformSetups.forEach { it.execute(project) }
     }
 }
-
-fun <T> NamedDomainObjectContainer<T>.maybeCreate(name: String, configure: Action<in T>): T =
-    findByName(name) ?: create(name, configure)
 
 fun DependencyHandler.flinkDependencyGroup(version: String, groupConfiguration: DependencyHandlerScope.() -> Unit) {
     val dependencyHandler = this

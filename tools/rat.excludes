@@ -118,3 +118,7 @@ flink-jepsen/docker/nodes
 flink-python/lib/**
 flink-python/dev/download/**
 flink-python/docs/_build/**
+
+**/build/**
+**/*.properties
+tools/rat.excludes
