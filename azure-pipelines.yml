@@ -19,17 +19,68 @@ trigger:
     include:
     - '*' 
 
-resources:
-  containers:
-  # Container with Maven 3.2.5 to have the same environment everywhere.
-  - container: flink-build-container
-    image: rmetzger/flink-ci:3
-  repositories:
-    - repository: templates
-      type: github
-      name: flink-ci/flink-azure-builds
-      endpoint: flink-ci
+parameters:
+  vmImage: 'ubuntu 16.04'
 
 jobs:
-- template: flink-build-jobs.yml@templates
+  - job: Build
+    pool:
+      vmImage: ${{ parameters.vmImage }}
+    steps:
+      - task: Gradle@2
+        displayName: Compile
+        inputs:
+          gradleWrapperFile: 'gradlew'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.8'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: false
+          tasks: 'build -x test'
+          options: '--info --stacktrace'
+      - task: PublishBuildArtifacts@1
+        inputs:
+          pathtoPublish: '$(System.DefaultWorkingDirectory)'
+          artifactName: libs
 
+  - job: Test @ Java8
+    dependsOn: Build
+    condition: succeeded()
+    pool:
+      vmImage: ${{ parameters.vmImage }}
+    steps:
+      - task: DownloadBuildArtifacts@0
+        displayName: 'Download Build Artifacts'
+        inputs:
+          artifactName: libs
+          downloadPath: $(System.DefaultWorkingDirectory)
+      - task: Gradle@2
+        displayName: Test @ Java 8
+        inputs:
+          gradleWrapperFile: 'gradlew'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.8'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
+          tasks: 'build'
+          options: '--info --stacktrace'
+  - job: Test @ Java11
+    dependsOn: Build
+    condition: succeeded()
+    pool:
+      vmImage: ${{ parameters.vmImage }}
+    steps:
+      - task: DownloadBuildArtifacts@0
+        displayName: 'Download Build Artifacts'
+        inputs:
+          artifactName: libs
+          downloadPath: $(System.DefaultWorkingDirectory)
+      - task: Gradle@2
+        displayName: Test @ Java 8
+        inputs:
+          gradleWrapperFile: 'gradlew'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.11'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
+          tasks: 'build'
+          options: '--info --stacktrace'
