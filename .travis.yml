@@ -17,11 +17,15 @@
 sudo: required
 dist: xenial
 
+before_cache:
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
 cache:
   # default timeout is too low
   timeout: 600
   directories:
-  - $HOME/.gradle/cache
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
 
 install: true
 
