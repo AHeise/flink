@@ -19,7 +19,7 @@ trigger:
     include:
     - '*' 
 
-parameters:
+variables:
   vmImage: 'ubuntu 16.04'
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
           pathtoPublish: '$(System.DefaultWorkingDirectory)'
           artifactName: libs
 
-  - job: Test @ Java8
+  - job: Test_Java8
     dependsOn: Build
     condition: succeeded()
     pool:
@@ -63,7 +63,7 @@ jobs:
           publishJUnitResults: true
           tasks: 'build'
           options: '--info --stacktrace'
-  - job: Test @ Java11
+  - job: Test_Java11
     dependsOn: Build
     condition: succeeded()
     pool:
