@@ -33,31 +33,11 @@ plugins {
     id("com.gradle.enterprise") version "3.0" apply false
 }
 
-fun Settings.findProperty(propertyName: String) =
-    if (extra.has(propertyName))
-        extra.get(propertyName)
-    else null
-
 if (!gradle.startParameter.isOffline) {
     apply(plugin = "com.gradle.enterprise")
-
-    val isCiServer = System.getenv().containsKey("CI")
-    buildCache {
-        local {
-            isEnabled = !isCiServer
-        }
-        remote<HttpBuildCache> {
-            url = uri("http://35.204.219.75:3000/cache/")
-            isPush = isCiServer
-            credentials {
-                username = settings.findProperty("buildCache.user")?.toString() ?:
-                        System.getenv()["GRADLE_BUILD_CACHE_USER"]
-                password = settings.findProperty("buildCache.password")?.toString() ?:
-                        System.getenv()["GRADLE_BUILD_CACHE_PASSWORD"]
-            }
-        }
-    }
 }
+
+apply(from = File(settingsDir, "gradle/buildCacheSettings.gradle.kts"))
 
 rootProject.name = "flink"
 
