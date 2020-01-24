@@ -71,6 +71,29 @@ subprojects {
 
         jvmArgs("-Xms256m", "-Xmx2048m", "-XX:+UseG1GC")
         ignoreFailures = true
+
+        filter {
+            includeTestsMatching("*Test*")
+        }
+    }
+    val integrationTest by tasks.registering(Test::class) {
+        description = "Runs integration tests."
+        group = "verification"
+
+        useJUnit()
+        systemProperty("log4j.configuration", "log4j-test.properties")
+        maxParallelForks = gradle.startParameter.maxWorkerCount
+
+        jvmArgs("-Xms256m", "-Xmx2048m", "-XX:+UseG1GC")
+        ignoreFailures = true
+        shouldRunAfter("test")
+
+        filter {
+            includeTestsMatching("*ITCase*")
+        }
+    }
+    tasks.check {
+        dependsOn(integrationTest)
     }
 
     flinkSetupPublishing()
