@@ -42,7 +42,7 @@ jobs:
           jdkVersionOption: '1.8'
           jdkArchitectureOption: 'x64'
           publishJUnitResults: false
-          tasks: 'build -x test'
+          tasks: 'build -x test -x integrationTest'
           options: '--info --stacktrace'
 
   - job: Test_Java8
@@ -59,14 +59,35 @@ jobs:
           jdkVersionOption: '1.8'
           jdkArchitectureOption: 'x64'
           publishJUnitResults: true
+          tasks: 'test'
+          options: '--info --stacktrace'
+      - task: Gradle@2
+        displayName: IT @ Java 8
+        inputs:
+          gradleWrapperFile: 'gradlew'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.8'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
           tasks: 'build'
           options: '--info --stacktrace'
+
   - job: Test_Java11
     dependsOn: Build
     condition: succeeded()
     pool:
       vmImage: $(vmImage)
     steps:
+      - task: Gradle@2
+        displayName: Test @ Java 8
+        inputs:
+          gradleWrapperFile: 'gradlew'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.11'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
+          tasks: 'test'
+          options: '--info --stacktrace'
       - task: Gradle@2
         displayName: Test @ Java 8
         inputs:
