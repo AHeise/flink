@@ -34,6 +34,7 @@ import org.gradle.api.plugins.scala.ScalaPlugin
 import org.gradle.api.plugins.scala.ScalaPluginExtension
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
 
@@ -74,19 +75,19 @@ fun Project.flinkSetupScalaProjects() {
             // no need to check classpath if we know that the scala plugin has been added
             extra.properties["flinkMainDependsOnScala"] = true
             extra.properties["flinkTestDependsOnScala"] = true
-            flinkJointScalaJavaCompilation()
 
 //            val scalaCompilerPlugin by configurations.creating
 
             configure<ScalaPluginExtension> {
                 zincVersion.set("1.3.1")
             }
-            abstract class NoopService: BuildService<BuildServiceParameters.None>
-            val singleScalaCompile = gradle.sharedServices.registerIfAbsent("exclusiveManyFiles", NoopService::class) {
-                maxParallelUsages.set(1)
-            }
+//            abstract class NoopService: BuildService<BuildServiceParameters.None>
+//            val singleScalaCompile = gradle.sharedServices.registerIfAbsent("exclusiveManyFiles", NoopService::class) {
+//                maxParallelUsages.set(1)
+//            }
             tasks.withType<ScalaCompile> {
-                usesService(singleScalaCompile)
+                options.isFork = true
+//                usesService(singleScalaCompile)
             }
 
 //            dependencies {
@@ -133,7 +134,6 @@ fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
         }
 
         override fun projectsLoaded(gradle: Gradle) {
-            println("projectsLoaded")
         }
 
         override fun buildStarted(gradle: Gradle) {
@@ -152,32 +152,12 @@ fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
             }
         }
     })
-//    gradle.taskGraph.whenReady {
-//        // add scala version to all artifacts when scala is a dependency (even without scala plugin)
-//        allTasks.filterIsInstance(ShadowJar::class.java).forEach { jar ->
-//            jar.kotlinApply {
-//                val isTestJar = name.startsWith("test")
-//                if (!isTestJar && project.flinkMainDependsOnScala()) {
-//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
-//
-//                    project.configure<PublishingExtension> {
-//                        publications.named<MavenPublication>("main") {
-//                            // sync artifact id if we added scala version
-//                            artifactId = archiveBaseName.get()
-//                        }
-//                    }
-//                } else if (isTestJar && project.flinkTestDependsOnScala()) {
-//                    archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
-//                }
-//            }
-//        }
-//    }
 }
 
 /**
  * Configures the current project to compile Scala and Java together instead of one after the other.
  */
-fun Project.flinkJointScalaJavaCompilation() {
+fun Project.`flinkJointScalaJavaCompilation`() {
     val sourceSets = the<SourceSetContainer>()
     sourceSets {
         named("main") {
@@ -202,30 +182,28 @@ fun Project.flinkJointScalaJavaCompilation() {
             }
         }
     }
-//    tasks.named<ScalaCompile>("compileScala") {
-//        classpath += sourceSets["main"].java.classesDirectory.get().asFileTree
-//    }
-//    tasks.named<JavaCompile>("compileJava") {
-//        sourceSets["main"].withConvention(ScalaSourceSet::class) {
-//            classpath += scala
-//        }
-//    }
 }
 
 /**
  * Configures the current project to first compile Scala, then Java. The default order is the other
  * way round with the Gradle scala plugin.
  */
-fun Project.flinkCompileScalaFirst() {
-    // TODO this doesn't work yet
-//    val compileJava by tasks.existing(JavaCompile::class)
-//    val compileScala by tasks.existing(ScalaCompile::class)
-//    compileJava {
-//        dependsOn(compileScala)
-//    }
-//    compileScala {
-//        dependsOn -= compileJava
-//    }
+fun Project.flinkCompileScalaFirst(test: Boolean = false) {
+    val sourceSets = the<SourceSetContainer>()
+    val sourceSet = if(test) "test" else "main"
+    val taskInfix = if(test) "Test" else ""
+    tasks.named<ScalaCompile>("compile${taskInfix}Scala") {
+        // Scala only needs the declared dependencies
+        // and not the output of compileJava
+        classpath = sourceSets[sourceSet].compileClasspath
+    }
+    tasks.named<JavaCompile>("compile${taskInfix}Java") {
+        // Java also depends on the result of Scala compilation
+        // which automatically makes it depend of compileJava
+        sourceSets[sourceSet].withConvention(ScalaSourceSet::class) {
+            classpath += files(scala.classesDirectory)
+        }
+    }
 }
 
 

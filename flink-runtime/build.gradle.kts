@@ -74,7 +74,7 @@ tasks.withType<Test> {
     maxHeapSize = "1024m"
 }
 
-//flinkJointScalaJavaCompilation()
+flinkJointScalaJavaCompilation()
 flinkCreateTestJar()
 
 tasks.withType<ShadowJar> {

@@ -35,5 +35,3 @@ dependencies {
 }
 
 description = "flink-examples-streaming"
-
-//flinkJointScalaJavaCompilation()

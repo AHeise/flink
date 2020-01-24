@@ -33,5 +33,3 @@ dependencies {
 }
 
 description = "flink-examples-batch"
-
-flinkJointScalaJavaCompilation()

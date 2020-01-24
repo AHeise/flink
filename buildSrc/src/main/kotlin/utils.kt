@@ -73,7 +73,7 @@ private fun Node.addDependency(scope: String?, dependency: Dependency?) {
 
 fun <T> ExtraPropertiesExtension.getOrPut(key: String, defaultValue: () -> T): T =
     if(has(key))
-        get(key)!! as T
+        requireNotNull(get(key)) as T
     else defaultValue().also { set(key, it) }
 
 private fun Node.appendDependency(

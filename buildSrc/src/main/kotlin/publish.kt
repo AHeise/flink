@@ -90,19 +90,7 @@ fun Project.flinkCreateTestJar(mainClass: String? = null, artifactName: String? 
 
         configuration?.execute(this)
     }
-
-//    // lazy mechanism to provide a shaded jar for downstream projects/tasks
-//    // if the shaded jar is not used in this build, nothing will be materialized
-//    val testArtifact = LazyPublishArtifact(memorizingProvider {
-//        // only when this project's jar is needed, check if it has scala dependencies
-//        testJar.get().apply {
-//            println("$project $artifactName - test jar")
-//            // and add the scala version to the jar name
-//            if (flinkTestDependsOnScala()) {
-//                archiveBaseName.set("${archiveBaseName.get()}_${Versions.scalaMinorVersion}")
-//            }
-//        }
-//    })
+    tasks.named("jar") { dependsOn(testJar) }
 
     val testArtifact = LazyPublishArtifact(testJar)
     artifacts {

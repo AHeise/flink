@@ -36,4 +36,3 @@ dependencies {
 
 description = "flink-table-api-scala-bridge"
 
-flinkJointScalaJavaCompilation()

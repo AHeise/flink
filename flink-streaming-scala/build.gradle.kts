@@ -37,6 +37,5 @@ dependencies {
 
 description = "flink-streaming-scala"
 
-flinkJointScalaJavaCompilation()
-
 flinkCreateTestJar()
+flinkCompileScalaFirst(test = true)

@@ -34,4 +34,4 @@ dependencies {
 
 description = "flink-table-api-scala"
 
-flinkJointScalaJavaCompilation()
+flinkCompileScalaFirst()

@@ -37,3 +37,5 @@ dependencies {
 }
 
 description = "flink-scala-shell"
+
+flinkJointScalaJavaCompilation()
