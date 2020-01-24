@@ -33,6 +33,7 @@ dependencies {
     implementation(Libs.slf4j_api)
 
     shade(Libs.flink_shaded_netty)
+    shade(Libs.netty version "3.10.6.Final")
 
     implementation(Libs.curator_test)
     implementation(Libs.hadoop_minikdc version stringProperty("minikdc.version"))

@@ -64,7 +64,7 @@ subprojects {
         options.encoding = "UTF-8"
     }
 
-    tasks.withType<Test>().configureEach {
+    tasks.named<Test>("test") {
         useJUnit()
         systemProperty("log4j.configuration", "log4j-test.properties")
         maxParallelForks = gradle.startParameter.maxWorkerCount
@@ -73,7 +73,8 @@ subprojects {
         ignoreFailures = true
 
         filter {
-            includeTestsMatching("*Test*")
+            excludeTestsMatching("*ITCase")
+            isFailOnNoMatchingTests = false
         }
     }
     val integrationTest by tasks.registering(Test::class) {
@@ -89,7 +90,8 @@ subprojects {
         shouldRunAfter("test")
 
         filter {
-            includeTestsMatching("*ITCase*")
+            includeTestsMatching("*ITCase")
+            isFailOnNoMatchingTests = false
         }
     }
     tasks.check {

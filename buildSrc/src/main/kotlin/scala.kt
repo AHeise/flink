@@ -32,7 +32,8 @@ import org.gradle.kotlin.dsl.*
 
 import org.gradle.api.plugins.scala.ScalaPlugin
 import org.gradle.api.plugins.scala.ScalaPluginExtension
-import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.scala.ScalaCompile
 
@@ -68,9 +69,6 @@ private fun flinkIsDependencyDependingOnScala(dependency: Dependency): Boolean =
     } else false
 
 fun Project.flinkSetupScalaProjects() {
-
-
-
     subprojects {
         plugins.withType<ScalaPlugin> {
             // no need to check classpath if we know that the scala plugin has been added
@@ -82,6 +80,13 @@ fun Project.flinkSetupScalaProjects() {
 
             configure<ScalaPluginExtension> {
                 zincVersion.set("1.3.1")
+            }
+            abstract class NoopService: BuildService<BuildServiceParameters.None>
+            val singleScalaCompile = gradle.sharedServices.registerIfAbsent("exclusiveManyFiles", NoopService::class) {
+                maxParallelUsages.set(1)
+            }
+            tasks.withType<ScalaCompile> {
+                usesService(singleScalaCompile)
             }
 
 //            dependencies {
@@ -140,13 +145,6 @@ fun Project.flinkAddScalaVersionToArtifactsForScalaProjects() {
                     val isTestJar = name.startsWith("test")
                     if (!isTestJar && project.flinkIsMainDependingOnScala()) {
                         archiveBaseName.set("${archiveBaseName.get()}_${scalaMinorVersion}")
-
-//                        project.configure<PublishingExtension> {
-//                            publications.named<MavenPublication>("main") {
-//                                // sync artifact id if we added scala version
-//                                artifactId = archiveBaseName.get()
-//                            }
-//                        }
                     } else if (isTestJar && project.flinkIsTestDependingOnScala()) {
                         archiveBaseName.set("${archiveBaseName.get()}_${scalaMinorVersion}")
                     }

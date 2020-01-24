@@ -17,7 +17,7 @@
  */
 
 dependencies {
-    implementation(project(":flink-core"))
+    api(project(":flink-core"))
     implementation(Libs.slf4j_api)
     implementation(Libs.jsr305)
 

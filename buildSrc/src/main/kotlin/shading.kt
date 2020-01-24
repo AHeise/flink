@@ -44,13 +44,11 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
         configurations["testRuntimeOnly"].extendsFrom(this)
     }
 
-    val shadowJar by tasks.existing(ShadowJar::class)
-
     abstract class NoopService: BuildService<BuildServiceParameters.None>
     val exclusiveManyFiles = gradle.sharedServices.registerIfAbsent("exclusiveManyFiles", NoopService::class) {
         maxParallelUsages.set(2)
     }
-    tasks.named<ShadowJar>("shadowJar") {
+    val shadowJar = tasks.named<ShadowJar>("shadowJar") {
         configurations = listOf(shade)
         isZip64 = true
         usesService(exclusiveManyFiles)
@@ -77,6 +75,7 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     // disable regular jar task
     tasks.named<Jar>("jar").configure {
         enabled = false
+        dependsOn(shadowJar)
     }
     tasks.withType<Jar> {
         outputs.cacheIf { true }
