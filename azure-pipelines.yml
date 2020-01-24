@@ -19,14 +19,21 @@ trigger:
     include:
     - '*' 
 
-parameters:
+variables:
   vmImage: 'ubuntu 16.04'
+  GRADLE_USER_HOME: $(Pipeline.Workspace)/.gradle
 
 jobs:
   - job: Build
     pool:
-      vmImage: ${{ parameters.vmImage }}
+      vmImage: $(vmImage)
     steps:
+      - task: Cache@2
+        inputs:
+          key: 'gradle | "$(Build.BuildId)"'
+          restoreKeys: gradle
+          path: $(GRADLE_USER_HOME)
+        displayName: Gradle build cache
       - task: Gradle@2
         displayName: Compile
         inputs:
@@ -37,22 +44,13 @@ jobs:
           publishJUnitResults: false
           tasks: 'build -x test'
           options: '--info --stacktrace'
-      - task: PublishBuildArtifacts@1
-        inputs:
-          pathtoPublish: '$(System.DefaultWorkingDirectory)'
-          artifactName: libs
 
-  - job: Test @ Java8
+  - job: Test_Java8
     dependsOn: Build
     condition: succeeded()
     pool:
-      vmImage: ${{ parameters.vmImage }}
+      vmImage: $(vmImage)
     steps:
-      - task: DownloadBuildArtifacts@0
-        displayName: 'Download Build Artifacts'
-        inputs:
-          artifactName: libs
-          downloadPath: $(System.DefaultWorkingDirectory)
       - task: Gradle@2
         displayName: Test @ Java 8
         inputs:
@@ -63,17 +61,12 @@ jobs:
           publishJUnitResults: true
           tasks: 'build'
           options: '--info --stacktrace'
-  - job: Test @ Java11
+  - job: Test_Java11
     dependsOn: Build
     condition: succeeded()
     pool:
-      vmImage: ${{ parameters.vmImage }}
+      vmImage: $(vmImage)
     steps:
-      - task: DownloadBuildArtifacts@0
-        displayName: 'Download Build Artifacts'
-        inputs:
-          artifactName: libs
-          downloadPath: $(System.DefaultWorkingDirectory)
       - task: Gradle@2
         displayName: Test @ Java 8
         inputs:
