@@ -67,10 +67,9 @@ subprojects {
     tasks.withType<Test>().configureEach {
         useJUnit()
         systemProperty("log4j.configuration", "log4j-test.properties")
-//        maxParallelForks = 24
+        maxParallelForks = gradle.startParameter.maxWorkerCount
 
         jvmArgs("-Xms256m", "-Xmx2048m", "-XX:+UseG1GC")
-        include("**/*Test.*")
         ignoreFailures = true
     }
 

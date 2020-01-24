@@ -21,17 +21,14 @@ fun Settings.findProperty(propertyName: String) =
             extra.get(propertyName)
         else null
 
-if (!gradle.startParameter.isOffline) {
-    val buildCacheUser = settings.findProperty("buildCache.user")?.toString()
-            ?: System.getenv()["GRADLE_BUILD_CACHE_USER"]
-    val buildCachePassword = settings.findProperty("buildCache.password")?.toString()
-            ?: System.getenv()["GRADLE_BUILD_CACHE_PASSWORD"]
-    val isCiServer = System.getenv().containsKey("CI")
-    val canWrite = buildCacheUser != null && buildCachePassword != null && isCiServer
-    buildCache {
-        local {
-            isEnabled = !canWrite
-        }
+val buildCacheUser = settings.findProperty("buildCache.user")?.toString()
+        ?: System.getenv()["GRADLE_BUILD_CACHE_USER"]
+val buildCachePassword = settings.findProperty("buildCache.password")?.toString()
+        ?: System.getenv()["GRADLE_BUILD_CACHE_PASSWORD"]
+val isCiServer = System.getenv().containsKey("CI")
+val canWrite = buildCacheUser != null && buildCachePassword != null && isCiServer
+buildCache {
+    if (!gradle.startParameter.isOffline) {
         remote<HttpBuildCache> {
             url = uri("http://35.204.219.75:3000/cache/")
             isPush = canWrite

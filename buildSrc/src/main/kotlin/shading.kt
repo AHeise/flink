@@ -26,6 +26,7 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.*
+import org.gradle.api.tasks.bundling.Jar
 
 // use typealias to keep customized shading options shorter
 typealias ShadowJar = com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
@@ -54,10 +55,6 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
         isZip64 = true
         usesService(exclusiveManyFiles)
 
-        outputs.doNotCacheIf("Non-shaded jar") {
-            shade.allDependencies.isEmpty()
-        }
-
         // remove 'all' classifier, we want to replace the original jar by the shaded version
         archiveClassifier.set(null as String?)
         // publish still uses old classifier
@@ -78,8 +75,11 @@ fun Project.flinkSetupShading(): TaskProvider<ShadowJar> {
     }
 
     // disable regular jar task
-    tasks.named<org.gradle.api.tasks.bundling.Jar>("jar").configure {
+    tasks.named<Jar>("jar").configure {
         enabled = false
+    }
+    tasks.withType<Jar> {
+        outputs.cacheIf { true }
     }
 
     // remove the jar from the default artifacts, replace it subsequently with the shaded jar
