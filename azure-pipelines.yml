@@ -21,12 +21,19 @@ trigger:
 
 variables:
   vmImage: 'ubuntu 16.04'
+  GRADLE_USER_HOME: $(Pipeline.Workspace)/.gradle
 
 jobs:
   - job: Build
     pool:
-      vmImage: ${{ parameters.vmImage }}
+      vmImage: $(vmImage)
     steps:
+      - task: Cache@2
+        inputs:
+          key: 'gradle | "$(Build.BuildId)"'
+          restoreKeys: gradle
+          path: $(GRADLE_USER_HOME)
+        displayName: Gradle build cache
       - task: Gradle@2
         displayName: Compile
         inputs:
@@ -35,24 +42,15 @@ jobs:
           jdkVersionOption: '1.8'
           jdkArchitectureOption: 'x64'
           publishJUnitResults: false
-          tasks: 'build -x test'
+          tasks: 'build jar'
           options: '--info --stacktrace'
-      - task: PublishBuildArtifacts@1
-        inputs:
-          pathtoPublish: '$(System.DefaultWorkingDirectory)'
-          artifactName: libs
 
   - job: Test_Java8
     dependsOn: Build
     condition: succeeded()
     pool:
-      vmImage: ${{ parameters.vmImage }}
+      vmImage: $(vmImage)
     steps:
-      - task: DownloadBuildArtifacts@0
-        displayName: 'Download Build Artifacts'
-        inputs:
-          artifactName: libs
-          downloadPath: $(System.DefaultWorkingDirectory)
       - task: Gradle@2
         displayName: Test @ Java 8
         inputs:
@@ -61,26 +59,42 @@ jobs:
           jdkVersionOption: '1.8'
           jdkArchitectureOption: 'x64'
           publishJUnitResults: true
-          tasks: 'build'
+          tasks: 'test'
           options: '--info --stacktrace'
+      - task: Gradle@2
+        displayName: IT @ Java 8
+        inputs:
+          gradleWrapperFile: 'gradlew'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.8'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
+          tasks: 'integrationTest'
+          options: '--info --stacktrace'
+
   - job: Test_Java11
     dependsOn: Build
     condition: succeeded()
     pool:
-      vmImage: ${{ parameters.vmImage }}
+      vmImage: $(vmImage)
     steps:
-      - task: DownloadBuildArtifacts@0
-        displayName: 'Download Build Artifacts'
-        inputs:
-          artifactName: libs
-          downloadPath: $(System.DefaultWorkingDirectory)
       - task: Gradle@2
-        displayName: Test @ Java 8
+        displayName: Test @ Java 11
         inputs:
           gradleWrapperFile: 'gradlew'
           javaHomeOption: 'JDKVersion'
           jdkVersionOption: '1.11'
           jdkArchitectureOption: 'x64'
           publishJUnitResults: true
-          tasks: 'build'
+          tasks: 'test'
+          options: '--info --stacktrace'
+      - task: Gradle@2
+        displayName: IT @ Java 11
+        inputs:
+          gradleWrapperFile: 'gradlew'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.11'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
+          tasks: 'integrationTest'
           options: '--info --stacktrace'
