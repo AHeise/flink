@@ -23,18 +23,6 @@ jobs:
   - job: Build
     pool: alibaba
     steps:
-      - task: Cache@2
-        inputs:
-          key: '"gradle wrapper" | gradle/wrapper/gradle-wrapper.properties'
-          restoreKeys: "gradle wrapper"
-          path: $(Pipeline.Workspace)/.gradle/wrapper
-        displayName: Gradle wrapper cache
-      - task: Cache@2
-        inputs:
-          key: '"gradle caches" | gradle/wrapper/gradle-wrapper.properties'
-          restoreKeys: "gradle caches"
-          path: $(Pipeline.Workspace)/.gradle/caches
-        displayName: Gradle build cache
       - task: Gradle@2
         displayName: Compile
         inputs:
@@ -42,6 +30,8 @@ jobs:
           javaHomeOption: 'JDKVersion'
           jdkVersionOption: '1.8'
           jdkArchitectureOption: 'x64'
-          publishJUnitResults: false
+          publishJUnitResults: true
           tasks: 'build'
           options: '--scan'
+        env:
+          CI: true
