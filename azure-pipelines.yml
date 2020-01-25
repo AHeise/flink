@@ -20,13 +20,11 @@ trigger:
     - '*' 
 
 variables:
-  vmImage: 'ubuntu 16.04'
   GRADLE_USER_HOME: $(Pipeline.Workspace)/.gradle
 
 jobs:
   - job: Build
-    pool:
-      vmImage: $(vmImage)
+    pool: alibaba
     steps:
       - task: Cache@2
         inputs:
@@ -48,8 +46,7 @@ jobs:
   - job: Test_Java8
     dependsOn: Build
     condition: succeeded()
-    pool:
-      vmImage: $(vmImage)
+    pool: alibaba
     steps:
       - task: Gradle@2
         displayName: Test @ Java 8
@@ -75,8 +72,7 @@ jobs:
   - job: Test_Java11
     dependsOn: Build
     condition: succeeded()
-    pool:
-      vmImage: $(vmImage)
+    pool: alibaba
     steps:
       - task: Gradle@2
         displayName: Test @ Java 11
