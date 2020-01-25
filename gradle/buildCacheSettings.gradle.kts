@@ -29,6 +29,9 @@ val isCiServer = System.getenv().containsKey("CI")
 val canWrite = buildCacheUser != null && buildCachePassword != null && isCiServer
 buildCache {
     if (!gradle.startParameter.isOffline) {
+        local {
+            isEnabled = !canWrite
+        }
         remote<HttpBuildCache> {
             url = uri("http://35.204.219.75:3000/cache/")
             isPush = canWrite
