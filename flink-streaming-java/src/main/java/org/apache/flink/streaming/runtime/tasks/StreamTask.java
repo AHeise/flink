@@ -1592,7 +1592,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		Path path = new Path(persistLocation, getEnvironment().getExecutionId().toHexString() + suffixPath);
 		BufferPersister bufferPersister = null;
 		try {
-			bufferPersister = new BufferPersisterImpl(path);
+			bufferPersister = new BufferPersisterImpl(
+				path,
+				getEnvironment().getMetricGroup().counter("writtenBytes" + suffixPath),
+				getEnvironment().getMetricGroup().counter("persistedBytes" + suffixPath));
 		} catch (IOException e) {
 			ExceptionUtils.rethrow(e);
 		}

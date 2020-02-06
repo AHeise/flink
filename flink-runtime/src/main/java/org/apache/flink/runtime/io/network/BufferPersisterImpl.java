@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
@@ -49,8 +50,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class BufferPersisterImpl implements BufferPersister {
 	private final Writer writer;
 
-	public BufferPersisterImpl(Path path) throws IOException {
-		writer = new Writer(FileSystem.get(path.toUri()).createRecoverableWriter(), path);
+	public BufferPersisterImpl(Path path, Counter writtenBytes, Counter persistedBytes) throws IOException {
+		writer = new Writer(FileSystem.get(path.toUri()).createRecoverableWriter(), path, writtenBytes, persistedBytes);
 		writer.start();
 	}
 
@@ -97,9 +98,20 @@ public class BufferPersisterImpl implements BufferPersister {
 
 		private byte[] readBuffer = new byte[0];
 
-		public Writer(RecoverableWriter recoverableWriter, Path recoverableWriterBasePath) {
+		private final FileSystem fs;
+		private final Counter writtenBytes;
+		private final Counter persistedBytes;
+
+		public Writer(
+				RecoverableWriter recoverableWriter,
+				Path recoverableWriterBasePath,
+				Counter writtenBytes,
+				Counter persistedBytes) throws IOException {
 			this.recoverableWriter = recoverableWriter;
 			this.recoverableWriterBasePath = recoverableWriterBasePath;
+			fs = FileSystem.get(recoverableWriterBasePath.toUri());
+			this.writtenBytes = writtenBytes;
+			this.persistedBytes = persistedBytes;
 		}
 
 		public synchronized void add(Buffer buffer) {
@@ -167,6 +179,7 @@ public class BufferPersisterImpl implements BufferPersister {
 				}
 				segment.get(offset, readBuffer, 0, numBytes);
 				currentOutputStream.write(readBuffer, 0, numBytes);
+				writtenBytes.inc(numBytes);
 			}
 			finally {
 				buffer.recycleBuffer();
@@ -180,7 +193,15 @@ public class BufferPersisterImpl implements BufferPersister {
 
 			Buffer buffer = handover.poll();
 			if (buffer == FINISH_MARKER) {
+				final long pos = currentOutputStream.getPos();
 				currentOutputStream.closeForCommit().commit();
+				persistedBytes.inc(pos);
+
+				final Path previousPart = assemblePartFilePath(partId - 2);
+				// cleanup old part, this could be done asynchronously
+				if (fs.exists(previousPart)) {
+					fs.delete(previousPart, true);
+				}
 
 				openNewOutputStream();
 				finishFuture.complete(null);
@@ -210,11 +231,11 @@ public class BufferPersisterImpl implements BufferPersister {
 		}
 
 		private void openNewOutputStream() throws IOException {
-			currentOutputStream = recoverableWriter.open(assemblePartFilePath());
+			currentOutputStream = recoverableWriter.open(assemblePartFilePath(partId++));
 		}
 
-		private Path assemblePartFilePath() {
-			return new Path(recoverableWriterBasePath, "part-file." + partId++);
+		private Path assemblePartFilePath(int partId) {
+			return new Path(recoverableWriterBasePath, "part-file." + partId);
 		}
 
 		private void checkErroneousUnsafe() {

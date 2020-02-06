@@ -45,6 +45,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -93,6 +94,7 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -216,6 +218,12 @@ public class StreamExecutionEnvironment {
 		// Given this, it is safe to overwrite the execution config default values here because all other ways assume
 		// that the env is already instantiated so they will overwrite the value passed here.
 		this.configure(this.configuration, this.userClassloader);
+
+		if (getConfiguration().getString(CheckpointingOptions.PERSIST_LOCATION_CONFIG) != null) {
+			checkpointCfg.setCheckpointingMode(CheckpointingMode.UNALIGNED);
+			LoggerFactory.getLogger(StreamExecutionEnvironment.class)
+					.warn("Changed checkpointing mode to unaligned as in-flight.data.location was set.");
+		}
 	}
 
 	protected Configuration getConfiguration() {
