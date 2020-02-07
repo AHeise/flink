@@ -28,8 +28,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-import java.io.IOException;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -118,10 +116,10 @@ public abstract class CheckpointBarrierHandler implements BufferReceivedListener
 		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
 	}
 
-	public void notifyBufferReceived(Buffer buffer, int channelInde) throws IOException {
+	public void notifyBufferReceived(Buffer buffer, int channelInde) {
 	}
 
-	public void notifyBarrierReceived(CheckpointBarrier barrier, int channelIndex) throws IOException {
+	public void notifyBarrierReceived(CheckpointBarrier barrier, int channelIndex) {
 	}
 
 	protected void markCheckpointStart(long checkpointCreationTimestamp) {

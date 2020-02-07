@@ -32,23 +32,26 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
- * The {@link BufferPersisterImpl} takes the buffers and events from a data stream and persists them
- * asynchronously using {@link RecoverableFsDataOutputStream}.
+ * The {@link BufferPersisterImpl} takes the buffers and events from a data stream and persists them asynchronously
+ * using {@link RecoverableFsDataOutputStream}.
  */
 @Internal
 public class BufferPersisterImpl implements BufferPersister {
+	private static final Logger LOG = LoggerFactory.getLogger(BufferPersisterImpl.class);
+
 	private final Writer writer;
 
 	public BufferPersisterImpl(Path path, Counter writtenBytes, Counter persistedBytes) throws IOException {
@@ -66,14 +69,23 @@ public class BufferPersisterImpl implements BufferPersister {
 		writer.add(buffers);
 	}
 
-	@Override
-	public void finish() {
-		writer.finish();
+	public void notifyCheckpointStarted(long checkpointId) {
+		writer.notifyCheckpointStarted(checkpointId);
 	}
 
 	@Override
-	public CompletableFuture<?> getCompleteFuture() {
-		return writer.getCompleteFuture();
+	public void notifyCheckpointComplete(long checkpointId) {
+		writer.notifyCheckpointComplete(checkpointId);
+	}
+
+	@Override
+	public void finish(long checkpointId) {
+		writer.finish(checkpointId);
+	}
+
+	@Override
+	public CompletableFuture<?> getCompleteFuture(long checkpointId) {
+		return writer.getCompleteFuture(checkpointId);
 	}
 
 	@Override
@@ -82,9 +94,6 @@ public class BufferPersisterImpl implements BufferPersister {
 	}
 
 	private static class Writer extends Thread implements AutoCloseable {
-		private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
-		private static final Buffer FINISH_MARKER = new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(42), memorySegment -> {});
-
 		private volatile boolean running = true;
 
 		private final Queue<Buffer> handover = new ArrayDeque<>();
@@ -94,7 +103,7 @@ public class BufferPersisterImpl implements BufferPersister {
 		@Nullable
 		private Throwable asyncException;
 		private int partId;
-		private CompletableFuture<?> finishFuture = CompletableFuture.completedFuture(null);
+		private final Map<Long, PersistentMarkingBuffer> markingBuffers = new HashMap<>();
 		private RecoverableFsDataOutputStream currentOutputStream;
 
 		private byte[] readBuffer = new byte[0];
@@ -104,10 +113,10 @@ public class BufferPersisterImpl implements BufferPersister {
 		private final Counter persistedBytes;
 
 		public Writer(
-				RecoverableWriter recoverableWriter,
-				Path recoverableWriterBasePath,
-				Counter writtenBytes,
-				Counter persistedBytes) throws IOException {
+			RecoverableWriter recoverableWriter,
+			Path recoverableWriterBasePath,
+			Counter writtenBytes,
+			Counter persistedBytes) throws IOException {
 			this.recoverableWriter = recoverableWriter;
 			this.recoverableWriterBasePath = recoverableWriterBasePath;
 			fs = FileSystem.get(recoverableWriterBasePath.toUri());
@@ -135,15 +144,19 @@ public class BufferPersisterImpl implements BufferPersister {
 			}
 		}
 
-		public synchronized void finish() {
+		public synchronized void notifyCheckpointStarted(long checkpointId) {
+			markingBuffers.put(checkpointId, new PersistentMarkingBuffer(checkpointId));
+		}
+
+		public synchronized void notifyCheckpointComplete(long checkpointId) {
+			markingBuffers.remove(checkpointId);
+		}
+
+		public synchronized void finish(long checkpointId) {
 			checkErroneousUnsafe();
 
-			checkState(finishFuture.isDone(), "TODO support multiple pending persist requests (multiple ongoing checkpoints?)");
-			if (finishFuture.isDone()) {
-				finishFuture = new CompletableFuture<>();
-			}
-
-			add(FINISH_MARKER);
+			LOG.debug("Finishing {} @ {}", checkpointId, recoverableWriterBasePath);
+			add(getPersistentMarkingBuffer(checkpointId));
 		}
 
 		@Override
@@ -157,14 +170,13 @@ public class BufferPersisterImpl implements BufferPersister {
 						write(optionalBuffer.get());
 					}
 				}
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				synchronized (this) {
 					if (running) {
 						asyncException = t;
 					}
-					if (!finishFuture.isDone()) {
-						finishFuture.completeExceptionally(t);
+					for (final PersistentMarkingBuffer markingBuffer : markingBuffers.values()) {
+						markingBuffer.getPersistFuture().completeExceptionally(t);
 					}
 				}
 				LOG.error("unhandled exception in the Writer", t);
@@ -184,8 +196,7 @@ public class BufferPersisterImpl implements BufferPersister {
 				segment.get(offset, readBuffer, 0, numBytes);
 				currentOutputStream.write(readBuffer, 0, numBytes);
 				writtenBytes.inc(numBytes);
-			}
-			finally {
+			} finally {
 				buffer.recycleBuffer();
 			}
 		}
@@ -196,7 +207,7 @@ public class BufferPersisterImpl implements BufferPersister {
 			}
 
 			Buffer buffer = handover.poll();
-			if (buffer == FINISH_MARKER) {
+			if (buffer instanceof PersistentMarkingBuffer) {
 				final long pos = currentOutputStream.getPos();
 				currentOutputStream.closeForCommit().commit();
 				persistedBytes.inc(pos);
@@ -208,8 +219,9 @@ public class BufferPersisterImpl implements BufferPersister {
 				}
 
 				openNewOutputStream();
-				finishFuture.complete(null);
-				assert handover.isEmpty();
+				final PersistentMarkingBuffer marker = (PersistentMarkingBuffer) buffer;
+				marker.getPersistFuture().complete(null);
+				LOG.debug("Finished {} @ {}", marker.getCheckpointId(), recoverableWriterBasePath);
 
 				return Optional.empty();
 			}
@@ -217,8 +229,16 @@ public class BufferPersisterImpl implements BufferPersister {
 			return Optional.ofNullable(buffer);
 		}
 
-		synchronized CompletableFuture<?> getCompleteFuture() {
-			return finishFuture;
+		synchronized CompletableFuture<?> getCompleteFuture(long checkpointId) {
+			return getPersistentMarkingBuffer(checkpointId).getPersistFuture();
+		}
+
+		@Nonnull
+		private PersistentMarkingBuffer getPersistentMarkingBuffer(long checkpointId) {
+			return markingBuffers.computeIfAbsent(checkpointId,
+						id -> {
+							throw new IllegalStateException("Unknown checkpoint " + checkpointId);
+						});
 		}
 
 		@Override
@@ -228,8 +248,7 @@ public class BufferPersisterImpl implements BufferPersister {
 				running = false;
 				interrupt();
 				join();
-			}
-			finally {
+			} finally {
 				currentOutputStream.close();
 			}
 		}
@@ -245,6 +264,26 @@ public class BufferPersisterImpl implements BufferPersister {
 		private void checkErroneousUnsafe() {
 			if (asyncException != null) {
 				throw new RuntimeException(asyncException);
+			}
+		}
+
+		private static class PersistentMarkingBuffer extends NetworkBuffer {
+			private CompletableFuture<?> persistFuture = new CompletableFuture<>();
+			private final long checkpointId;
+
+			public PersistentMarkingBuffer(long checkpointId) {
+				super(
+					MemorySegmentFactory.allocateUnpooledSegment(42),
+					memorySegment -> {});
+				this.checkpointId = checkpointId;
+			}
+
+			public CompletableFuture<?> getPersistFuture() {
+				return persistFuture;
+			}
+
+			public long getCheckpointId() {
+				return checkpointId;
 			}
 		}
 	}

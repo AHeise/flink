@@ -893,6 +893,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				// Step (3): Prepare to spill the inflighting buffers for input and output
 				if (configuration.getCheckpointMode() == CheckpointingMode.UNALIGNED) {
+					outputPersister.notifyCheckpointStarted(checkpointId);
 					prepareInflightDataSnapshot(checkpointId);
 				}
 
@@ -935,7 +936,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				indexOffset += writer.getNumberOfSubpartitions();
 			}
 
-			outputPersister.finish();
+			outputPersister.finish(checkpointId);
 		}
 	}
 
@@ -1221,6 +1222,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			} finally {
 				owner.cancelables.unregisterCloseable(this);
 				FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+				owner.inputPersister.notifyCheckpointComplete(checkpointMetaData.getCheckpointId());
+				owner.outputPersister.notifyCheckpointComplete(checkpointMetaData.getCheckpointId());
 			}
 		}
 
@@ -1406,7 +1409,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// we are transferring ownership over snapshotInProgressList for cleanup to the thread, active on submit
 				AsyncCheckpointRunnable asyncCheckpointRunnable = new AsyncCheckpointRunnable(
 					owner,
-					CompletableFuture.allOf(owner.inputPersister.getCompleteFuture(), owner.outputPersister.getCompleteFuture()),
+					CompletableFuture.allOf(owner.inputPersister.getCompleteFuture(checkpointMetaData.getCheckpointId()),
+						owner.outputPersister.getCompleteFuture(checkpointMetaData.getCheckpointId())),
 					operatorSnapshotsInProgress,
 					checkpointMetaData,
 					checkpointMetrics,

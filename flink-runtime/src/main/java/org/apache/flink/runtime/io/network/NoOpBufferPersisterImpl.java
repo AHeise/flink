@@ -47,13 +47,21 @@ public class NoOpBufferPersisterImpl implements BufferPersister {
 	}
 
 	@Override
-	public void finish() {
+	public void finish(long barrierId) {
 		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
-	public CompletableFuture<?> getCompleteFuture() {
+	public CompletableFuture<?> getCompleteFuture(long checkpointId) {
 		return completedFuture;
+	}
+
+	@Override
+	public void notifyCheckpointStarted(long checkpointId) {
+	}
+
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) {
 	}
 
 	@Override

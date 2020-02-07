@@ -388,7 +388,7 @@ public class CheckpointBarrierAlignerAlignmentLimitTest {
 		public void triggerCheckpointOnBarrier(
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) throws Exception {
+				CheckpointMetrics checkpointMetrics) {
 			triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
 		}
 

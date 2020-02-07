@@ -30,5 +30,5 @@ public interface BufferReceivedListener {
 
 	void notifyBufferReceived(Buffer buffer, int channelIndex) throws IOException;
 
-	void notifyBarrierReceived(CheckpointBarrier barrier, int channelIndex) throws IOException;
+	void notifyBarrierReceived(CheckpointBarrier barrier, int channelIndex);
 }

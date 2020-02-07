@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.state.CheckpointListener;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -40,11 +41,26 @@ public interface BufferPersister extends AutoCloseable {
 
 	/**
 	 * All the inflighting buffers are already added via {@link #addBuffer(Buffer, int)}.
+	 * @param barrierId
 	 */
-	void finish();
+	void finish(long barrierId);
 
 	/**
 	 * Gets the future to judge whether all the added buffers finish spilling internally or not.
+	 * @return
+	 * @param checkpointId
 	 */
-	CompletableFuture<?> getCompleteFuture();
+	CompletableFuture<?> getCompleteFuture(long checkpointId);
+
+	/**
+	 * Called when a StreamTask starts checkpointing.
+	 * @param checkpointId
+	 */
+	void notifyCheckpointStarted(long checkpointId);
+
+	/**
+	 * Called when a StreamTask finishes checkpointing.
+	 * @param checkpointId
+	 */
+	void notifyCheckpointComplete(long checkpointId);
 }
