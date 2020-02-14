@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
@@ -151,7 +152,10 @@ public class BufferPersisterImpl implements BufferPersister {
 				openNewOutputStream();
 
 				while (running) {
-					write(get());
+					final Optional<Buffer> optionalBuffer = get();
+					if (optionalBuffer.isPresent()) {
+						write(optionalBuffer.get());
+					}
 				}
 			}
 			catch (Throwable t) {
@@ -186,7 +190,7 @@ public class BufferPersisterImpl implements BufferPersister {
 			}
 		}
 
-		private synchronized Buffer get() throws InterruptedException, IOException {
+		private synchronized Optional<Buffer> get() throws InterruptedException, IOException {
 			while (handover.isEmpty()) {
 				wait();
 			}
@@ -207,10 +211,10 @@ public class BufferPersisterImpl implements BufferPersister {
 				finishFuture.complete(null);
 				assert handover.isEmpty();
 
-				return get();
+				return Optional.empty();
 			}
 
-			return buffer;
+			return Optional.ofNullable(buffer);
 		}
 
 		synchronized CompletableFuture<?> getCompleteFuture() {
