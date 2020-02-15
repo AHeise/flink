@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Whenever {@link #add(BufferConsumer)} adds a finished {@link BufferConsumer} or a second
  * {@link BufferConsumer} (in which case we will assume the first one finished), we will
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notify} a read view created via
- * {@link #createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
+ * {@link #createReadView(BufferAvailabilityListener, PriorityEventListener)} of new data availability. Except by calling
  * {@link #flush()} explicitly, we always only notify when the first finished buffer turns up and
  * then, the reader has to drain the buffers via {@link #pollBuffer()} until its return value shows
  * no more buffers being available. This results in a buffer queue which is either empty or has an
@@ -146,7 +146,9 @@ class PipelinedSubpartition extends ResultSubpartition {
 				}
 			}
 
-			buffers.addFirst(bufferConsumer);
+			if (readView == null || !readView.priorityEvent(bufferConsumer)) {
+				buffers.addFirst(bufferConsumer);
+			}
 		} else {
 			buffers.add(bufferConsumer);
 		}
@@ -265,7 +267,9 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+	public PipelinedSubpartitionView createReadView(
+			BufferAvailabilityListener availabilityListener,
+			PriorityEventListener priorityEventListener) throws IOException {
 		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			checkState(!isReleased);
@@ -276,7 +280,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 			LOG.debug("{}: Creating read view for subpartition {} of partition {}.",
 				parent.getOwningTaskName(), index, parent.getPartitionId());
 
-			readView = new PipelinedSubpartitionView(this, availabilityListener);
+			readView = new PipelinedSubpartitionView(this, availabilityListener, priorityEventListener);
 			notifyDataAvailable = !buffers.isEmpty();
 		}
 		if (notifyDataAvailable) {
