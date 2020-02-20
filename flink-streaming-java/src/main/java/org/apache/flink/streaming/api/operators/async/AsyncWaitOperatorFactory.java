@@ -39,7 +39,7 @@ public class AsyncWaitOperatorFactory<IN, OUT> implements OneInputStreamOperator
 	private final int capacity;
 	private final AsyncDataStream.OutputMode outputMode;
 	private MailboxExecutor mailboxExecutor;
-	private ChainingStrategy strategy = ChainingStrategy.HEAD;
+	private ChainingStrategy strategy = ChainingStrategy.HEAD_AFTER_LEGACY_SOURCE;
 
 	public AsyncWaitOperatorFactory(
 			AsyncFunction<IN, OUT> asyncFunction,

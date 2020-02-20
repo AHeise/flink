@@ -385,7 +385,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
-		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+		Assert.assertEquals(2, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 	}
 
 	/**

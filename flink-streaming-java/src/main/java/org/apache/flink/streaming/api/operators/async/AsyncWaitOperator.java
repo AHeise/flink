@@ -113,7 +113,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 		// TODO this is a temporary fix for the problems described under FLINK-13063 at the cost of breaking chains for
 		//  AsyncOperators.
-		setChainingStrategy(ChainingStrategy.HEAD);
+		setChainingStrategy(ChainingStrategy.HEAD_AFTER_LEGACY_SOURCE);
 
 		Preconditions.checkArgument(capacity > 0, "The number of concurrent async operation should be greater than 0.");
 		this.capacity = capacity;
