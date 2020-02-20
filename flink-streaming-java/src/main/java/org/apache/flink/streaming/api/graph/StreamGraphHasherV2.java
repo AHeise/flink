@@ -281,21 +281,6 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	}
 
 	private boolean isChainable(StreamEdge edge, boolean isChainingEnabled, StreamGraph streamGraph) {
-		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
-		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
-
-		StreamOperatorFactory<?> headOperator = upStreamVertex.getOperatorFactory();
-		StreamOperatorFactory<?> outOperator = downStreamVertex.getOperatorFactory();
-
-		return downStreamVertex.getInEdges().size() == 1
-				&& outOperator != null
-				&& headOperator != null
-				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
-				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
-				headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
-				&& (edge.getPartitioner() instanceof ForwardPartitioner)
-				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& isChainingEnabled;
+		return isChainingEnabled && StreamingJobGraphGenerator.isChainable(edge, streamGraph);
 	}
 }
