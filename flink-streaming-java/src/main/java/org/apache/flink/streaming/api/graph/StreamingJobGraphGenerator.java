@@ -602,9 +602,8 @@ public class StreamingJobGraphGenerator {
 				&& outOperator != null
 				&& headOperator != null
 				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
-				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
-					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
+				&& outOperator.getChainingStrategy().canBeChainedTo(headOperator)
+				&& headOperator.getChainingStrategy() != ChainingStrategy.NEVER
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& edge.getShuffleMode() != ShuffleMode.BATCH
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()

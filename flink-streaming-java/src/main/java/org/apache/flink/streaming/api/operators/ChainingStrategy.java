@@ -38,16 +38,46 @@ public enum ChainingStrategy {
 	 * <p>To optimize performance, it is generally a good practice to allow maximal
 	 * chaining and increase operator parallelism.
 	 */
-	ALWAYS,
+	ALWAYS {
+		@Override
+		public boolean canBeChainedTo(StreamOperatorFactory<?> headOperator) {
+			return true;
+		}
+	},
 
 	/**
 	 * The operator will not be chained to the preceding or succeeding operators.
 	 */
-	NEVER,
+	NEVER {
+		@Override
+		public boolean canBeChainedTo(StreamOperatorFactory<?> headOperator) {
+			return false;
+		}
+	},
 
 	/**
 	 * The operator will not be chained to the predecessor, but successors may chain to this
 	 * operator.
 	 */
-	HEAD
+	HEAD {
+		@Override
+		public boolean canBeChainedTo(StreamOperatorFactory<?> headOperator) {
+			return false;
+		}
+	},
+
+	/**
+	 * Operators will be eagerly chained whenever possible, except after legacy sources.
+	 *
+	 * <p>Operators that will not properly when processInput is called from another thread, must use this strategy
+	 * instead of {@link #ALWAYS}.
+	 */
+	HEAD_AFTER_LEGACY_SOURCE {
+		@Override
+		public boolean canBeChainedTo(StreamOperatorFactory<?> headOperator) {
+			return !headOperator.isStreamSource();
+		}
+	};
+
+	public abstract boolean canBeChainedTo(StreamOperatorFactory<?> headOperator);
 }
