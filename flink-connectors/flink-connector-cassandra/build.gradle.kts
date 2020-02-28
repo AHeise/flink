@@ -18,9 +18,9 @@
 
 dependencies {
     flinkDependencyGroup(version = stringProperty("driver.version")) {
-        api(Libs.cassandra_driver_core)
+        shade(Libs.cassandra_driver_core)
 
-        implementation(Libs.cassandra_driver_mapping)
+        shade(Libs.cassandra_driver_mapping)
     }
 
     implementation(project(":flink-streaming-scala"))

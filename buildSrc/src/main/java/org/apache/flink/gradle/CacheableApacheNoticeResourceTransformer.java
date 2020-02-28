@@ -27,11 +27,15 @@ import shadow.org.apache.tools.zip.ZipOutputStream;
 
 @CacheableTransformer
 public class CacheableApacheNoticeResourceTransformer implements Transformer {
-	@Internal
 	private final ApacheNoticeResourceTransformer inner = new ApacheNoticeResourceTransformer();
 
 	public CacheableApacheNoticeResourceTransformer() {
 		inner.setEncoding("UTF-8");
+	}
+
+	@Internal
+	private ApacheNoticeResourceTransformer getInner() {
+		return inner;
 	}
 
 	@Override
@@ -61,11 +65,6 @@ public class CacheableApacheNoticeResourceTransformer implements Transformer {
 
 	public void setProjectName(final String s) {
 		inner.setProjectName(s);
-	}
-
-	@Input
-	public boolean getAddHeader() {
-		return inner.getAddHeader();
 	}
 
 	@Input

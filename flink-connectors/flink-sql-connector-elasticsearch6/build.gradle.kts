@@ -17,12 +17,22 @@
  */
 
 dependencies {
-    api(project(":flink-connectors:flink-connector-elasticsearch6"))
+    shade(project(":flink-connectors:flink-connector-elasticsearch6"))
 }
 
 description = "flink-sql-connector-elasticsearch6"
 
 tasks.withType<ShadowJar> {
+    dependencies {
+        // These dependencies are not required.
+        exclude(dependency("com.carrotsearch:hppc"))
+        exclude(dependency("com.tdunning:t-digest"))
+        exclude(dependency("joda-time:joda-time"))
+        exclude(dependency("net.sf.jopt-simple:jopt-simple"))
+        exclude(dependency("org.elasticsearch:jna"))
+        exclude(dependency("org.hdrhistogram:HdrHistogram"))
+        exclude(dependency("org.yaml:snakeyaml"))
+    }
     // Unless otherwise noticed these filters only serve to reduce the size of the resulting  jar by removing unnecessary files
     // org.elasticsearch:elasticsearch
     exclude("config/**")

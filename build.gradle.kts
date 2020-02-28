@@ -21,7 +21,6 @@ plugins {
     `java-library`
 }
 
-val isCiServer = System.getenv().containsKey("CI")
 if (!gradle.startParameter.isOffline && isCiServer) {
     configure<com.gradle.scan.plugin.BuildScanExtension> {
         termsOfServiceUrl = "https://gradle.com/terms-of-service"
@@ -73,7 +72,7 @@ subprojects {
         ignoreFailures = true
 
         filter {
-            excludeTestsMatching("*ITCase")
+            includeTestsMatching("*Test")
             isFailOnNoMatchingTests = false
         }
     }

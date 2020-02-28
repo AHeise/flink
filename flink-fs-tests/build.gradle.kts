@@ -27,7 +27,7 @@ dependencies {
     testImplementation(project(":flink-runtime", configuration = TEST_JAR))
     testImplementation(project(":flink-core", configuration = TEST_JAR))
     testImplementation(Libs.hadoop_hdfs classifier "tests" version stringProperty("hadoop.version"))
-    testImplementation(Libs.hadoop_common)
+    testImplementation(Libs.hadoop_common classifier "tests")
     testImplementation(Libs.flink_shaded_hadoop_2)
     testImplementation(Libs.mockito_core)
 }

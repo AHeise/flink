@@ -24,7 +24,6 @@ dependencies {
     implementation(Libs.commons_lang3)
     implementation(Libs.jsr305)
     implementation(Libs.slf4j_api)
-    testImplementation(Libs.slf4j_log4j12)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
@@ -34,6 +33,7 @@ dependencies {
     testImplementation(Libs.flink_shaded_guava)
     testImplementation(Libs.hamcrest_all)
     testImplementation(Libs.mockito_core)
+    testImplementation(Libs.slf4j_log4j12)
 }
 
 description = "flink-yarn"

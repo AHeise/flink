@@ -16,9 +16,18 @@
  * limitations under the License.
  */
 
-plugins {
-    id("java")
+configurations {
+    configurations.register("example") {
+        isTransitive = false
+    }
+    configurations.register("opt") {
+        isTransitive = false
+    }
 }
+
+fun DependencyHandler.`example`(dependencyNotation: Any): Dependency? = add("example", dependencyNotation)
+
+fun DependencyHandler.`opt`(dependencyNotation: Any): Dependency? = add("opt", dependencyNotation)
 
 dependencies {
     implementation(project(":flink-core"))
@@ -38,39 +47,41 @@ dependencies {
     implementation(project(":flink-yarn"))
     implementation(project(":flink-filesystems:flink-hadoop-fs"))
     implementation(project(":flink-filesystems:flink-mapr-fs"))
-//    implementation(project(":flink-scala-shell"))
-    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
-    implementation(project(":flink-examples:flink-examples-batch"))
-    implementation(project(":flink-examples:flink-examples-streaming"))
-    implementation(project(":flink-examples:flink-examples-build-helper:flink-examples-streaming-state-machine"))
-    implementation(project(":flink-examples:flink-examples-build-helper:flink-examples-streaming-click-event-count"))
-    implementation(project(":flink-examples:flink-examples-build-helper:flink-examples-streaming-twitter"))
-    implementation(project(":flink-libraries:flink-gelly-examples"))
-    implementation(project(":flink-metrics:flink-metrics-dropwizard"))
-    implementation(project(":flink-metrics:flink-metrics-graphite"))
-    implementation(project(":flink-metrics:flink-metrics-influxdb"))
-    implementation(project(":flink-metrics:flink-metrics-prometheus"))
-    implementation(project(":flink-metrics:flink-metrics-statsd"))
-    implementation(project(":flink-metrics:flink-metrics-datadog"))
-    implementation(project(":flink-metrics:flink-metrics-slf4j"))
-    implementation(project(":flink-libraries:flink-cep"))
-    implementation(project(":flink-libraries:flink-cep-scala"))
-    implementation(project(":flink-libraries:flink-gelly"))
-    implementation(project(":flink-libraries:flink-gelly-scala"))
-    implementation(project(":flink-table:flink-table-uber"))
-    implementation(project(":flink-table:flink-table-uber-blink"))
-    implementation(project(":flink-table:flink-sql-client"))
-    implementation(project(":flink-libraries:flink-state-processor-api"))
-    implementation(project(":flink-filesystems:flink-azure-fs-hadoop"))
-    implementation(project(":flink-filesystems:flink-s3-fs-hadoop"))
-    implementation(project(":flink-filesystems:flink-s3-fs-presto"))
-    implementation(project(":flink-filesystems:flink-swift-fs-hadoop"))
-    implementation(project(":flink-filesystems:flink-oss-fs-hadoop"))
-    implementation(project(":flink-queryable-state:flink-queryable-state-runtime"))
-    implementation(project(":flink-python"))
-    implementation(Libs.flink_shaded_netty_tcnative_dynamic)
+    implementation(project(":flink-scala-shell"))
+    
+    example(project(":flink-examples:flink-examples-batch"))
+    example(project(":flink-examples:flink-examples-streaming"))
+    example(project(":flink-examples:flink-examples-build-helper:flink-examples-streaming-state-machine"))
+    example(project(":flink-examples:flink-examples-build-helper:flink-examples-streaming-click-event-count"))
+    example(project(":flink-examples:flink-examples-build-helper:flink-examples-streaming-twitter"))
+    example(project(":flink-libraries:flink-gelly-examples"))
+
+    opt(project(":flink-metrics:flink-metrics-dropwizard"))
+    opt(project(":flink-metrics:flink-metrics-graphite"))
+    opt(project(":flink-metrics:flink-metrics-influxdb"))
+    opt(project(":flink-metrics:flink-metrics-prometheus"))
+    opt(project(":flink-metrics:flink-metrics-statsd"))
+    opt(project(":flink-metrics:flink-metrics-datadog"))
+    opt(project(":flink-metrics:flink-metrics-slf4j"))
+    opt(project(":flink-libraries:flink-cep"))
+    opt(project(":flink-libraries:flink-cep-scala"))
+    opt(project(":flink-libraries:flink-gelly"))
+    opt(project(":flink-libraries:flink-gelly-scala"))
+    opt(project(":flink-table:flink-table-uber"))
+    opt(project(":flink-table:flink-table-uber-blink"))
+    opt(project(":flink-table:flink-sql-client"))
+    opt(project(":flink-libraries:flink-state-processor-api"))
+    opt(project(":flink-filesystems:flink-azure-fs-hadoop"))
+    opt(project(":flink-filesystems:flink-s3-fs-hadoop"))
+    opt(project(":flink-filesystems:flink-s3-fs-presto"))
+    opt(project(":flink-filesystems:flink-swift-fs-hadoop"))
+    opt(project(":flink-filesystems:flink-oss-fs-hadoop"))
+    opt(project(":flink-queryable-state:flink-queryable-state-runtime"))
+    opt(project(":flink-python"))
+    opt(Libs.flink_shaded_netty_tcnative_dynamic)
 
     testImplementation(Libs.hamcrest_all)
+    testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
 }
 
 description = "flink-dist"

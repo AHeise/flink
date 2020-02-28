@@ -34,6 +34,7 @@ dependencies {
     testImplementation(Libs.transport)
     testImplementation(Libs.transport_netty4_client)
     testImplementation(Libs.log4j_core version "2.9.1")
+    configurations["testRuntime"].exclude(Libs.log4j_to_slf4j)
 }
 
 description = "flink-connector-elasticsearch6"

@@ -39,7 +39,10 @@ fun Project.flinkRegisterTestApi() {
 }
 
 fun <T : ModuleDependency> T.exclude(dependency: Dependency): T =
-    exclude(group = dependency.group, module = dependency.name)
+        exclude(group = dependency.group, module = dependency.name)
+
+fun Configuration.exclude(dependency: Dependency): Configuration =
+        exclude(group = dependency.group, module = dependency.name)
 
 infix fun ExternalDependency.version(version: String): ExternalDependency =
     DefaultExternalModuleDependency(group, name, version, targetConfiguration).also {

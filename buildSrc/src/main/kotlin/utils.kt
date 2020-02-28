@@ -33,6 +33,7 @@ import org.gradle.kotlin.dsl.get
 val TaskInternal.shouldRun
     get() = enabled && onlyIf.isSatisfiedBy(this)
 
+val isCiServer = System.getenv().containsKey("CI")
 
 fun Node.addDependencies(scope: String?, dependencies: Set<Dependency>) {
     dependencies.forEach { dependency ->

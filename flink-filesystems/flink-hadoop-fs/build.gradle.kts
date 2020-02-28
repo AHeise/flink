@@ -28,6 +28,7 @@ dependencies {
     implementation(Libs.slf4j_api)
     implementation(Libs.commons_lang3)
 
+    testImplementation(Libs.flink_shaded_hadoop_2)
     testImplementation(project(path = ":flink-core", configuration = TEST_JAR))
     testImplementation(project(":flink-test-utils-parent:flink-test-utils-junit"))
     testImplementation(Libs.hadoop_hdfs classifier "tests" version stringProperty("hadoop.version"))
@@ -36,10 +37,6 @@ dependencies {
     }
     testImplementation(Libs.hamcrest_all)
     testImplementation(Libs.mockito_core)
-    testCompileOnly(Libs.flink_shaded_hadoop_2) {
-        exclude(Libs.netty)
-        exclude(Libs.log4j)
-    }
 }
 
 description = "flink-hadoop-fs"

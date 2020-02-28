@@ -81,14 +81,6 @@ fun Project.flinkSetupScalaProjects() {
             configure<ScalaPluginExtension> {
                 zincVersion.set("1.3.1")
             }
-//            abstract class NoopService: BuildService<BuildServiceParameters.None>
-//            val singleScalaCompile = gradle.sharedServices.registerIfAbsent("exclusiveManyFiles", NoopService::class) {
-//                maxParallelUsages.set(1)
-//            }
-            tasks.withType<ScalaCompile> {
-                options.isFork = true
-//                usesService(singleScalaCompile)
-            }
 
 //            dependencies {
 //                scalaCompilerPlugin("com.typesafe.genjavadoc:genjavadoc-plugin_${stringProperty("scala.version")}:0.15")

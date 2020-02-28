@@ -23,6 +23,13 @@ dependencies {
 description = "flink-sql-connector-kafka-0.11"
 
 tasks.withType<ShadowJar> {
+    dependencies {
+        include(dependency("org.apache.kafka:"))
+        include(project(":flink-connectors:flink-connector-kafka-0.9"))
+        include(project(":flink-connectors:flink-connector-kafka-0.10"))
+        include(project(":flink-connectors:flink-connector-kafka-0.11"))
+        include(project(":flink-connectors:flink-connector-kafka-base"))
+    }
     // org.apache.kafka:*
     exclude("kafka/kafka-version.properties")
     exclude("LICENSE")

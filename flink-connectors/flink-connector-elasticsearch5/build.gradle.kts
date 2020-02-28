@@ -17,17 +17,18 @@
  */
 
 dependencies {
-    api(project(":flink-connectors:flink-connector-elasticsearch-base"))
+    shade(project(":flink-connectors:flink-connector-elasticsearch-base"))
 
-    implementation(Libs.transport)
-    implementation(Libs.transport_netty4_client)
-    implementation(Libs.log4j_to_slf4j version "2.7")
+    shade(Libs.transport)
+    shade(Libs.transport_netty4_client)
+    shade(Libs.log4j_to_slf4j version "2.7")
     implementation(Libs.jsr305)
 
     testImplementation(project(":flink-test-utils-parent:flink-test-utils"))
     testImplementation(project(":flink-streaming-java"))
     testImplementation(project(":flink-connectors:flink-connector-elasticsearch-base", configuration = TEST_JAR))
     testImplementation(Libs.log4j_core version "2.7")
+    configurations["testRuntime"].exclude(Libs.log4j_to_slf4j)
 }
 
 description = "flink-connector-elasticsearch5"
@@ -68,7 +69,6 @@ tasks.withType<ShadowJar> {
     // Only parts of NOTICE file actually apply to the netty JAR and have been manually
     // copied into this modules's NOTICE file.
     exclude("META-INF/NOTICE.txt")
-
 
     relocate("com.carrotsearch", "org.apache.flink.streaming.connectors.elasticsearch5.shaded.com.carrotsearch")
     relocate("com.fasterxml", "org.apache.flink.streaming.connectors.elasticsearch5.shaded.com.fasterxml")

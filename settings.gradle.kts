@@ -79,6 +79,7 @@ include(":flink-connectors:flink-connector-elasticsearch6")
 // hadoop.version property, and Gradle seems to check that.
 // See: https://search.maven.org/remotecontent?filepath=org/apache/flink/flink-shaded-hadoop-2-uber/2.7.5-7.0/flink-shaded-hadoop-2-uber-2.7.5-7.0.pom
 include(":flink-connectors:flink-connector-hive")
+include(":flink-connectors:flink-connector-kinesis")
 include(":flink-connectors:flink-connector-rabbitmq")
 include(":flink-connectors:flink-connector-twitter")
 include(":flink-connectors:flink-connector-nifi")
