@@ -84,6 +84,7 @@ public abstract class ResultSubpartition {
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
+	// TODO: add separate addEvent?
 	public abstract boolean add(BufferConsumer bufferConsumer, boolean insertAsHead) throws IOException;
 
 	public boolean add(BufferConsumer bufferConsumer) throws IOException {

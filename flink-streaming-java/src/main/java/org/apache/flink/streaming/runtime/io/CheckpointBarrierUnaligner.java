@@ -112,7 +112,9 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		final long barrierId = receivedBarrier.getId();
 
 		if (checkNewCheckpoint(barrierId)) {
-			notifyCheckpoint(receivedBarrier, bufferedBytes, 0);
+			triggerCheckpoint(receivedBarrier);
+			// TODO: at this point we need to make sure that no data is read until the checkpoint has actually been
+			//  triggered
 		}
 
 		handleBarrier(barrierId, channelIndex);
