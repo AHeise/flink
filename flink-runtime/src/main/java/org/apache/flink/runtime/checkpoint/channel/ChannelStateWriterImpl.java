@@ -114,7 +114,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 		LOG.error(
 			"{} adding input data, checkpoint {}, channel: {}, startSeqNum: {}",
 			taskName,
-			checkpointId,
+				checkpointId,
 			info,
 			startSeqNum);
 		enqueue(write(checkpointId, info, iterator), false);
@@ -122,7 +122,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public void addOutputData(long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
-		LOG.debug(
+		LOG.error(
 			"{} adding output data, checkpoint {}, channel: {}, startSeqNum: {}, num buffers: {}",
 			taskName,
 			checkpointId,
@@ -134,19 +134,19 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public void finishInput(long checkpointId) {
-		LOG.debug("{} finishing input data, checkpoint {}", taskName, checkpointId);
+		LOG.debug("{} finishing input data, checkpoint {}", taskName, taskName, checkpointId);
 		enqueue(completeInput(checkpointId), false);
 	}
 
 	@Override
 	public void finishOutput(long checkpointId) {
-		LOG.debug("{} finishing output data, checkpoint {}", taskName, checkpointId);
+		LOG.debug("{} finishing output data, checkpoint {}", taskName, taskName, checkpointId);
 		enqueue(completeOutput(checkpointId), false);
 	}
 
 	@Override
 	public void abort(long checkpointId, Throwable cause) {
-		LOG.debug("{} aborting, checkpoint {}", taskName, checkpointId);
+		LOG.debug("{} aborting, checkpoint {}", taskName, taskName, checkpointId);
 		enqueue(ChannelStateWriteRequest.abort(checkpointId, cause), true); // abort already started
 		enqueue(ChannelStateWriteRequest.abort(checkpointId, cause), false); // abort enqueued but not started
 		results.remove(checkpointId);
@@ -154,7 +154,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public ChannelStateWriteResult getWriteResult(long checkpointId) {
-		LOG.debug("{} requested write result, checkpoint {}", taskName, checkpointId);
+		LOG.debug("{} requested write result, checkpoint {}", taskName, taskName, checkpointId);
 		ChannelStateWriteResult result = results.get(checkpointId);
 		Preconditions.checkArgument(result != null, "channel state write result not found for checkpoint " + checkpointId);
 		return result;
