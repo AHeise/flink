@@ -977,11 +977,14 @@ public class CheckpointCoordinator {
 
 		// As a first step to complete the checkpoint, we register its state with the registry
 		Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
+		LOG.debug("Adding {} operator states", operatorStates.size());
 		sharedStateRegistry.registerAll(operatorStates.values());
 
 		try {
 			try {
+				LOG.trace("Finalizing checkpoint");
 				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
+				LOG.trace("Handle success");
 				failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
 			}
 			catch (Exception e1) {
@@ -1019,6 +1022,7 @@ public class CheckpointCoordinator {
 					CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, exception);
 			}
 		} finally {
+			LOG.trace("Cleanup");
 			pendingCheckpoints.remove(checkpointId);
 			timer.execute(this::executeQueuedRequest);
 		}
