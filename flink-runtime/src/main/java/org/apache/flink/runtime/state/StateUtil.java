@@ -57,7 +57,14 @@ public class StateUtil {
 	 */
 	public static void bestEffortDiscardAllStateObjects(
 		Iterable<? extends StateObject> handlesToDiscard) throws Exception {
-		LambdaUtil.applyToAllWhileSuppressingExceptions(handlesToDiscard, StateObject::discardState);
+		LambdaUtil.applyToAllWhileSuppressingExceptions(handlesToDiscard, stateObject -> {
+			try {
+				stateObject.discardState();
+			} catch (Exception e) {
+				LOG.warn("bestEffortDiscardAllStateObjects", e);
+				throw e;
+			}
+		});
 	}
 
 	/**

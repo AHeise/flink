@@ -247,6 +247,7 @@ public class CompletedCheckpoint implements Serializable {
 
 			// drop the metadata
 			try {
+				LOG.trace("discardState for {}.", this);
 				metadataHandle.discardState();
 			} catch (Exception e) {
 				exception = e;
@@ -254,6 +255,7 @@ public class CompletedCheckpoint implements Serializable {
 
 			// discard private state objects
 			try {
+				LOG.trace("bestEffortDiscardAllStateObjects for {}.", this);
 				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -261,6 +263,7 @@ public class CompletedCheckpoint implements Serializable {
 
 			// discard location as a whole
 			try {
+				LOG.trace("disposeStorageLocation for {}.", this);
 				storageLocation.disposeStorageLocation();
 			}
 			catch (Exception e) {
@@ -271,6 +274,7 @@ public class CompletedCheckpoint implements Serializable {
 				throw exception;
 			}
 		} finally {
+			LOG.trace("clear for {}.", this);
 			operatorStates.clear();
 
 			// to be null-pointer safe, copy reference to stack
