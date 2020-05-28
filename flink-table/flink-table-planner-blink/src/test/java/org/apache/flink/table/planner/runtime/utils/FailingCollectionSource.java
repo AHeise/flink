@@ -32,6 +32,9 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -85,6 +88,8 @@ public class FailingCollectionSource<T>
 	/** The last successful checkpointed number of emitted elements. */
 	private volatile int lastCheckpointedEmittedNum = 0;
 
+	private static final Logger LOG = LoggerFactory.getLogger(FailingCollectionSource.class);
+
 	public FailingCollectionSource(
 		TypeSerializer<T> serializer,
 		Iterable<T> elements,
@@ -113,6 +118,7 @@ public class FailingCollectionSource<T>
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
+		LOG.error("Restoring");
 		Preconditions.checkState(
 			this.checkpointedState == null,
 			"The " + getClass().getSimpleName() + " has already been initialized.");

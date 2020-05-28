@@ -110,17 +110,17 @@ class ChannelStateCheckpointWriter {
 	}
 
 	void writeInput(InputChannelInfo info, Buffer... flinkBuffers) throws Exception {
-		write(inputChannelOffsets, info, flinkBuffers, !allInputsReceived);
 		for (final Buffer flinkBuffer : flinkBuffers) {
-			LOG.warn("ChannelStateStreamReader#writeInput {}", BufferReaderWriterUtil.toString(flinkBuffer));
+			LOG.error("ChannelStateCheckpointWriter#writeInput {}", BufferReaderWriterUtil.toString(flinkBuffer));
 		}
+		write(inputChannelOffsets, info, flinkBuffers, !allInputsReceived);
 	}
 
 	void writeOutput(ResultSubpartitionInfo info, Buffer... flinkBuffers) throws Exception {
-		write(resultSubpartitionOffsets, info, flinkBuffers, !allOutputsReceived);
 		for (final Buffer flinkBuffer : flinkBuffers) {
-			LOG.warn("ChannelStateStreamReader#writeOutput {}", BufferReaderWriterUtil.toString(flinkBuffer));
+			LOG.error("ChannelStateCheckpointWriter#writeOutput {}", BufferReaderWriterUtil.toString(flinkBuffer));
 		}
+		write(resultSubpartitionOffsets, info, flinkBuffers, !allOutputsReceived);
 	}
 
 	private <K> void write(Map<K, StateContentMetaInfo> offsets, K key, Buffer[] flinkBuffers, boolean precondition) throws Exception {

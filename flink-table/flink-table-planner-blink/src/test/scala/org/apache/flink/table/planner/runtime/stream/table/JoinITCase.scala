@@ -954,7 +954,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @Test
   def testStreamJoinWithSameRecord(): Unit = {
-    for(i <- 0 to 100) {
+//    for(i <- 0 to 100) {
       val data1 = List(
         (1, 1),
         (1, 1),
@@ -1004,7 +1004,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         "4,4,4,4", "4,4,4,4",
         "5,5,5,5", "5,5,5,5")
       assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    }
+//    }
   }
 
 

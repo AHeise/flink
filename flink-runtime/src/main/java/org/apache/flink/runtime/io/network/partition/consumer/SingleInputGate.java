@@ -621,7 +621,7 @@ public class SingleInputGate extends IndexedInputGate {
 		InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
 		Buffer buffer = inputWithData.data.buffer();
 		if (buffer.isBuffer()) {
-			LOG.warn("SingleInputGate#getNextBufferOrEvent {}", BufferReaderWriterUtil.toString(buffer));
+			LOG.error("SingleInputGate#getNextBufferOrEvent {}", BufferReaderWriterUtil.toString(buffer));
 		}
 		return Optional.of(transformToBufferOrEvent(
 				buffer,

@@ -783,75 +783,80 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   /** test sliding event-time unbounded window with partition by **/
   @Test
   def testRowTimeUnBoundedPartitionedRowsOver2(): Unit = {
-    val sqlQuery = "SELECT a, b, c, " +
-      "SUM(b) over (" +
-      "partition by a order by rowtime rows between unbounded preceding and current row), " +
-      "count(b) over (" +
-      "partition by a order by rowtime rows between unbounded preceding and current row), " +
-      "avg(b) over (" +
-      "partition by a order by rowtime rows between unbounded preceding and current row), " +
-      "max(b) over (" +
-      "partition by a order by rowtime rows between unbounded preceding and current row), " +
-      "min(b) over (" +
-      "partition by a order by rowtime rows between unbounded preceding and current row) " +
-      "from T1"
+    for (i <- 0 to 100) {
+      log.error("---")
+      val sqlQuery = "SELECT a, b, c, " +
+        "SUM(b) over (" +
+        "partition by a order by rowtime rows between unbounded preceding and current row), " +
+        "count(b) over (" +
+        "partition by a order by rowtime rows between unbounded preceding and current row), " +
+        "avg(b) over (" +
+        "partition by a order by rowtime rows between unbounded preceding and current row), " +
+        "max(b) over (" +
+        "partition by a order by rowtime rows between unbounded preceding and current row), " +
+        "min(b) over (" +
+        "partition by a order by rowtime rows between unbounded preceding and current row) " +
+        "from T1"
 
-    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
-      Left(14000005L, (1, 1L, "Hi")),
-      Left(14000000L, (2, 1L, "Hello")),
-      Left(14000002L, (3, 1L, "Hello")),
-      Left(14000003L, (1, 2L, "Hello")),
-      Left(14000004L, (1, 3L, "Hello world")),
-      Left(14000007L, (3, 2L, "Hello world")),
-      Left(14000008L, (2, 2L, "Hello world")),
-      Right(14000010L),
-      // the next 3 elements are late
-      Left(14000008L, (1, 4L, "Hello world")),
-      Left(14000008L, (2, 3L, "Hello world")),
-      Left(14000008L, (3, 3L, "Hello world")),
-      Left(14000012L, (1, 5L, "Hello world")),
-      Right(14000020L),
-      Left(14000021L, (1, 6L, "Hello world")),
-      // the next 3 elements are late
-      Left(14000019L, (1, 6L, "Hello world")),
-      Left(14000018L, (2, 4L, "Hello world")),
-      Left(14000018L, (3, 4L, "Hello world")),
-      Left(14000022L, (2, 5L, "Hello world")),
-      Left(14000022L, (3, 5L, "Hello world")),
-      Left(14000024L, (1, 7L, "Hello world")),
-      Left(14000023L, (1, 8L, "Hello world")),
-      Left(14000021L, (1, 9L, "Hello world")),
-      Right(14000030L)
-    )
+      val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+        Left(14000005L, (1, 1L, "Hi")),
+        Left(14000000L, (2, 1L, "Hello")),
+        Left(14000002L, (3, 1L, "Hello")),
+        Left(14000003L, (1, 2L, "Hello")),
+        Left(14000004L, (1, 3L, "Hello world")),
+        Left(14000007L, (3, 2L, "Hello world")),
+        Left(14000008L, (2, 2L, "Hello world")),
+        Right(14000010L),
+        // the next 3 elements are late
+        Left(14000008L, (1, 4L, "Hello world")),
+        Left(14000008L, (2, 3L, "Hello world")),
+        Left(14000008L, (3, 3L, "Hello world")),
+        Left(14000012L, (1, 5L, "Hello world")),
+        Right(14000020L),
+        Left(14000021L, (1, 6L, "Hello world")),
+        // the next 3 elements are late
+        Left(14000019L, (1, 6L, "Hello world")),
+        Left(14000018L, (2, 4L, "Hello world")),
+        Left(14000018L, (3, 4L, "Hello world")),
+        Left(14000022L, (2, 5L, "Hello world")),
+        Left(14000022L, (3, 5L, "Hello world")),
+        Left(14000024L, (1, 7L, "Hello world")),
+        Left(14000023L, (1, 8L, "Hello world")),
+        Left(14000021L, (1, 9L, "Hello world")),
+        Right(14000030L)
+      )
 
-    val source = failingDataSource(data)
-    val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+      val source = failingDataSource(data)
+      val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+        .setParallelism(source.parallelism)
+        .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
-    tEnv.registerTable("T1", t1)
+      tEnv.registerTable("T1", t1)
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
-    env.execute()
+      val sink = new TestingAppendSink
+      tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+      env.execute()
 
-    val expected = List(
-      s"1,2,Hello,2,1,${2/1},2,2",
-      s"1,3,Hello world,5,2,${5/2},3,2",
-      s"1,1,Hi,6,3,${6/3},3,1",
-      s"2,1,Hello,1,1,${1/1},1,1",
-      s"2,2,Hello world,3,2,${3/2},2,1",
-      s"3,1,Hello,1,1,${1/1},1,1",
-      s"3,2,Hello world,3,2,${3/2},2,1",
-      s"1,5,Hello world,11,4,${11/4},5,1",
-      s"1,6,Hello world,17,5,${17/5},6,1",
-      s"1,9,Hello world,26,6,${26/6},9,1",
-      s"1,8,Hello world,34,7,${34/7},9,1",
-      s"1,7,Hello world,41,8,${41/8},9,1",
-      s"2,5,Hello world,8,3,${8/3},5,1",
-      s"3,5,Hello world,8,3,${8/3},5,1"
-    )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+      val expected = List(
+        s"1,2,Hello,2,1,${2 / 1},2,2",
+        s"1,3,Hello world,5,2,${5 / 2},3,2",
+        s"1,1,Hi,6,3,${6 / 3},3,1",
+        s"2,1,Hello,1,1,${1 / 1},1,1",
+        s"2,2,Hello world,3,2,${3 / 2},2,1",
+        s"3,1,Hello,1,1,${1 / 1},1,1",
+        s"3,2,Hello world,3,2,${3 / 2},2,1",
+        s"1,5,Hello world,11,4,${11 / 4},5,1",
+        s"1,6,Hello world,17,5,${17 / 5},6,1",
+        s"1,9,Hello world,26,6,${26 / 6},9,1",
+        s"1,8,Hello world,34,7,${34 / 7},9,1",
+        s"1,7,Hello world,41,8,${41 / 8},9,1",
+        s"2,5,Hello world,8,3,${8 / 3},5,1",
+        s"3,5,Hello world,8,3,${8 / 3},5,1"
+      )
+      assertEquals(expected.sorted, sink.getAppendResults.sorted)
+      after()
+      before()
+    }
   }
 
   @Test
