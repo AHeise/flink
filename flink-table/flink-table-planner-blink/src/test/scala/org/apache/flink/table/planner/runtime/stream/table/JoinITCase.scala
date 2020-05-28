@@ -954,55 +954,57 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @Test
   def testStreamJoinWithSameRecord(): Unit = {
-    val data1 = List(
-      (1, 1),
-      (1, 1),
-      (2, 2),
-      (2, 2),
-      (3, 3),
-      (3, 3),
-      (4, 4),
-      (4, 4),
-      (5, 5),
-      (5, 5)
-    )
+    for(i <- 0 to 100) {
+      val data1 = List(
+        (1, 1),
+        (1, 1),
+        (2, 2),
+        (2, 2),
+        (3, 3),
+        (3, 3),
+        (4, 4),
+        (4, 4),
+        (5, 5),
+        (5, 5)
+      )
 
-    val data2 = List(
-      (1, 1),
-      (2, 2),
-      (3, 3),
-      (4, 4),
-      (5, 5),
-      (6, 6),
-      (7, 7),
-      (8, 8),
-      (9, 9),
-      (10, 10)
-    )
+      val data2 = List(
+        (1, 1),
+        (2, 2),
+        (3, 3),
+        (4, 4),
+        (5, 5),
+        (6, 6),
+        (7, 7),
+        (8, 8),
+        (9, 9),
+        (10, 10)
+      )
 
-    val stream1 = failingDataSource(data1)
-    val table1 = stream1.toTable(tEnv, 'pk, 'a)
+      val stream1 = failingDataSource(data1)
+      val table1 = stream1.toTable(tEnv, 'pk, 'a)
 
-    val stream2 = failingDataSource(data2)
-    val table2 = stream2.toTable(tEnv, 'pk, 'a)
+      val stream2 = failingDataSource(data2)
+      val table2 = stream2.toTable(tEnv, 'pk, 'a)
 
-    val leftTable = table1.select('pk as 'leftPk, 'a as 'leftA)
-    val rightTable = table2.select('pk as 'rightPk, 'a as 'rightA)
+      val leftTable = table1.select('pk as 'leftPk, 'a as 'leftA)
+      val rightTable = table2.select('pk as 'rightPk, 'a as 'rightA)
 
-    val resultTable = rightTable
-      .join(leftTable)
-      .where('leftPk === 'rightPk)
+      val resultTable = rightTable
+        .join(leftTable)
+        .where('leftPk === 'rightPk)
 
-    val sink = new TestingAppendSink
-    resultTable.toAppendStream[Row].addSink(sink)
-    env.execute()
+      val sink = new TestingAppendSink
+      resultTable.toAppendStream[Row].addSink(sink)
+      env.execute()
 
-    val expected = Seq("1,1,1,1", "1,1,1,1",
-      "2,2,2,2", "2,2,2,2",
-      "3,3,3,3", "3,3,3,3",
-      "4,4,4,4", "4,4,4,4",
-      "5,5,5,5", "5,5,5,5")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+      val expected = Seq("1,1,1,1", "1,1,1,1",
+        "2,2,2,2", "2,2,2,2",
+        "3,3,3,3", "3,3,3,3",
+        "4,4,4,4", "4,4,4,4",
+        "5,5,5,5", "5,5,5,5")
+      assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    }
   }
 
 

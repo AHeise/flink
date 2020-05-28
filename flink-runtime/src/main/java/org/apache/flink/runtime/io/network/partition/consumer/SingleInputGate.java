@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
+import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -618,8 +619,12 @@ public class SingleInputGate extends IndexedInputGate {
 		}
 
 		InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
+		Buffer buffer = inputWithData.data.buffer();
+		if (buffer.isBuffer()) {
+			LOG.warn("SingleInputGate#getNextBufferOrEvent {}", BufferReaderWriterUtil.toString(buffer));
+		}
 		return Optional.of(transformToBufferOrEvent(
-			inputWithData.data.buffer(),
+				buffer,
 			inputWithData.moreAvailable,
 			inputWithData.input));
 	}

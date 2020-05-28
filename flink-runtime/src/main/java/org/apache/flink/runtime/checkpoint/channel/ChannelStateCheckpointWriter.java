@@ -19,6 +19,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle.StateContentMetaInfo;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -110,10 +111,16 @@ class ChannelStateCheckpointWriter {
 
 	void writeInput(InputChannelInfo info, Buffer... flinkBuffers) throws Exception {
 		write(inputChannelOffsets, info, flinkBuffers, !allInputsReceived);
+		for (final Buffer flinkBuffer : flinkBuffers) {
+			LOG.warn("ChannelStateStreamReader#writeInput {}", BufferReaderWriterUtil.toString(flinkBuffer));
+		}
 	}
 
 	void writeOutput(ResultSubpartitionInfo info, Buffer... flinkBuffers) throws Exception {
 		write(resultSubpartitionOffsets, info, flinkBuffers, !allOutputsReceived);
+		for (final Buffer flinkBuffer : flinkBuffers) {
+			LOG.warn("ChannelStateStreamReader#writeOutput {}", BufferReaderWriterUtil.toString(flinkBuffer));
+		}
 	}
 
 	private <K> void write(Map<K, StateContentMetaInfo> offsets, K key, Buffer[] flinkBuffers, boolean precondition) throws Exception {

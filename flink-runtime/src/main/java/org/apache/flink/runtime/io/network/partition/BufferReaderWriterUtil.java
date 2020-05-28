@@ -21,10 +21,14 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
+import org.apache.commons.codec.binary.Hex;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -40,7 +44,7 @@ import java.nio.channels.FileChannel;
  * <p>The encoding is the same across FileChannel and ByteBuffer, so this class can
  * write to a file and read from the byte buffer that results from mapping this file to memory.
  */
-final class BufferReaderWriterUtil {
+public final class BufferReaderWriterUtil {
 
 	static final int HEADER_LENGTH = 8;
 
@@ -237,5 +241,22 @@ final class BufferReaderWriterUtil {
 
 	static void configureByteBuffer(ByteBuffer buffer) {
 		buffer.order(ByteOrder.nativeOrder());
+	}
+
+	public static String toString(Buffer buffer) {
+		return toString(buffer.getMemorySegment(), buffer.getSize());
+	}
+
+	public static String toString(BufferBuilder bufferBuilder) {
+		int size = bufferBuilder.getMaxCapacity() - bufferBuilder.getWritableBytes();
+		MemorySegment memorySegment = bufferBuilder.getMemorySegment();
+		return toString(memorySegment, size);
+	}
+
+	@Nonnull
+	public static String toString(MemorySegment memorySegment, int size) {
+		byte[] bytes = new byte[size];
+		memorySegment.get(0, bytes);
+		return bytes.length + " " + Hex.encodeHexString(bytes);
 	}
 }

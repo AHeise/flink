@@ -273,6 +273,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			}
 
 			updateStatistics(buffer);
+			LOG.warn("PipelinedSubpartition#pollBuffer {}", BufferReaderWriterUtil.toString(buffer));
 			// Do not report last remaining buffer on buffers as available to read (assuming it's unfinished).
 			// It will be reported for reading either on flush or when the number of buffers in the queue
 			// will be 2 or more.

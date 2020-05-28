@@ -17,12 +17,18 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
 import org.apache.flink.runtime.checkpoint.channel.RefCountingFSDataInputStream.RefCountingFSDataInputStreamFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.codec.binary.Hex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -49,6 +55,7 @@ class ChannelStateStreamReader implements Closeable {
 	private final Queue<Long> offsets;
 	private int remainingBytes = -1;
 	private boolean closed = false;
+	private static final Logger LOG = LoggerFactory.getLogger(ChannelStateStreamReader.class);
 
 	ChannelStateStreamReader(AbstractChannelStateHandle<?> handle, RefCountingFSDataInputStreamFactory streamFactory) {
 		this(streamFactory.getOrCreate(handle), handle.getOffsets(), streamFactory.getSerializer());
@@ -62,11 +69,15 @@ class ChannelStateStreamReader implements Closeable {
 	}
 
 	ReadResult readInto(Buffer buffer) throws IOException {
-		return readInto(wrap(buffer));
+		ReadResult readResult = readInto(wrap(buffer));
+		LOG.warn("ChannelStateStreamReader#readInto1 {}", BufferReaderWriterUtil.toString(buffer));
+		return readResult;
 	}
 
 	ReadResult readInto(BufferBuilder bufferBuilder) throws IOException {
-		return readInto(wrap(bufferBuilder));
+		ReadResult readResult = readInto(wrap(bufferBuilder));
+		LOG.warn("ChannelStateStreamReader#readInto2 {}",  BufferReaderWriterUtil.toString(bufferBuilder));
+		return readResult;
 	}
 
 	private ReadResult readInto(ChannelStateByteBuffer buffer) throws IOException {
