@@ -22,7 +22,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -32,8 +36,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * This class represents the snapshot of a {@link CopyOnWriteStateMap}.
@@ -57,6 +63,8 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 	 * Version of the {@link CopyOnWriteStateMap} when this snapshot was created. This can be used to release the snapshot.
 	 */
 	private final int snapshotVersion;
+
+	private static final Logger LOG = LoggerFactory.getLogger(CopyOnWriteStateMapSnapshot.class);
 
 	/**
 	 * The state map entries, as by the time this snapshot was created. Objects in this array may or may not be deep
@@ -83,6 +91,10 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 	CopyOnWriteStateMapSnapshot(CopyOnWriteStateMap<K, N, S> owningStateMap) {
 		super(owningStateMap);
 
+		List<S> snap = owningStateMap.getKeys((N) VoidNamespace.get()).map(k -> owningStateMap.get(k, (N) VoidNamespace.get())).collect(Collectors.toList());
+		if (!snap.isEmpty()) {
+			LOG.error("CopyOnWriteStateMapSnapshot {}", snap);
+		}
 		this.snapshotData = owningStateMap.snapshotMapArrays();
 		this.snapshotVersion = owningStateMap.getStateMapVersion();
 		this.numberOfEntriesInSnapshotData = owningStateMap.size();
@@ -124,6 +136,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 		dov.writeInt(size);
 		while (snapshotIterator.hasNext()) {
 			StateEntry<K, N, S> stateEntry = snapshotIterator.next();
+			LOG.error("writeState {}", stateEntry.getState());
 			namespaceSerializer.serialize(stateEntry.getNamespace(), dov);
 			keySerializer.serialize(stateEntry.getKey(), dov);
 			stateSerializer.serialize(stateEntry.getState(), dov);

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -134,6 +135,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		boolean pruneTriggered = false;
 		BufferBuilder bufferBuilder = getBufferBuilder(targetChannel);
 		SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
+
+		LOG.error("copyFromSerializerToTargetChannel {} {}", targetChannel, BufferReaderWriterUtil.toString(bufferBuilder));
 		while (result.isFullBuffer()) {
 			finishBufferBuilder(bufferBuilder);
 
@@ -162,6 +165,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+		LOG.error("broadcastEvent {} {}", isPriorityEvent, event);
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
 			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 				tryFinishCurrentBufferBuilder(targetChannel);

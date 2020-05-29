@@ -177,6 +177,7 @@ public class FailingCollectionSource<T>
 					// cause a failure if we have not failed before and have reached
 					// enough completed checkpoints and elements
 					failedBefore = true;
+					LOG.error("Crash");
 					throw new Exception("Artificial Failure");
 				}
 			}

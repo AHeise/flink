@@ -39,6 +39,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * A TopN function could handle insert-only stream.
@@ -154,6 +156,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 					buffer.putAll(sortKey, values);
 				}
 			}
+			LOG.error("Restored state: {}", buffer.entrySet());
 		} else {
 			hitCount += 1;
 		}

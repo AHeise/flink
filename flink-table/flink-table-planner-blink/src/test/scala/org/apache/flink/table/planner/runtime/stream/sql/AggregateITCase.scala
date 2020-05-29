@@ -755,7 +755,7 @@ class AggregateITCase(
   @Test
   def testDifferentTypesSumWithRetract(): Unit = {
     for (i <- 0 to 10000) {
-      log.error("---")
+      log.error("--- aggMode={} miniBatch={} backend={}", aggMode, miniBatch, backend)
     val data = List(
       (1.toByte, 1.toShort, 1, 1L, 1.0F, 1.0, "a"),
       (2.toByte, 2.toShort, 2, 2L, 2.0F, 2.0, "a"),

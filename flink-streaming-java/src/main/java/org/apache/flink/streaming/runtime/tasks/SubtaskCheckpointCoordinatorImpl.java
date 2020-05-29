@@ -451,6 +451,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		}
 
 		long checkpointId = checkpointMetaData.getCheckpointId();
+
+		LOG.error(
+			"{} - start synchronous part of checkpoint {}",
+			taskName,
+			checkpointId);
 		long started = System.nanoTime();
 
 		ChannelStateWriteResult channelStateWriteResult = checkpointOptions.getCheckpointType() == CHECKPOINT ?
@@ -478,7 +483,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			checkpointStorage.clearCacheFor(checkpointId);
 		}
 
-		LOG.debug(
+		LOG.error(
 			"{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
 			taskName,
 			checkpointId,
