@@ -111,7 +111,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> iterator) {
-		LOG.debug(
+		LOG.error(
 			"{} adding input data, checkpoint {}, channel: {}, startSeqNum: {}",
 			taskName,
 			checkpointId,

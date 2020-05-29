@@ -244,19 +244,22 @@ public final class BufferReaderWriterUtil {
 	}
 
 	public static String toString(Buffer buffer) {
-		return toString(buffer.getMemorySegment(), buffer.getSize());
+		if (buffer.getMemorySegmentOffset() > 0) {
+			return toString(buffer.getMemorySegment(), buffer.getMemorySegmentOffset(), buffer.getSize()) + " from " + toString(buffer.getMemorySegment(), 0, buffer.getMemorySegmentOffset()+buffer.getSize());
+		}
+		return toString(buffer.getMemorySegment(), buffer.getMemorySegmentOffset(), buffer.getSize());
 	}
 
 	public static String toString(BufferBuilder bufferBuilder) {
 		int size = bufferBuilder.getMaxCapacity() - bufferBuilder.getWritableBytes();
 		MemorySegment memorySegment = bufferBuilder.getMemorySegment();
-		return toString(memorySegment, size);
+		return toString(memorySegment, 0, size);
 	}
 
 	@Nonnull
-	public static String toString(MemorySegment memorySegment, int size) {
+	public static String toString(MemorySegment memorySegment, int offset, int size) {
 		byte[] bytes = new byte[size];
-		memorySegment.get(0, bytes);
-		return bytes.length + " " + Hex.encodeHexString(bytes);
+		memorySegment.get(offset, bytes);
+		return offset + "-" + (offset + size) + " " + Hex.encodeHexString(bytes);
 	}
 }

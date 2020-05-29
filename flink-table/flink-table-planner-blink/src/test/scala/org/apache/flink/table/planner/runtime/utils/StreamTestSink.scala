@@ -37,11 +37,12 @@ import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util.TimeZone
 import _root_.java.util.concurrent.atomic.AtomicInteger
 import java.util
+
+import org.slf4j.{Logger, LoggerFactory}
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
@@ -83,7 +84,7 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
   protected var globalResults: mutable.Map[Int, ArrayBuffer[String]] = _
   protected var globalRetractResults: mutable.Map[Int, ArrayBuffer[String]] = _
   protected var globalUpsertResults: mutable.Map[Int, mutable.Map[String, String]] = _
-
+  protected val log = LoggerFactory.getLogger(classOf[AbstractExactlyOnceSink[_]])
   def isInitialized: Boolean = globalResults != null
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
@@ -447,6 +448,7 @@ class TestingRetractSink(tz: TimeZone)
       for (value <- retractResultsState.get().asScala) {
         localRetractResults += value
       }
+      log.error("Restored {}", localRetractResults)
     }
 
     val taskId = getRuntimeContext.getIndexOfThisSubtask
@@ -461,12 +463,14 @@ class TestingRetractSink(tz: TimeZone)
     for (value <- localRetractResults) {
       retractResultsState.add(value)
     }
+    log.error("Storing {}", localRetractResults)
   }
 
   override def invoke(v: (Boolean, Row)): Unit = {
     this.synchronized {
       val tupleString = "(" + v._1.toString + "," + TestSinkUtil.rowToString(v._2, tz) + ")"
       localResults += tupleString
+      log.error("Sink {}", tupleString)
       val rowString = TestSinkUtil.rowToString(v._2, tz)
       if (v._1) {
         localRetractResults += rowString

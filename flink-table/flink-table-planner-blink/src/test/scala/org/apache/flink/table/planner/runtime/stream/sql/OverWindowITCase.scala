@@ -783,7 +783,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   /** test sliding event-time unbounded window with partition by **/
   @Test
   def testRowTimeUnBoundedPartitionedRowsOver2(): Unit = {
-    for (i <- 0 to 100) {
+    for (i <- 0 to 1000) {
       log.error("---")
       val sqlQuery = "SELECT a, b, c, " +
         "SUM(b) over (" +
@@ -807,11 +807,14 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         Left(14000007L, (3, 2L, "Hello world")),
         Left(14000008L, (2, 2L, "Hello world")),
         Right(14000010L),
+        Left(14000012L, (1, 5L, "Hello world")),
         // the next 3 elements are late
         Left(14000008L, (1, 4L, "Hello world")),
         Left(14000008L, (2, 3L, "Hello world")),
         Left(14000008L, (3, 3L, "Hello world")),
-        Left(14000012L, (1, 5L, "Hello world")),
+        Left(14000008L, (1, 4L, "Hello world")),
+        Left(14000008L, (2, 3L, "Hello world")),
+        Left(14000008L, (3, 3L, "Hello world")),
         Right(14000020L),
         Left(14000021L, (1, 6L, "Hello world")),
         // the next 3 elements are late

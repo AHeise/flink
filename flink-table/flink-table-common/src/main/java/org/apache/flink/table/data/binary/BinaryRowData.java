@@ -34,6 +34,9 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.types.RowKind;
 
+import com.sun.org.apache.xerces.internal.impl.dv.util.HexBin;
+import sun.misc.HexDumpEncoder;
+
 import java.nio.ByteOrder;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -434,5 +437,10 @@ public final class BinaryRowData extends BinarySection implements RowData, Typed
 	@Override
 	public int hashCode() {
 		return BinarySegmentUtils.hashByWords(segments, offset, sizeInBytes);
+	}
+
+	@Override
+	public String toString() {
+		return HexBin.encode(segments[0].getArray());
 	}
 }

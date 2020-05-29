@@ -754,7 +754,8 @@ class AggregateITCase(
 
   @Test
   def testDifferentTypesSumWithRetract(): Unit = {
-    for (i <- 0 to 100) {
+    for (i <- 0 to 10000) {
+      log.error("---")
     val data = List(
       (1.toByte, 1.toShort, 1, 1L, 1.0F, 1.0, "a"),
       (2.toByte, 2.toShort, 2, 2L, 2.0F, 2.0, "a"),
@@ -783,6 +784,8 @@ class AggregateITCase(
 
     val expected = List("9,9,9,9,9.0,9.0,9.00", "3,3,3,3,3.0,3.0,3.00", "6,6,6,6,6.0,6.0,6.00")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
+      after()
+      before()
   }
   }
 

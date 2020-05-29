@@ -118,7 +118,6 @@ public class FailingCollectionSource<T>
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-		LOG.error("Restoring");
 		Preconditions.checkState(
 			this.checkpointedState == null,
 			"The " + getClass().getSimpleName() + " has already been initialized.");
@@ -142,6 +141,7 @@ public class FailingCollectionSource<T>
 				getClass().getSimpleName() + " retrieved invalid state.");
 
 			this.numElementsToSkip = retrievedStates.get(0);
+			LOG.error("Restoring and skipping {}", this.numElementsToSkip);
 		}
 	}
 

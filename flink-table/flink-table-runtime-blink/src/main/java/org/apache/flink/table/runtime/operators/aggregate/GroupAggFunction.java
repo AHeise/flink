@@ -34,6 +34,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.data.util.RowDataUtil.isRetractMsg;
 
@@ -83,6 +86,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 	// stores the accumulators
 	private transient ValueState<RowData> accState = null;
 
+	private static final Logger LOG = LoggerFactory.getLogger(GroupAggFunction.class);
 	/**
 	 * Creates a {@link GroupAggFunction}.
 	 *
@@ -172,6 +176,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 		// get accumulator
 		accumulators = function.getAccumulators();
 
+		LOG.error("{} -> {}", accState.value(), accumulators);
 		if (!recordCounter.recordCountIsZero(accumulators)) {
 			// we aggregated at least one record for this key
 
