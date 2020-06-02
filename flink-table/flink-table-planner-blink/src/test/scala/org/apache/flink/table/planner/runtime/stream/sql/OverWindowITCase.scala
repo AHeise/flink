@@ -783,8 +783,6 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   /** test sliding event-time unbounded window with partition by **/
   @Test
   def testRowTimeUnBoundedPartitionedRowsOver2(): Unit = {
-    for (i <- 0 to 1000) {
-      log.error("---")
       val sqlQuery = "SELECT a, b, c, " +
         "SUM(b) over (" +
         "partition by a order by rowtime rows between unbounded preceding and current row), " +
@@ -857,9 +855,6 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         s"3,5,Hello world,8,3,${8 / 3},5,1"
       )
       assertEquals(expected.sorted, sink.getAppendResults.sorted)
-      after()
-      before()
-    }
   }
 
   @Test

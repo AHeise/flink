@@ -172,7 +172,7 @@ public class FailingCollectionSource<T>
 		while (isRunning && numElementsEmitted < numElements) {
 			if (!failedBefore) {
 				// delay a bit, if we have not failed before
-				Thread.sleep(600);
+				Thread.sleep(1);
 				if (numSuccessfulCheckpoints >= 1 && lastCheckpointedEmittedNum >= 1) {
 					// cause a failure if we have not failed before and have reached
 					// enough completed checkpoints and elements

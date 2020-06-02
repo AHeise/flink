@@ -57,7 +57,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
 	public static final boolean DEFAULT_UNALIGNED_CHECKPOINT_ENABLED =
-		false;//Boolean.parseBoolean(System.getProperty(ExecutionCheckpointingOptions.ENABLE_UNALIGNED.key(), "false"));
+		Boolean.parseBoolean(System.getProperty(ExecutionCheckpointingOptions.ENABLE_UNALIGNED.key(), "false"));
 
 	// ------------------------------------------------------------------------
 
