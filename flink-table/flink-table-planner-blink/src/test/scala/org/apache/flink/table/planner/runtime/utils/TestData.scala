@@ -261,7 +261,7 @@ object TestData {
     row(20, 6L, "Comment#14", unixTimestampToLocalDateTime(20000L)),
     row(21, 6L, "Comment#15", unixTimestampToLocalDateTime(21000L))
   )
-  AbstractExactlyOnceSink
+
   lazy val smallNestedTupleData: Seq[((Int, Int), String)] = {
       val data = new mutable.MutableList[((Int, Int), String)]
       data.+=(((1, 1), "one"))
