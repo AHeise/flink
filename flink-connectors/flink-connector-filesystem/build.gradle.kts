@@ -36,3 +36,8 @@ dependencies {
 }
 
 description = "flink-connector-filesystem"
+
+tasks.withType<Test> {
+    environment("HADOOP_HOME", "")
+    environment("HADOOP_CONF_DIR", "")
+}

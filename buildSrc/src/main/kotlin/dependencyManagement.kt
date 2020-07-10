@@ -211,7 +211,7 @@ private fun DependencyHandler.setupPlatform(dependencies: List<ModuleVersionSele
 }
 
 private fun ModuleVersionSelector.asExternalModule(conf: String): Dependency =
-    DefaultExternalModuleDependency(name, group, version, conf)
+    DefaultExternalModuleDependency(name, group, requireNotNull(version), conf)
 
 private open class GroupAlignmentRule @javax.inject.Inject constructor(private val group: String, dependencies: List<String>): ComponentMetadataRule {
     private val dependencyIndex: Set<String> = dependencies.toSet()

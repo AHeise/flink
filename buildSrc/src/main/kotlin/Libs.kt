@@ -30,7 +30,7 @@ class Libs(val project: Project) {
 
     companion object {
         fun dependency(group: String, name: String): ExternalModuleDependency =
-                DefaultExternalModuleDependency(group, name, "")
+            DefaultExternalModuleDependency(group, name, "unspecified")
     }
 
     /**

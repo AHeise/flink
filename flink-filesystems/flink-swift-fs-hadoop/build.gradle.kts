@@ -20,11 +20,11 @@ dependencies {
     compileOnly(project(":flink-annotations"))
 
     implementation(project(":flink-core"))
-    implementation(project(":flink-filesystems:flink-hadoop-fs")) {
+    shade(project(":flink-filesystems:flink-hadoop-fs")) {
         exclude("org.apache.flink", "flink-shaded-hadoop-2")
     }
     flinkDependencyGroup(version = stringProperty("openstackhadoop.hadoop.version")) {
-        implementation(Libs.hadoop_client) {
+        shade(Libs.hadoop_client) {
             exclude(group = "org.apache.hadoop", module = "hadoop-mapreduce-client-core")
             exclude(group = "org.apache.hadoop", module = "hadoop-yarn-api")
             exclude(group = "org.apache.hadoop", module = "hadoop-mapreduce-client-jobclient")
@@ -37,7 +37,9 @@ dependencies {
             exclude(group = "org.apache.curator", module = "curator-recipes")
             exclude(group = "org.apache.zookeeper", module = "zookeeper")
         }
-        implementation(Libs.hadoop_openstack)
+        shade(Libs.hadoop_openstack) {
+            exclude(group = "org.apache.hadoop", module = "hadoop-common")
+        }
     }
 
     testImplementation(project(":flink-core"))

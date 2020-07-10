@@ -45,13 +45,13 @@ fun Configuration.exclude(dependency: Dependency): Configuration =
         exclude(group = dependency.group, module = dependency.name)
 
 infix fun ExternalDependency.version(version: String): ExternalDependency =
-    DefaultExternalModuleDependency(group, name, version, targetConfiguration).also {
+    DefaultExternalModuleDependency(group, name, version).also {
         it.artifacts = this.artifacts
     }
 
 infix fun ExternalDependency.classifier(classifier: String): ExternalDependency =
     copy().also {
-        ModuleFactoryHelper.addExplicitArtifactsIfDefined(it, null, classifier)
+        ModuleFactoryHelper.addExplicitArtifactsIfDefined(it, DependencyArtifact.DEFAULT_TYPE, classifier)
     }
 
 /**
