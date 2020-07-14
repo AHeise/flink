@@ -79,7 +79,7 @@ fun Project.flinkSetupScalaProjects() {
 //            val scalaCompilerPlugin by configurations.creating
 
             configure<ScalaPluginExtension> {
-                zincVersion.set("1.3.1")
+                zincVersion.set("1.3.5")
             }
 
 //            dependencies {
