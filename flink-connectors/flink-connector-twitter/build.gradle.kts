@@ -30,14 +30,6 @@ flinkDependencyManagement {
 description = "flink-connector-twitter"
 
 tasks.withType<ShadowJar> {
-    dependencies {
-        // We include all dependencies that transitively depend on guava 
-        include(dependency("com.google.guava:guava"))
-        include(dependency("com.twitter:hbc-core"))
-        include(dependency("com.twitter:joauth"))
-        include(dependency("org.apache.httpcomponents:httpclient"))
-        include(dependency("org.apache.httpcomponents:httpcore"))
-    }
     relocate("com.google", "org.apache.flink.twitter.shaded.com.google") {
         exclude("com.google.protobuf.**")
         exclude("com.google.inject.**")
