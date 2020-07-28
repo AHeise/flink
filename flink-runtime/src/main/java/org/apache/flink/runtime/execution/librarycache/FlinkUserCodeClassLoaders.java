@@ -36,14 +36,16 @@ import java.util.Enumeration;
 public class FlinkUserCodeClassLoaders {
 
 	public static URLClassLoader parentFirst(URL[] urls, ClassLoader parent) {
-		return new SafetyNetWrapperClassLoader(new ParentFirstClassLoader(urls, parent));
+		return new SafetyNetWrapperClassLoader(new ParentFirstClassLoader(urls, parent), parent);
 	}
 
 	public static URLClassLoader childFirst(
 		URL[] urls,
 		ClassLoader parent,
 		String[] alwaysParentFirstPatterns) {
-		return new SafetyNetWrapperClassLoader(new ChildFirstClassLoader(urls, parent, alwaysParentFirstPatterns));
+		return new SafetyNetWrapperClassLoader(
+			new ChildFirstClassLoader(urls, parent, alwaysParentFirstPatterns),
+			parent);
 	}
 
 	public static URLClassLoader create(
@@ -105,15 +107,16 @@ public class FlinkUserCodeClassLoaders {
 	private static class SafetyNetWrapperClassLoader extends URLClassLoader implements Closeable {
 		private static final Logger LOG = LoggerFactory.getLogger(SafetyNetWrapperClassLoader.class);
 
-		private FlinkUserCodeClassLoader inner;
+		private volatile FlinkUserCodeClassLoader inner;
 
-		SafetyNetWrapperClassLoader(FlinkUserCodeClassLoader inner) {
-			super(new URL[0], null);
+		SafetyNetWrapperClassLoader(FlinkUserCodeClassLoader inner, ClassLoader parent) {
+			super(new URL[0], parent);
 			this.inner = inner;
 		}
 
 		@Override
 		public void close() {
+			final FlinkUserCodeClassLoader inner = this.inner;
 			if (inner != null) {
 				try {
 					inner.close();
@@ -121,36 +124,39 @@ public class FlinkUserCodeClassLoaders {
 					LOG.warn("Could not close user classloader", e);
 				}
 			}
-			inner = null;
+			this.inner = null;
+		}
+
+		private FlinkUserCodeClassLoader ensureInner() {
+			if (inner == null) {
+				throw new IllegalStateException("Trying to access closed classloader");
+			}
+			return inner;
+		}
+
+		@Override
+		public Class<?> loadClass(String name) throws ClassNotFoundException {
+			return inner.loadClass(name);
 		}
 
 		@Override
 		protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-			if (inner == null) {
-				try {
-					return super.loadClass(name, resolve);
-				} catch (ClassNotFoundException e) {
-					throw new ClassNotFoundException("Flink user code classloader was already closed.", e);
-				}
-			}
-
-			return inner.loadClass(name, resolve);
+			// called for dynamic class loading
+			return ensureInner().loadClass(name, resolve);
 		}
 
 		@Override
-		public URL findResource(String name) {
-			if (inner == null) {
-				return super.findResource(name);
-			}
-			return inner.getResource(name);
+		public URL getResource(String name) {
+			return ensureInner().getResource(name);
 		}
 
 		@Override
-		public Enumeration<URL> findResources(String name) throws IOException {
-			if (inner == null) {
-				return super.findResources(name);
-			}
-			return inner.getResources(name);
+		public Enumeration<URL> getResources(String name) throws IOException {
+			return ensureInner().getResources(name);
+		}
+
+		static {
+			ClassLoader.registerAsParallelCapable();
 		}
 	}
 }
