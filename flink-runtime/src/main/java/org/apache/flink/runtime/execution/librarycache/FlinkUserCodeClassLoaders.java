@@ -81,5 +81,9 @@ public class FlinkUserCodeClassLoaders {
 		ParentFirstClassLoader(URL[] urls, ClassLoader parent) {
 			super(urls, parent);
 		}
+
+		static {
+			ClassLoader.registerAsParallelCapable();
+		}
 	}
 }

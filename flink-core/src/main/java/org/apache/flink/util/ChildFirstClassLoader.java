@@ -47,34 +47,35 @@ public final class ChildFirstClassLoader extends URLClassLoader {
 	}
 
 	@Override
-	protected synchronized Class<?> loadClass(
-		String name, boolean resolve) throws ClassNotFoundException {
+	public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+		synchronized (getClassLoadingLock(name)) {
 
-		// First, check if the class has already been loaded
-		Class<?> c = findLoadedClass(name);
+			// First, check if the class has already been loaded
+			Class<?> c = findLoadedClass(name);
 
-		if (c == null) {
-			// check whether the class should go parent-first
-			for (String alwaysParentFirstPattern : alwaysParentFirstPatterns) {
-				if (name.startsWith(alwaysParentFirstPattern)) {
-					return super.loadClass(name, resolve);
+			if (c == null) {
+				// check whether the class should go parent-first
+				for (String alwaysParentFirstPattern : alwaysParentFirstPatterns) {
+					if (name.startsWith(alwaysParentFirstPattern)) {
+						return super.loadClass(name, resolve);
+					}
+				}
+
+				try {
+					// check the URLs
+					c = findClass(name);
+				} catch (ClassNotFoundException e) {
+					// let URLClassLoader do it, which will eventually call the parent
+					c = super.loadClass(name, resolve);
 				}
 			}
 
-			try {
-				// check the URLs
-				c = findClass(name);
-			} catch (ClassNotFoundException e) {
-				// let URLClassLoader do it, which will eventually call the parent
-				c = super.loadClass(name, resolve);
+			if (resolve) {
+				resolveClass(c);
 			}
-		}
 
-		if (resolve) {
-			resolveClass(c);
+			return c;
 		}
-
-		return c;
 	}
 
 	@Override
@@ -119,5 +120,9 @@ public final class ChildFirstClassLoader extends URLClassLoader {
 				return iter.next();
 			}
 		};
+	}
+
+	static {
+		ClassLoader.registerAsParallelCapable();
 	}
 }
