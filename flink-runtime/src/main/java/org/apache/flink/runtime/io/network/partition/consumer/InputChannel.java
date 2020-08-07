@@ -151,6 +151,10 @@ public abstract class InputChannel {
 		inputGate.notifyChannelNonEmpty(this);
 	}
 
+	public void notifyPriorityEvent() {
+		inputGate.notifyPriorityEvent(this);
+	}
+
 	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
 	}
 
@@ -290,10 +294,11 @@ public abstract class InputChannel {
 	/**
 	 * Parses the buffer as an event and returns the {@link CheckpointBarrier} if the event is indeed a barrier or
 	 * returns null in all other cases.
+	 * @return
 	 */
 	@Nullable
-	protected CheckpointBarrier parseCheckpointBarrierOrNull(Buffer buffer) throws IOException {
-		if (buffer.isBuffer()) {
+	protected AbstractEvent parsePriorityEvent(Buffer buffer) throws IOException {
+		if (buffer.isBuffer() || !buffer.getDataType().hasPriority()) {
 			return null;
 		}
 
@@ -301,7 +306,11 @@ public abstract class InputChannel {
 		// reset the buffer because it would be deserialized again in SingleInputGate while getting next buffer.
 		// we can further improve to avoid double deserialization in the future.
 		buffer.setReaderIndex(0);
-		return event.getClass() == CheckpointBarrier.class ? (CheckpointBarrier) event : null;
+		return event;
+	}
+
+	public boolean hasPriorityEvents() {
+		return false;
 	}
 
 	/**
@@ -312,12 +321,13 @@ public abstract class InputChannel {
 	public static final class BufferAndAvailability {
 
 		private final Buffer buffer;
-		private final boolean moreAvailable;
+		@Nullable
+		private final Buffer.DataType nextDataType;
 		private final int buffersInBacklog;
 
-		public BufferAndAvailability(Buffer buffer, boolean moreAvailable, int buffersInBacklog) {
+		public BufferAndAvailability(Buffer buffer, @Nullable Buffer.DataType nextDataType, int buffersInBacklog) {
 			this.buffer = checkNotNull(buffer);
-			this.moreAvailable = moreAvailable;
+			this.nextDataType = nextDataType;
 			this.buffersInBacklog = buffersInBacklog;
 		}
 
@@ -326,11 +336,28 @@ public abstract class InputChannel {
 		}
 
 		public boolean moreAvailable() {
-			return moreAvailable;
+			return nextDataType != null;
+		}
+
+		public boolean morePriorityEvents() {
+			return nextDataType != null && nextDataType.hasPriority();
 		}
 
 		public int buffersInBacklog() {
 			return buffersInBacklog;
+		}
+
+		public boolean hasPriority() {
+			return buffer.getDataType().hasPriority();
+		}
+
+		@Override
+		public String toString() {
+			return "BufferAndAvailability{" +
+				"buffer=" + buffer +
+				", nextDataType=" + nextDataType +
+				", buffersInBacklog=" + buffersInBacklog +
+				'}';
 		}
 	}
 }

@@ -20,13 +20,10 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -66,12 +63,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
-
-	/** The latest already triggered checkpoint id which would be updated during {@link #spillInflightBuffers(long, ChannelStateWriter)}.*/
-	private long lastRequestedCheckpointId = -1;
-
-	/** The current received checkpoint id from the network. */
-	private long receivedCheckpointId = -1;
 
 	public LocalInputChannel(
 		SingleInputGate inputGate,
@@ -153,6 +144,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 	}
 
+	@Override
+	public boolean hasPriorityEvents() {
+		return subpartitionView.hasPriorityEvents();
+	}
+
 	/**
 	 * Retriggers a subpartition request.
 	 */
@@ -174,12 +170,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	@Override
-	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) {
-		this.lastRequestedCheckpointId = checkpointId;
-	}
-
-	@Override
-	Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkError();
 
 		ResultSubpartitionView subpartitionView = this.subpartitionView;
@@ -211,16 +202,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 
 		Buffer buffer = next.buffer();
-		CheckpointBarrier notifyReceivedBarrier = parseCheckpointBarrierOrNull(buffer);
-		if (notifyReceivedBarrier != null) {
-			receivedCheckpointId = notifyReceivedBarrier.getId();
-		} else if (receivedCheckpointId < lastRequestedCheckpointId && buffer.isBuffer()) {
-			inputGate.getBufferReceivedListener().notifyBufferReceived(buffer.retainBuffer(), channelInfo);
-		}
+		LOG.error("getNextBuffer " + buffer);
 
 		numBytesIn.inc(buffer.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(buffer, next.isDataAvailable(), next.buffersInBacklog()));
+		return Optional.of(new BufferAndAvailability(buffer, next.getNextDataType(), next.buffersInBacklog()));
 	}
 
 	@Override
@@ -303,28 +289,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	@Override
 	public String toString() {
 		return "LocalInputChannel [" + partitionId + "]";
-	}
-
-	@Override
-	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) throws IOException {
-		if (inputGate.getBufferReceivedListener() == null) {
-			// in rare cases and very low checkpointing intervals, we may receive the first barrier, before setting
-			// up CheckpointedInputGate
-			return false;
-		}
-		Buffer buffer = eventBufferConsumer.build();
-		try {
-			CheckpointBarrier event = parseCheckpointBarrierOrNull(buffer);
-			if (event == null) {
-				throw new IllegalStateException("Currently only checkpoint barriers are known priority events");
-			} else if (event.isCheckpoint()) {
-				inputGate.getBufferReceivedListener().notifyBarrierReceived(event, channelInfo);
-			}
-		} finally {
-			buffer.recycleBuffer();
-		}
-		// already processed
-		return true;
 	}
 
 	// ------------------------------------------------------------------------

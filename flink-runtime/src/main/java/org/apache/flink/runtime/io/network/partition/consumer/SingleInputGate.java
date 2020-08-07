@@ -31,7 +31,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -50,7 +49,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -147,12 +145,13 @@ public class SingleInputGate extends IndexedInputGate {
 	private final InputChannel[] channels;
 
 	/** Channels, which notified this input gate about available data. */
-	private final ArrayDeque<InputChannel> inputChannelsWithData = new ArrayDeque<>();
+	private final PrioritizedDeque<InputChannel> inputChannelsWithData = new PrioritizedDeque<>();
 
 	/**
 	 * Field guaranteeing uniqueness for inputChannelsWithData queue. Both of those fields should be unified
 	 * onto one.
 	 */
+	@GuardedBy("inputChannelsWithData")
 	private final BitSet enqueuedInputChannelsWithData;
 
 	private final BitSet channelsWithEndOfPartitionEvents;
@@ -181,9 +180,6 @@ public class SingleInputGate extends IndexedInputGate {
 	private final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
 
 	private final CompletableFuture<Void> closeFuture;
-
-	@Nullable
-	private volatile BufferReceivedListener bufferReceivedListener;
 
 	@Nullable
 	private final BufferDecompressor bufferDecompressor;
@@ -227,6 +223,10 @@ public class SingleInputGate extends IndexedInputGate {
 		this.memorySegmentProvider = checkNotNull(memorySegmentProvider);
 
 		this.closeFuture = new CompletableFuture<>();
+	}
+
+	protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
+		return inputChannelsWithData;
 	}
 
 	@Override
@@ -334,12 +334,6 @@ public class SingleInputGate extends IndexedInputGate {
 		}
 	}
 
-	@Override
-	public void registerBufferReceivedListener(BufferReceivedListener bufferReceivedListener) {
-		checkState(this.bufferReceivedListener == null, "Trying to overwrite the buffer received listener");
-		this.bufferReceivedListener = checkNotNull(bufferReceivedListener);
-	}
-
 	// ------------------------------------------------------------------------
 	// Properties
 	// ------------------------------------------------------------------------
@@ -352,11 +346,6 @@ public class SingleInputGate extends IndexedInputGate {
 	@Override
 	public int getGateIndex() {
 		return gateIndex;
-	}
-
-	@Nullable
-	BufferReceivedListener getBufferReceivedListener() {
-		return bufferReceivedListener;
 	}
 
 	/**
@@ -603,6 +592,14 @@ public class SingleInputGate extends IndexedInputGate {
 		return getNextBufferOrEvent(false);
 	}
 
+	@Override
+	public boolean hasPriorityEvents() {
+		synchronized (inputChannelsWithData) {
+			final InputChannel inputChannel = inputChannelsWithData.peek();
+			return inputChannel != null && inputChannel.hasPriorityEvents();
+		}
+	}
+
 	private Optional<BufferOrEvent> getNextBufferOrEvent(boolean blocking) throws IOException, InterruptedException {
 		if (hasReceivedAllEndOfPartitionEvents) {
 			return Optional.empty();
@@ -613,6 +610,7 @@ public class SingleInputGate extends IndexedInputGate {
 		}
 
 		Optional<InputWithData<InputChannel, BufferAndAvailability>> next = waitAndGetNextData(blocking);
+//		LOG.error("getNextBufferOrEvent " + next);
 		if (!next.isPresent()) {
 			return Optional.empty();
 		}
@@ -621,61 +619,98 @@ public class SingleInputGate extends IndexedInputGate {
 		return Optional.of(transformToBufferOrEvent(
 			inputWithData.data.buffer(),
 			inputWithData.moreAvailable,
-			inputWithData.input));
+			inputWithData.input,
+			inputWithData.morePriorityEvents));
 	}
 
 	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)
 			throws IOException, InterruptedException {
 		while (true) {
-			Optional<InputChannel> inputChannel = getChannel(blocking);
-			if (!inputChannel.isPresent()) {
+			Optional<InputChannel> inputChannelOpt = getChannel(blocking);
+			if (!inputChannelOpt.isPresent()) {
 				return Optional.empty();
 			}
 
 			// Do not query inputChannel under the lock, to avoid potential deadlocks coming from
 			// notifications.
-			Optional<BufferAndAvailability> result = inputChannel.get().getNextBuffer();
+			final InputChannel inputChannel = inputChannelOpt.get();
+			Optional<BufferAndAvailability> nextOpt = inputChannel.getNextBuffer();
+
+//			LOG.error("waitAndGet " + nextOpt);
 
 			synchronized (inputChannelsWithData) {
-				if (result.isPresent() && result.get().moreAvailable()) {
+				if (!nextOpt.isPresent()) {
+					if (inputChannelsWithData.isEmpty()) {
+						availabilityHelper.resetUnavailable();
+					}
+					continue;
+				}
+
+				final BufferAndAvailability next = nextOpt.get();
+				if (next.moreAvailable()) {
 					// enqueue the inputChannel at the end to avoid starvation
-					inputChannelsWithData.add(inputChannel.get());
-					enqueuedInputChannelsWithData.set(inputChannel.get().getChannelIndex());
+					if (next.morePriorityEvents()) {
+						inputChannelsWithData.addPriorityElement(inputChannel);
+					} else {
+						inputChannelsWithData.add(inputChannel);
+					}
+					enqueuedInputChannelsWithData.set(inputChannel.getChannelIndex());
+				}
+
+				// Only check for more priority events, if the current event has priority
+				final boolean morePriorityEvents = next.hasPriority() &&
+					(next.morePriorityEvents() || nextChannelHasPriorityEvents());
+				if (next.hasPriority() && !morePriorityEvents) {
+					priorityAvailabilityHelper.resetUnavailable();
+					LOG.error("reset priority " + priorityAvailabilityHelper.getAvailableFuture());
 				}
 
 				if (inputChannelsWithData.isEmpty()) {
 					availabilityHelper.resetUnavailable();
 				}
 
-				if (result.isPresent()) {
-					return Optional.of(new InputWithData<>(
-						inputChannel.get(),
-						result.get(),
-						!inputChannelsWithData.isEmpty()));
-				}
+				return Optional.of(new InputWithData<>(
+					inputChannel,
+					next,
+					!inputChannelsWithData.isEmpty(),
+					morePriorityEvents));
 			}
 		}
+	}
+
+	private boolean nextChannelHasPriorityEvents() {
+		return !inputChannelsWithData.isEmpty() && inputChannelsWithData.peek().hasPriorityEvents();
 	}
 
 	private BufferOrEvent transformToBufferOrEvent(
 			Buffer buffer,
 			boolean moreAvailable,
-			InputChannel currentChannel) throws IOException, InterruptedException {
+			InputChannel currentChannel,
+			boolean morePriorityEvents) throws IOException, InterruptedException {
 		if (buffer.isBuffer()) {
-			return transformBuffer(buffer, moreAvailable, currentChannel);
+			return transformBuffer(buffer, moreAvailable, currentChannel, morePriorityEvents);
 		} else {
-			return transformEvent(buffer, moreAvailable, currentChannel);
+			return transformEvent(buffer, moreAvailable, currentChannel, morePriorityEvents);
 		}
 	}
 
-	private BufferOrEvent transformBuffer(Buffer buffer, boolean moreAvailable, InputChannel currentChannel) {
-		return new BufferOrEvent(decompressBufferIfNeeded(buffer), currentChannel.getChannelInfo(), moreAvailable);
+	private BufferOrEvent transformBuffer(
+			Buffer buffer,
+			boolean moreAvailable,
+			InputChannel currentChannel,
+			boolean morePriorityEvents) {
+		return new BufferOrEvent(
+			decompressBufferIfNeeded(buffer),
+			currentChannel.getChannelInfo(),
+			moreAvailable,
+			morePriorityEvents);
 	}
 
 	private BufferOrEvent transformEvent(
 			Buffer buffer,
 			boolean moreAvailable,
-			InputChannel currentChannel) throws IOException, InterruptedException {
+			InputChannel currentChannel,
+			boolean morePriorityEvents) throws IOException, InterruptedException {
 		final AbstractEvent event;
 		try {
 			event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
@@ -700,7 +735,13 @@ public class SingleInputGate extends IndexedInputGate {
 			currentChannel.releaseAllResources();
 		}
 
-		return new BufferOrEvent(event, currentChannel.getChannelInfo(), moreAvailable, buffer.getSize());
+		return new BufferOrEvent(
+			event,
+			buffer.getDataType().hasPriority(),
+			currentChannel.getChannelInfo(),
+			moreAvailable,
+			buffer.getSize(),
+			morePriorityEvents);
 	}
 
 	private Buffer decompressBufferIfNeeded(Buffer buffer) {
@@ -750,7 +791,11 @@ public class SingleInputGate extends IndexedInputGate {
 	// ------------------------------------------------------------------------
 
 	void notifyChannelNonEmpty(InputChannel channel) {
-		queueChannel(checkNotNull(channel));
+		queueChannel(checkNotNull(channel), false);
+	}
+
+	public void notifyPriorityEvent(InputChannel inputChannel) {
+		queueChannel(checkNotNull(inputChannel), true);
 	}
 
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
@@ -770,24 +815,32 @@ public class SingleInputGate extends IndexedInputGate {
 			}));
 	}
 
-	private void queueChannel(InputChannel channel) {
-		int availableChannels;
+	private void queueChannel(InputChannel channel, boolean priority) {
 
 		CompletableFuture<?> toNotify = null;
 
 		synchronized (inputChannelsWithData) {
-			if (enqueuedInputChannelsWithData.get(channel.getChannelIndex())) {
+			final boolean alreadyEnqueued = enqueuedInputChannelsWithData.get(channel.getChannelIndex());
+			LOG.error(getOwningTaskName() + " queueChannel " + priority + " " + inputChannelsWithData);
+			if (alreadyEnqueued && (!priority || inputChannelsWithData.containsPriorityElement(channel))) {
+				// already notified / prioritized (double notification), ignore
 				return;
 			}
-			availableChannels = inputChannelsWithData.size();
 
-			inputChannelsWithData.add(channel);
-			enqueuedInputChannelsWithData.set(channel.getChannelIndex());
+			inputChannelsWithData.add(channel, priority, alreadyEnqueued);
+			if (!alreadyEnqueued) {
+				enqueuedInputChannelsWithData.set(channel.getChannelIndex());
+			}
 
-			if (availableChannels == 0) {
+			if (priority && inputChannelsWithData.getNumPriorityElements() == 1) {
+				inputChannelsWithData.notifyAll();
+				toNotify = priorityAvailabilityHelper.getUnavailableToResetAvailable();
+				LOG.error(getOwningTaskName() + " toNotify " + toNotify);
+			} else if (inputChannelsWithData.size() == 1) {
 				inputChannelsWithData.notifyAll();
 				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
+			LOG.error(getOwningTaskName() + " queueChannel2 " + priority + " " + inputChannelsWithData);
 		}
 
 		if (toNotify != null) {
@@ -797,7 +850,7 @@ public class SingleInputGate extends IndexedInputGate {
 
 	private Optional<InputChannel> getChannel(boolean blocking) throws InterruptedException {
 		synchronized (inputChannelsWithData) {
-			while (inputChannelsWithData.size() == 0) {
+			while (inputChannelsWithData.isEmpty()) {
 				if (closeFuture.isDone()) {
 					throw new IllegalStateException("Released");
 				}
@@ -811,8 +864,9 @@ public class SingleInputGate extends IndexedInputGate {
 				}
 			}
 
-			InputChannel inputChannel = inputChannelsWithData.remove();
+			InputChannel inputChannel = inputChannelsWithData.poll();
 			enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+
 			return Optional.of(inputChannel);
 		}
 	}

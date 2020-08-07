@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -28,6 +27,10 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -48,8 +51,12 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	/** The gate that the buffer draws its input from. */
 	private final InputGate inputGate;
 
+	private final MailboxExecutor mailboxExecutor;
+
 	/** Indicate end of the input. */
 	private boolean isFinished;
+
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointedInputGate.class);
 
 	/**
 	 * Creates a new checkpoint stream aligner.
@@ -63,9 +70,35 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 */
 	public CheckpointedInputGate(
 			InputGate inputGate,
-			CheckpointBarrierHandler barrierHandler) {
+			CheckpointBarrierHandler barrierHandler,
+			MailboxExecutor mailboxExecutor) {
 		this.inputGate = inputGate;
 		this.barrierHandler = barrierHandler;
+		this.mailboxExecutor = mailboxExecutor;
+
+		waitForPriorityEvents(inputGate, mailboxExecutor);
+	}
+
+	private void processPriorityEvents() throws IOException, InterruptedException {
+		final boolean hasPriorityEvents = inputGate.hasPriorityEvents();
+		LOG.error("processPriorityEvents1 " + hasPriorityEvents);
+		if (hasPriorityEvents) {
+			LOG.error("processPriorityEvents2");
+			while (pollNext().map(BufferOrEvent::morePriorityEvents).orElse(false)) {
+			}
+			LOG.error("processPriorityEvents3");
+		}
+
+		waitForPriorityEvents(inputGate, mailboxExecutor);
+	}
+
+	private void waitForPriorityEvents(InputGate inputGate, MailboxExecutor mailboxExecutor) {
+		final CompletableFuture<?> priorityEventAvailableFuture = inputGate.getPriorityEventAvailableFuture();
+		LOG.error("waitForPriorityEvents " + priorityEventAvailableFuture);
+		priorityEventAvailableFuture.thenRun(() -> {
+			LOG.error("enqueue processPriorityEvents");
+			mailboxExecutor.execute(this::processPriorityEvents, "process priority even @ gate %s", inputGate);
+		});
 	}
 
 	@Override
@@ -74,44 +107,34 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNext() throws Exception {
-		while (true) {
-			Optional<BufferOrEvent> next = inputGate.pollNext();
+	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
+		Optional<BufferOrEvent> next = inputGate.pollNext();
 
-			if (!next.isPresent()) {
-				return handleEmptyBuffer();
-			}
-
-			BufferOrEvent bufferOrEvent = next.get();
-			checkState(!barrierHandler.isBlocked(bufferOrEvent.getChannelInfo()));
-
-			if (bufferOrEvent.isBuffer()) {
-				return next;
-			}
-			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
-				CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
-				barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo());
-				return next;
-			}
-			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
-				barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent());
-			}
-			else {
-				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
-					barrierHandler.processEndOfPartition();
-				}
-				return next;
-			}
+		if (!next.isPresent()) {
+			return handleEmptyBuffer();
 		}
+
+		BufferOrEvent bufferOrEvent = next.get();
+		checkState(!barrierHandler.isBlocked(bufferOrEvent.getChannelInfo()));
+
+		if (bufferOrEvent.isEvent()) {
+			handleEvent(bufferOrEvent);
+		} else {
+			barrierHandler.processBuffer(bufferOrEvent.getBuffer(), bufferOrEvent.getChannelInfo());
+		}
+		return next;
 	}
 
-	public void spillInflightBuffers(
-			long checkpointId,
-			int channelIndex,
-			ChannelStateWriter channelStateWriter) throws IOException {
-		InputChannel channel = inputGate.getChannel(channelIndex);
-		if (barrierHandler.hasInflightData(checkpointId, channel.getChannelInfo())) {
-			channel.spillInflightBuffers(checkpointId, channelStateWriter);
+	private void handleEvent(BufferOrEvent bufferOrEvent) throws IOException {
+		if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
+			CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
+			barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo());
+		}
+		else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
+			barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent());
+		}
+		else if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
+			barrierHandler.processEndOfPartition();
 		}
 	}
 

@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-
-import java.io.IOException;
-
 /**
  * Listener interface implemented by consumers of {@link ResultSubpartitionView}
  * that want to be notified of availability of further buffers.
@@ -34,11 +30,8 @@ public interface BufferAvailabilityListener {
 	void notifyDataAvailable();
 
 	/**
-	 * Allows the listener to react to a priority event before it is added to the outgoing buffer queue.
-	 *
-	 * @return true if the event has been fully processed and should not be added to the buffer queue.
+	 * Called when the first priority event is added to the head of the buffer queue.
 	 */
-	default boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) throws IOException {
-		return false;
+	default void notifyPriorityEvent() {
 	}
 }

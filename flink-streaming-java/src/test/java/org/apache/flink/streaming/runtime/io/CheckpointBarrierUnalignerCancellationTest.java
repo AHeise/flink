@@ -24,10 +24,12 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.RuntimeEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,7 +80,11 @@ public class CheckpointBarrierUnalignerCancellationTest {
 	@Test
 	public void test() throws Exception {
 		TestInvokable invokable = new TestInvokable();
-		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, new MockIndexedInputGate(0, numChannels));
+		final InputGate inputGate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numChannels)
+			.setChannelFactory(InputChannelBuilder::buildLocalChannel)
+			.build();
+		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
 
 		for (RuntimeEvent e : events) {
 			if (e instanceof CancelCheckpointMarker) {
@@ -124,16 +130,5 @@ public class CheckpointBarrierUnalignerCancellationTest {
 			checkpointAborted = true;
 		}
 
-		@Override
-		public <E extends Exception> void executeInTaskThread(
-				ThrowingRunnable<E> runnable,
-				String descriptionFormat,
-				Object... descriptionArgs) {
-			try {
-				runnable.run();
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
 	}
 }

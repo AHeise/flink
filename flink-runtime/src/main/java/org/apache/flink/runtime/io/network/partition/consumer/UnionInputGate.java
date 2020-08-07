@@ -21,14 +21,13 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -79,7 +78,7 @@ public class UnionInputGate extends InputGate {
 	 * Gates, which notified this input gate about available data. We are using it as a FIFO
 	 * queue of {@link InputGate}s to avoid starvation and provide some basic fairness.
 	 */
-	private final LinkedHashSet<IndexedInputGate> inputGatesWithData = new LinkedHashSet<>();
+	private final PrioritizedDeque<IndexedInputGate> inputGatesWithData = new PrioritizedDeque<>();
 
 	private final int[] inputChannelToInputGateIndex;
 
@@ -123,14 +122,27 @@ public class UnionInputGate extends InputGate {
 				if (available.isDone()) {
 					inputGatesWithData.add(inputGate);
 				} else {
-					available.thenRun(() -> queueInputGate(inputGate));
+					available.thenRun(() -> queueInputGate(inputGate, false));
 				}
+
+				inputGate.getPriorityEventAvailableFuture().thenRun(() -> handlePriorityEventAvailable(inputGate));
 			}
 
 			if (!inputGatesWithData.isEmpty()) {
 				availabilityHelper.resetAvailable();
 			}
 		}
+	}
+
+	private void handlePriorityEventAvailable(IndexedInputGate inputGate) {
+		queueInputGate(inputGate, true);
+		priorityAvailabilityHelper.getUnavailableToResetAvailable().complete(null);
+	}
+
+	@Override
+	public boolean hasPriorityEvents() {
+		final IndexedInputGate gate = inputGatesWithData.poll();
+		return gate != null && gate.hasPriorityEvents();
 	}
 
 	/**
@@ -186,36 +198,51 @@ public class UnionInputGate extends InputGate {
 	private Optional<InputWithData<IndexedInputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)
 			throws IOException, InterruptedException {
 		while (true) {
-			Optional<IndexedInputGate> inputGate = getInputGate(blocking);
-			if (!inputGate.isPresent()) {
+			Optional<IndexedInputGate> inputGateOpt = getInputGate(blocking);
+			if (!inputGateOpt.isPresent()) {
 				return Optional.empty();
 			}
+			final IndexedInputGate inputGate = inputGateOpt.get();
 
 			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
 			// Do not poll the gate under inputGatesWithData lock, since this can trigger notifications
 			// that could deadlock because of wrong locks taking order.
-			Optional<BufferOrEvent> bufferOrEvent = inputGate.get().pollNext();
+			Optional<BufferOrEvent> nextOpt = inputGate.pollNext();
+			if (!nextOpt.isPresent()) {
+				inputGate.getAvailableFuture().thenRun(() -> queueInputGate(inputGate, false));
+				continue;
+			}
+			final BufferOrEvent bufferOrEvent = nextOpt.get();
 
 			synchronized (inputGatesWithData) {
-				if (bufferOrEvent.isPresent() && bufferOrEvent.get().moreAvailable()) {
+				if (bufferOrEvent.moreAvailable()) {
 					// enqueue the inputGate at the end to avoid starvation
-					inputGatesWithData.add(inputGate.get());
-				} else if (!inputGate.get().isFinished()) {
-					inputGate.get().getAvailableFuture().thenRun(() -> queueInputGate(inputGate.get()));
+					if (bufferOrEvent.morePriorityEvents()) {
+						inputGatesWithData.addPriorityElement(inputGate);
+					} else {
+						inputGatesWithData.add(inputGate);
+					}
+				} else if (!inputGate.isFinished()) {
+					inputGate.getAvailableFuture().thenRun(() -> queueInputGate(inputGate, false));
 				}
 
-				if (inputGatesWithData.isEmpty()) {
-					availabilityHelper.resetUnavailable();
+				if (bufferOrEvent.hasPriority() && !bufferOrEvent.morePriorityEvents()) {
+					inputGate.getPriorityEventAvailableFuture().thenRun(() -> handlePriorityEventAvailable(inputGate));
 				}
-
-				if (bufferOrEvent.isPresent()) {
-					return Optional.of(new InputWithData<>(
-						inputGate.get(),
-						bufferOrEvent.get(),
-						!inputGatesWithData.isEmpty()));
-				}
+				// Only check for more priority events, if the current event has priority
+				final boolean morePriorityEvents = bufferOrEvent.hasPriority() &&
+					(bufferOrEvent.morePriorityEvents() || nextGateHasPriorityEvents());
+				return Optional.of(new InputWithData<>(
+					inputGate,
+					bufferOrEvent,
+					!inputGatesWithData.isEmpty(),
+					morePriorityEvents));
 			}
 		}
+	}
+
+	private boolean nextGateHasPriorityEvents() {
+		return !inputGatesWithData.isEmpty() && inputGatesWithData.peek().hasPriorityEvents();
 	}
 
 	private void handleEndOfPartitionEvent(BufferOrEvent bufferOrEvent, InputGate inputGate) {
@@ -277,21 +304,24 @@ public class UnionInputGate extends InputGate {
 	public void close() throws IOException {
 	}
 
-	private void queueInputGate(IndexedInputGate inputGate) {
+	private void queueInputGate(IndexedInputGate inputGate, boolean priority) {
 		checkNotNull(inputGate);
 
 		CompletableFuture<?> toNotify = null;
 
 		synchronized (inputGatesWithData) {
-			if (inputGatesWithData.contains(inputGate)) {
+			final boolean alreadyEnqueued = inputGatesWithData.contains(inputGate);
+			if (alreadyEnqueued && (!priority || inputGatesWithData.containsPriorityElement(inputGate))) {
+				// already notified / prioritized (double notification), ignore
 				return;
 			}
 
-			int availableInputGates = inputGatesWithData.size();
+			inputGatesWithData.add(inputGate, priority, alreadyEnqueued);
 
-			inputGatesWithData.add(inputGate);
-
-			if (availableInputGates == 0) {
+			if (priority && inputGatesWithData.getNumPriorityElements() == 1) {
+				inputGatesWithData.notifyAll();
+				toNotify = priorityAvailabilityHelper.getUnavailableToResetAvailable();
+			} else if (inputGatesWithData.size() == 1) {
 				inputGatesWithData.notifyAll();
 				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
@@ -304,7 +334,7 @@ public class UnionInputGate extends InputGate {
 
 	private Optional<IndexedInputGate> getInputGate(boolean blocking) throws InterruptedException {
 		synchronized (inputGatesWithData) {
-			while (inputGatesWithData.size() == 0) {
+			while (inputGatesWithData.isEmpty()) {
 				if (blocking) {
 					inputGatesWithData.wait();
 				} else {
@@ -317,14 +347,11 @@ public class UnionInputGate extends InputGate {
 			IndexedInputGate inputGate = inputGateIterator.next();
 			inputGateIterator.remove();
 
-			return Optional.of(inputGate);
-		}
-	}
+			if (inputGatesWithData.isEmpty()) {
+				availabilityHelper.resetUnavailable();
+			}
 
-	@Override
-	public void registerBufferReceivedListener(BufferReceivedListener listener) {
-		for (InputGate inputGate : inputGatesByGateIndex.values()) {
-			inputGate.registerBufferReceivedListener(listener);
+			return Optional.of(inputGate);
 		}
 	}
 }

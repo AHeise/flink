@@ -116,7 +116,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException {
+	public boolean add(BufferConsumer bufferConsumer) throws IOException {
 		if (isFinished()) {
 			bufferConsumer.close();
 			return false;
@@ -125,6 +125,11 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		flushCurrentBuffer();
 		currentBuffer = bufferConsumer;
 		return true;
+	}
+
+	@Override
+	public boolean hasPriorityEvents() {
+		return currentBuffer.getDataType().hasPriority();
 	}
 
 	@Override
@@ -186,7 +191,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 
 		isFinished = true;
 		flushCurrentBuffer();
-		writeAndCloseBufferConsumer(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE));
+		writeAndCloseBufferConsumer(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false));
 		data.finishWrite();
 	}
 

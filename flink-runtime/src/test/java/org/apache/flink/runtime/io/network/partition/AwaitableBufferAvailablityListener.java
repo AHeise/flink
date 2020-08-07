@@ -32,8 +32,6 @@ class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
 	private final AtomicLong numPriorityEvents = new AtomicLong();
 
-	private final AtomicBoolean consumePriorityEvents = new AtomicBoolean();
-
 	@Override
 	public void notifyDataAvailable() {
 		numNotifications.getAndIncrement();
@@ -44,17 +42,12 @@ class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 	}
 
 	@Override
-	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) {
+	public void notifyPriorityEvent() {
 		numPriorityEvents.getAndIncrement();
-		return consumePriorityEvents.get();
 	}
 
 	public long getNumPriorityEvents() {
 		return numPriorityEvents.get();
-	}
-
-	public void consumePriorityEvents() {
-		consumePriorityEvents.set(true);
 	}
 
 	public void resetNotificationCounters() {

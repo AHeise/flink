@@ -71,9 +71,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
+import static org.apache.flink.runtime.io.network.partition.AvailabilityUtil.assertAvailability;
+import static org.apache.flink.runtime.io.network.partition.AvailabilityUtil.assertPriorityAvailability;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -1223,14 +1225,19 @@ public class RemoteInputChannelTest {
 	}
 
 	@Test
-	public void testNoNotifyOnSavepoint() throws IOException {
-		TestBufferReceivedListener listener = new TestBufferReceivedListener();
+	public void testNotifyOnPriority() throws IOException {
 		SingleInputGate inputGate = new SingleInputGateBuilder().build();
-		inputGate.registerBufferReceivedListener(listener);
 		RemoteInputChannel channel = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate);
-		channel.onBuffer(toBuffer(new CheckpointBarrier(123L, 123L, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()))), 0, 0);
-		channel.checkError();
-		assertTrue(listener.notifiedOnBarriers.isEmpty());
+
+		CheckpointOptions options = new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+		assertPriorityAvailability(inputGate, false, false, () ->
+			assertAvailability(inputGate, false, true, () -> {
+				channel.onBuffer(toBuffer(new CheckpointBarrier(1L, 123L, options), false), 0, 0);
+			}));
+		assertPriorityAvailability(inputGate, false, true, () ->
+			assertAvailability(inputGate, true, true, () -> {
+				channel.onBuffer(toBuffer(new CheckpointBarrier(2L, 123L, options), true), 1, 0);
+			}));
 	}
 
 	/**

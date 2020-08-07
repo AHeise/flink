@@ -22,7 +22,6 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 
 import java.io.IOException;
 import java.util.List;
@@ -80,6 +79,8 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 
 	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
+	protected final AvailabilityHelper priorityAvailabilityHelper = new AvailabilityHelper();
+
 	public abstract int getNumberOfInputChannels();
 
 	public abstract boolean isFinished();
@@ -130,6 +131,14 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 			.collect(Collectors.toList());
 	}
 
+	public CompletableFuture<?> getPriorityEventAvailableFuture() {
+		return priorityAvailabilityHelper.getAvailableFuture();
+	}
+
+	public boolean hasPriorityEvents() {
+		return false;
+	}
+
 	/**
 	 * Simple pojo for INPUT, DATA and moreAvailable.
 	 */
@@ -137,11 +146,23 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 		protected final INPUT input;
 		protected final DATA data;
 		protected final boolean moreAvailable;
+		protected final boolean morePriorityEvents;
 
-		InputWithData(INPUT input, DATA data, boolean moreAvailable) {
+		InputWithData(INPUT input, DATA data, boolean moreAvailable, boolean morePriorityEvents) {
 			this.input = checkNotNull(input);
 			this.data = checkNotNull(data);
 			this.moreAvailable = moreAvailable;
+			this.morePriorityEvents = morePriorityEvents;
+		}
+
+		@Override
+		public String toString() {
+			return "InputWithData{" +
+				"input=" + input +
+				", data=" + data +
+				", moreAvailable=" + moreAvailable +
+				", morePriorityEvents=" + morePriorityEvents +
+				'}';
 		}
 	}
 
@@ -160,6 +181,4 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	public abstract CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException;
 
 	public abstract void requestPartitions() throws IOException;
-
-	public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
 }

@@ -26,4 +26,5 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutor;
  * different {@link TaskExecutor} objects at runtime using the communication
  * channels.
  */
-public abstract class AbstractEvent implements IOReadableWritable {}
+public abstract class AbstractEvent implements IOReadableWritable {
+}

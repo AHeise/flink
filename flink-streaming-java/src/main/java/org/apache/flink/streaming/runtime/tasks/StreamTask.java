@@ -212,7 +212,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected final MailboxProcessor mailboxProcessor;
 
-	final MailboxExecutor mainMailboxExecutor;
+	protected final MailboxExecutor mainMailboxExecutor;
 
 	/**
 	 * TODO it might be replaced by the global IO executor on TaskManager level future.
@@ -859,18 +859,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
 				return false;
 			}
-		}
-	}
-
-	@Override
-	public <E extends Exception> void executeInTaskThread(
-			ThrowingRunnable<E> runnable,
-			String descriptionFormat,
-			Object... descriptionArgs) throws E {
-		if (mailboxProcessor.isMailboxThread()) {
-			runnable.run();
-		} else {
-			mainMailboxExecutor.execute(runnable, descriptionFormat, descriptionArgs);
 		}
 	}
 

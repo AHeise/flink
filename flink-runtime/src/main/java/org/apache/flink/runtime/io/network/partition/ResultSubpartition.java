@@ -24,6 +24,8 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -87,25 +89,8 @@ public abstract class ResultSubpartition {
 	 * implementation.
 	 *
 	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
-	 * state. Because of the performance reasons, this is only enforced during the data reading.
-	 *
-	 * @param bufferConsumer
-	 * 		the buffer to add (transferring ownership to this writer)
-	 * @param isPriorityEvent
-	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
-	 * @throws IOException
-	 * 		thrown in case of errors while adding the buffer
-	 */
-	public abstract boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException;
-
-	/**
-	 * Adds the given buffer.
-	 *
-	 * <p>The request may be executed synchronously, or asynchronously, depending on the
-	 * implementation.
-	 *
-	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
-	 * state. Because of the performance reasons, this is only enforced during the data reading.
+	 * state. Because of the performance reasons, this is only enforced during the data reading. Priority events can be
+	 * added while the previous buffer consumer is still open, in which case the open buffer consumer is overtaken.
 	 *
 	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
@@ -113,9 +98,7 @@ public abstract class ResultSubpartition {
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
-	public boolean add(BufferConsumer bufferConsumer) throws IOException {
-		return add(bufferConsumer, false);
-	}
+	public abstract boolean add(BufferConsumer bufferConsumer) throws IOException;
 
 	public abstract List<Buffer> requestInflightBufferSnapshot();
 
@@ -147,6 +130,8 @@ public abstract class ResultSubpartition {
 	 */
 	public abstract int unsynchronizedGetNumberOfQueuedBuffers();
 
+	public abstract boolean hasPriorityEvents();
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -156,15 +141,14 @@ public abstract class ResultSubpartition {
 	public static final class BufferAndBacklog {
 
 		private final Buffer buffer;
-		private final boolean isDataAvailable;
 		private final int buffersInBacklog;
-		private final boolean isEventAvailable;
+		@Nullable
+		private final Buffer.DataType nextDataType;
 
-		public BufferAndBacklog(Buffer buffer, boolean isDataAvailable, int buffersInBacklog, boolean isEventAvailable) {
+		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, @Nullable Buffer.DataType nextDataType) {
 			this.buffer = checkNotNull(buffer);
 			this.buffersInBacklog = buffersInBacklog;
-			this.isDataAvailable = isDataAvailable;
-			this.isEventAvailable = isEventAvailable;
+			this.nextDataType = nextDataType;
 		}
 
 		public Buffer buffer() {
@@ -172,7 +156,7 @@ public abstract class ResultSubpartition {
 		}
 
 		public boolean isDataAvailable() {
-			return isDataAvailable;
+			return nextDataType != null;
 		}
 
 		public int buffersInBacklog() {
@@ -180,15 +164,19 @@ public abstract class ResultSubpartition {
 		}
 
 		public boolean isEventAvailable() {
-			return isEventAvailable;
+			return nextDataType != null && nextDataType.isEvent();
+		}
+
+		@Nullable
+		public Buffer.DataType getNextDataType() {
+			return nextDataType;
 		}
 
 		public static BufferAndBacklog fromBufferAndLookahead(Buffer current, Buffer lookahead, int backlog) {
 			return new BufferAndBacklog(
-					current,
-					lookahead != null,
-					backlog,
-					lookahead != null && !lookahead.isBuffer());
+				current,
+				backlog,
+				lookahead != null ? lookahead.getDataType() : null);
 		}
 	}
 

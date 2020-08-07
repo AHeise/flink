@@ -45,6 +45,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleIn
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -120,57 +121,14 @@ public class StreamTaskNetworkInputTest {
 		assertEquals(0, output.getNumberOfEmittedRecords());
 	}
 
-	@Test
-	public void testSnapshotWithTwoInputGates() throws Exception {
-		SingleInputGate inputGate1 = new SingleInputGateBuilder().setSingleInputGateIndex(0).build();
-		RemoteInputChannel channel1 = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate1);
-		inputGate1.setInputChannels(channel1);
-
-		SingleInputGate inputGate2 = new SingleInputGateBuilder().setSingleInputGateIndex(1).build();
-		RemoteInputChannel channel2 = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate2);
-		inputGate2.setInputChannels(channel2);
-
-		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(
-			TestSubtaskCheckpointCoordinator.INSTANCE,
-			"test",
-			new DummyCheckpointInvokable(),
-			inputGate1,
-			inputGate2);
-		inputGate1.registerBufferReceivedListener(unaligner.getBufferReceivedListener().get());
-		inputGate2.registerBufferReceivedListener(unaligner.getBufferReceivedListener().get());
-
-		StreamTaskNetworkInput<Long> input1 = createInput(unaligner, inputGate1);
-		StreamTaskNetworkInput<Long> input2 = createInput(unaligner, inputGate2);
-
-		CheckpointBarrier barrier = new CheckpointBarrier(0, 0L, CheckpointOptions.forCheckpointWithDefaultLocation());
-		channel1.onBuffer(EventSerializer.toBuffer(barrier), 0, 0);
-		channel1.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(1), 1, 0);
-
-		// all records on inputGate2 are now in-flight
-		channel2.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(2), 0, 0);
-		channel2.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(3), 1, 0);
-
-		// now snapshot all inflight buffers
-		RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
-		channelStateWriter.start(0, CheckpointOptions.forCheckpointWithDefaultLocation());
-		CompletableFuture<Void> completableFuture1 = input1.prepareSnapshot(channelStateWriter, 0);
-		CompletableFuture<Void> completableFuture2 = input2.prepareSnapshot(channelStateWriter, 0);
-
-		// finish unaligned checkpoint on input side
-		channel2.onBuffer(EventSerializer.toBuffer(barrier), 2, 0);
-
-		// futures should be completed
-		completableFuture1.join();
-		completableFuture2.join();
-
-		assertEquals(channelStateWriter.getAddedInput().get(channel1.getChannelInfo()), Collections.emptyList());
-		List<Buffer> storedBuffers = channelStateWriter.getAddedInput().get(channel2.getChannelInfo());
-		assertEquals(Arrays.asList(2, 3), storedBuffers.stream().map(Buffer::getSize).collect(Collectors.toList()));
+	private void processAll(SingleInputGate inputGate1) throws IOException, InterruptedException {
+		while (inputGate1.pollNext().isPresent()) {
+		}
 	}
 
 	private StreamTaskNetworkInput<Long> createInput(CheckpointBarrierHandler handler, SingleInputGate inputGate) {
 		return new StreamTaskNetworkInput<>(
-			new CheckpointedInputGate(inputGate, handler),
+			new CheckpointedInputGate(inputGate, handler, new SyncMailboxExecutor()),
 			LongSerializer.INSTANCE,
 			new StatusWatermarkValve(inputGate.getNumberOfInputChannels(), new NoOpDataOutput<>()),
 			inputGate.getGateIndex(),
@@ -200,7 +158,8 @@ public class StreamTaskNetworkInputTest {
 					TestSubtaskCheckpointCoordinator.INSTANCE,
 					"test",
 					new DummyCheckpointInvokable(),
-					inputGate.getInputGate())),
+					inputGate.getInputGate()),
+				new SyncMailboxExecutor()),
 			inSerializer,
 			new StatusWatermarkValve(numInputChannels, output),
 			0,
@@ -243,7 +202,8 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
-				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
+				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
+				new SyncMailboxExecutor()),
 			inSerializer,
 			new StatusWatermarkValve(1, output),
 			0,
@@ -264,14 +224,15 @@ public class StreamTaskNetworkInputTest {
 		serializeRecord(42L, bufferBuilder);
 		serializeRecord(44L, bufferBuilder);
 
-		return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0), false);
+		return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
 	}
 
 	private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers, DataOutput output) {
 		return new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
-				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
+				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
+				new SyncMailboxExecutor()),
 			LongSerializer.INSTANCE,
 			ioManager,
 			new StatusWatermarkValve(1, output),

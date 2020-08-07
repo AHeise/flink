@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -28,6 +29,8 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -133,14 +136,14 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	 * @param bufferAndBacklog
 	 * 		current buffer and backlog including information about the next buffer
 	 */
-	private boolean isAvailable(BufferAndBacklog bufferAndBacklog) {
+	@Nullable
+	private Buffer.DataType getNextDataType(BufferAndBacklog bufferAndBacklog) {
 		// BEWARE: this must be in sync with #isAvailable()!
-		if (numCreditsAvailable > 0) {
-			return bufferAndBacklog.isDataAvailable();
+		final Buffer.DataType nextDataType = bufferAndBacklog.getNextDataType();
+		if (numCreditsAvailable > 0 || (nextDataType != null && nextDataType.isEvent())) {
+			return nextDataType;
 		}
-		else {
-			return bufferAndBacklog.isEventAvailable();
-		}
+		return null;
 	}
 
 	@Override
@@ -173,8 +176,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 				throw new IllegalStateException("no credit available");
 			}
 
-			return new BufferAndAvailability(
-				next.buffer(), isAvailable(next), next.buffersInBacklog());
+			return new BufferAndAvailability(next.buffer(), getNextDataType(next), next.buffersInBacklog());
 		} else {
 			return null;
 		}
@@ -198,6 +200,11 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	@Override
 	public void notifyDataAvailable() {
 		requestQueue.notifyReaderNonEmpty(this);
+	}
+
+	@Override
+	public void notifyPriorityEvent() {
+		notifyDataAvailable();
 	}
 
 	@Override

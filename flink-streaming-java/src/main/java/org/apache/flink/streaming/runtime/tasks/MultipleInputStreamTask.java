@@ -96,6 +96,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			getCheckpointCoordinator(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),
+			mainMailboxExecutor,
 			inputGates);
 		checkState(checkpointedInputGates.length == inputGates.length);
 
