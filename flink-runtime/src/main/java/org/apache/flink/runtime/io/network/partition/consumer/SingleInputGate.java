@@ -59,6 +59,8 @@ import java.util.Optional;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -642,6 +644,7 @@ public class SingleInputGate extends IndexedInputGate {
 				if (!nextOpt.isPresent()) {
 					if (inputChannelsWithData.isEmpty()) {
 						availabilityHelper.resetUnavailable();
+						priorityAvailabilityHelper.resetUnavailable();
 					}
 					continue;
 				}
@@ -649,12 +652,9 @@ public class SingleInputGate extends IndexedInputGate {
 				final BufferAndAvailability next = nextOpt.get();
 				if (next.moreAvailable()) {
 					// enqueue the inputChannel at the end to avoid starvation
-					if (next.morePriorityEvents()) {
-						inputChannelsWithData.addPriorityElement(inputChannel);
-					} else {
-						inputChannelsWithData.add(inputChannel);
-					}
-					enqueuedInputChannelsWithData.set(inputChannel.getChannelIndex());
+					queueChannelUnsafe(inputChannel, next.morePriorityEvents());
+				} else {
+//					LOG.error(getOwningTaskName() + " not more avail " + inputChannel.getChannelInfo());
 				}
 
 				// Only check for more priority events, if the current event has priority
@@ -662,11 +662,15 @@ public class SingleInputGate extends IndexedInputGate {
 					(next.morePriorityEvents() || nextChannelHasPriorityEvents());
 				if (next.hasPriority() && !morePriorityEvents) {
 					priorityAvailabilityHelper.resetUnavailable();
-					LOG.error("reset priority " + priorityAvailabilityHelper.getAvailableFuture());
+					if (!inputChannelsWithData.isEmpty()) {
+						availabilityHelper.getUnavailableToResetAvailable().complete(null);
+					}
+//					LOG.error("reset priority " + priorityAvailabilityHelper.getAvailableFuture());
 				}
 
 				if (inputChannelsWithData.isEmpty()) {
 					availabilityHelper.resetUnavailable();
+					priorityAvailabilityHelper.resetUnavailable();
 				}
 
 				return Optional.of(new InputWithData<>(
@@ -820,32 +824,41 @@ public class SingleInputGate extends IndexedInputGate {
 		CompletableFuture<?> toNotify = null;
 
 		synchronized (inputChannelsWithData) {
-			final boolean alreadyEnqueued = enqueuedInputChannelsWithData.get(channel.getChannelIndex());
-			LOG.error(getOwningTaskName() + " queueChannel " + priority + " " + inputChannelsWithData);
-			if (alreadyEnqueued && (!priority || inputChannelsWithData.containsPriorityElement(channel))) {
-				// already notified / prioritized (double notification), ignore
+			if (!queueChannelUnsafe(channel, priority)) {
 				return;
-			}
-
-			inputChannelsWithData.add(channel, priority, alreadyEnqueued);
-			if (!alreadyEnqueued) {
-				enqueuedInputChannelsWithData.set(channel.getChannelIndex());
 			}
 
 			if (priority && inputChannelsWithData.getNumPriorityElements() == 1) {
 				inputChannelsWithData.notifyAll();
 				toNotify = priorityAvailabilityHelper.getUnavailableToResetAvailable();
-				LOG.error(getOwningTaskName() + " toNotify " + toNotify);
-			} else if (inputChannelsWithData.size() == 1) {
+				LOG.error(getOwningTaskName() + " toNotify " + toNotify + " " + channel.getChannelInfo());
+			} else if (inputChannelsWithData.getNumUnprioritizedElements() == 1) {
 				inputChannelsWithData.notifyAll();
 				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
-			LOG.error(getOwningTaskName() + " queueChannel2 " + priority + " " + inputChannelsWithData);
+//			LOG.error(getOwningTaskName() + " queueChannel2 " + priority + " " + StreamSupport.stream(
+//				inputChannelsWithData.spliterator(),
+//				false).map(InputChannel::getChannelInfo).collect(Collectors.toList()));
 		}
 
 		if (toNotify != null) {
 			toNotify.complete(null);
 		}
+	}
+
+	private boolean queueChannelUnsafe(InputChannel channel, boolean priority) {
+		final boolean alreadyEnqueued = enqueuedInputChannelsWithData.get(channel.getChannelIndex());
+//		LOG.error(getOwningTaskName() + " queueChannel " + priority + " " + channel.getChannelInfo());
+		if (alreadyEnqueued && (!priority || inputChannelsWithData.containsPriorityElement(channel))) {
+			// already notified / prioritized (double notification), ignore
+			return false;
+		}
+
+		inputChannelsWithData.add(channel, priority, alreadyEnqueued);
+		if (!alreadyEnqueued) {
+			enqueuedInputChannelsWithData.set(channel.getChannelIndex());
+		}
+		return true;
 	}
 
 	private Optional<InputChannel> getChannel(boolean blocking) throws InterruptedException {
@@ -855,6 +868,7 @@ public class SingleInputGate extends IndexedInputGate {
 					throw new IllegalStateException("Released");
 				}
 
+//				LOG.error(getOwningTaskName() + " waiting for data");
 				if (blocking) {
 					inputChannelsWithData.wait();
 				}

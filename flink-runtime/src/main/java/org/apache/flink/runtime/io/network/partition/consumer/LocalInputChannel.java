@@ -202,7 +202,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 
 		Buffer buffer = next.buffer();
-		LOG.error("getNextBuffer " + buffer);
 
 		numBytesIn.inc(buffer.getSize());
 		numBuffersIn.inc();

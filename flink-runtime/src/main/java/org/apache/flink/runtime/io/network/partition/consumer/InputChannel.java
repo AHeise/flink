@@ -155,7 +155,7 @@ public abstract class InputChannel {
 		inputGate.notifyPriorityEvent(this);
 	}
 
-	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
+	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) {
 	}
 
 	protected void notifyBufferAvailable(int numAvailableBuffers) throws IOException {

@@ -156,15 +156,19 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			notifyPriority = addBuffer(bufferConsumer);
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
-			notifyDataAvailable = finish || (!notifyPriority && shouldNotifyDataAvailable());
+			notifyDataAvailable = finish || shouldNotifyDataAvailable();
+			LOG.error(subpartitionInfo + " added @ " + notifyPriority + " " + notifyDataAvailable + " " + StreamSupport.stream(
+				buffers.spliterator(),
+				false).map(BufferConsumer::getDataType).collect(
+				Collectors.toList()));
 
 			isFinished |= finish;
 		}
 
 		if (notifyPriority) {
-			LOG.error("notifyPriorityEvent " + subpartitionInfo);
 			notifyPriorityEvent();
 		} else if (notifyDataAvailable) {
+			LOG.error("add notifyDataAvailable " + subpartitionInfo);
 			notifyDataAvailable();
 		}
 
@@ -194,10 +198,6 @@ public class PipelinedSubpartition extends ResultSubpartition {
 					}
 				}
 			}
-			LOG.error(subpartitionInfo + " addBuffer @ " + pos + " " + StreamSupport.stream(
-				buffers.spliterator(),
-				false).map(BufferConsumer::getWrittenBytes).collect(
-				Collectors.toList()));
 			return pos == 0;
 		}
 		buffers.add(bufferConsumer);
@@ -282,7 +282,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				BufferConsumer bufferConsumer = buffers.peek();
 
 				buffer = bufferConsumer.build();
-				LOG.error("pollBuffer " + buffer);
+//				LOG.error("pollBuffer " + buffer);
 
 				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
 					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
@@ -322,7 +322,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			return new BufferAndBacklog(
 				buffer,
 				getBuffersInBacklog(),
-				getNextBufferTypeUnsafe());
+				isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : null);
 		}
 	}
 
@@ -347,7 +347,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) {
 		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			checkState(!isReleased);
@@ -391,10 +391,8 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	private Buffer.DataType getNextBufferTypeUnsafe() {
 		assert Thread.holdsLock(buffers);
 
-		if (!isDataAvailableUnsafe()) {
-			return null;
-		}
-		return buffers.peek().getDataType();
+		final BufferConsumer first = buffers.peek();
+		return first != null ? first.getDataType() : null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -439,10 +437,11 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().isDataAvailable();
+			notifyDataAvailable = !isBlockedByCheckpoint && buffers.getNumUnprioritizedElements() == 1 && buffers.peekLast().isDataAvailable();
 			flushRequested = buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
+			LOG.error("flush notifyDataAvailable " + subpartitionInfo);
 			notifyDataAvailable();
 		}
 	}
@@ -508,7 +507,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 	private boolean shouldNotifyDataAvailable() {
 		// Notify only when we added first finished buffer.
-		return readView != null && !flushRequested && !isBlockedByCheckpoint && getNumberOfFinishedBuffers() == buffers.getNumPriorityElements() + 1;
+		return readView != null && !flushRequested && !isBlockedByCheckpoint && getNumberOfFinishedBuffers() == 1;
 	}
 
 	private void notifyDataAvailable() {
@@ -518,6 +517,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	private void notifyPriorityEvent() {
+		LOG.error("notifyPriorityEvent " + subpartitionInfo);
 		if (readView != null) {
 			readView.notifyPriorityEvent();
 		}
@@ -529,11 +529,12 @@ public class PipelinedSubpartition extends ResultSubpartition {
 		// NOTE: isFinished() is not guaranteed to provide the most up-to-date state here
 		// worst-case: a single finished buffer sits around until the next flush() call
 		// (but we do not offer stronger guarantees anyway)
-		if (buffers.size() == 1 && buffers.peekLast().isFinished()) {
+		final int numBuffers = buffers.size();
+		if (numBuffers == 1 && buffers.peekLast().isFinished()) {
 			return 1;
 		}
 
 		// We assume that only last buffer is not finished.
-		return Math.max(0, buffers.size() - 1);
+		return Math.max(0, numBuffers - 1);
 	}
 }

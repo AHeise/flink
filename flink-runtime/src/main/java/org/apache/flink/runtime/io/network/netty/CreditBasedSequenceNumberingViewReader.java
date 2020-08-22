@@ -166,6 +166,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 		return subpartitionView.isAvailable(Integer.MAX_VALUE);
 	}
 
+	@Nullable
 	@Override
 	public BufferAndAvailability getNextBuffer() throws IOException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
@@ -176,7 +177,8 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 				throw new IllegalStateException("no credit available");
 			}
 
-			return new BufferAndAvailability(next.buffer(), getNextDataType(next), next.buffersInBacklog());
+			final Buffer.DataType nextDataType = getNextDataType(next);
+			return new BufferAndAvailability(next.buffer(), nextDataType, next.buffersInBacklog());
 		} else {
 			return null;
 		}

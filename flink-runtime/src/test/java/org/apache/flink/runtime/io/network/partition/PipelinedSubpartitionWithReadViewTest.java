@@ -352,6 +352,32 @@ public class PipelinedSubpartitionWithReadViewTest {
 	}
 
 	@Test
+	public void testAvailabilityAfterPriority() throws Exception {
+		CheckpointOptions options = new CheckpointOptions(
+			CheckpointType.CHECKPOINT,
+			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
+			true,
+			true);
+		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
+		subpartition.add(barrierBuffer);
+		assertEquals(0, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(1));
+		assertEquals(0, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(2));
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		assertNextEvent(readView, barrierBuffer.getWrittenBytes(), CheckpointBarrier.class, true, 1, false, true);
+		assertNextBuffer(readView, 1, false, 0, false, true);
+		assertNextBuffer(readView, 2, false, 0, false, true);
+		assertNoNextBuffer(readView);
+	}
+
+	@Test
 	public void testBacklogConsistentWithNumberOfConsumableBuffers() throws Exception {
 		testBacklogConsistentWithNumberOfConsumableBuffers(false, false);
 	}

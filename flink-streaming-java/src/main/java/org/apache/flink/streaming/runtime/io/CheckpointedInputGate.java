@@ -79,16 +79,24 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 		waitForPriorityEvents(inputGate, mailboxExecutor);
 	}
 
+	/**
+	 * Eagerly pulls and processes all priority events. Must be called from task thread.
+	 *
+	 * <p>Basic assumption is that no priority event needs to be handled by the {@link StreamTaskNetworkInput}.
+	 */
 	private void processPriorityEvents() throws IOException, InterruptedException {
+		// check if the priority event is still not processed (could have been pulled before mail was being executed)
 		final boolean hasPriorityEvents = inputGate.hasPriorityEvents();
 		LOG.error("processPriorityEvents1 " + hasPriorityEvents);
 		if (hasPriorityEvents) {
 			LOG.error("processPriorityEvents2");
+			// process as many priority events as possible
 			while (pollNext().map(BufferOrEvent::morePriorityEvents).orElse(false)) {
 			}
 			LOG.error("processPriorityEvents3");
 		}
 
+		// re-enqueue mail to process priority events
 		waitForPriorityEvents(inputGate, mailboxExecutor);
 	}
 

@@ -183,7 +183,7 @@ public class RemoteInputChannel extends InputChannel {
 			if (isReleased.get()) {
 				throw new CancelTaskException("Queried for a buffer after channel has been released.");
 			} else {
-				throw new IllegalStateException("There should always have queued buffers for unreleased channel.");
+				throw new IllegalStateException("There should always have queued buffers for unreleased channel. " + getChannelInfo() + " " + inputGate.getOwningTaskName());
 			}
 		}
 
@@ -449,7 +449,7 @@ public class RemoteInputChannel extends InputChannel {
 				return;
 			}
 
-			final boolean wasEmpty;
+			final boolean firstRegularBuffer;
 			final boolean firstPriorityEvent;
 			synchronized (receivedBuffers) {
 				// Similar to notifyBufferAvailable(), make sure that we never add a buffer
@@ -459,18 +459,18 @@ public class RemoteInputChannel extends InputChannel {
 					return;
 				}
 
-				wasEmpty = receivedBuffers.isEmpty();
-
 				AbstractEvent priorityEvent = parsePriorityEvent(buffer);
 				if (priorityEvent != null) {
 					receivedBuffers.addPriorityElement(buffer);
 					final int pos = receivedBuffers.getNumPriorityElements();
-					firstPriorityEvent = pos == 1;
 					if (priorityEvent instanceof CheckpointBarrier) {
 						numRecordsOvertaken.put(((CheckpointBarrier) priorityEvent).getId(), receivedBuffers.size() - pos);
 					}
+					firstRegularBuffer = false;
+					firstPriorityEvent = pos == 1;
 				} else {
 					receivedBuffers.add(buffer);
+					firstRegularBuffer = receivedBuffers.getNumUnprioritizedElements() == 1;
 					firstPriorityEvent = false;
 				}
 			}
@@ -480,7 +480,7 @@ public class RemoteInputChannel extends InputChannel {
 
 			if (firstPriorityEvent) {
 				notifyPriorityEvent();
-			} else if (wasEmpty) {
+			} else if (firstRegularBuffer) {
 				notifyChannelNonEmpty();
 			}
 

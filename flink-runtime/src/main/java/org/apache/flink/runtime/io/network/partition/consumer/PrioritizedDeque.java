@@ -123,7 +123,7 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
 	}
 
 	public int getNumUnprioritizedElements() {
-		return getNumPriorityElements() - size();
+		return size() - getNumPriorityElements();
 	}
 
 	public Iterator<T> iterator() {

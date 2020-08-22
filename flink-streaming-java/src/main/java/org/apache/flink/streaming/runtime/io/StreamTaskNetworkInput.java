@@ -41,9 +41,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
@@ -87,8 +84,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	private int lastChannel = UNSPECIFIED;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer = null;
-
-	private static final Logger LOG = LoggerFactory.getLogger(StreamTaskNetworkInput.class);
 
 	@SuppressWarnings("unchecked")
 	public StreamTaskNetworkInput(
@@ -160,7 +155,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			}
 
 			Optional<BufferOrEvent> bufferOrEvent = checkpointedInputGate.pollNext();
-//			LOG.error("emitNext " + bufferOrEvent);
 			if (bufferOrEvent.isPresent()) {
 				// return to the mailbox after receiving a checkpoint barrier to avoid processing of
 				// data after the barrier before checkpoint is performed for unaligned checkpoint mode
