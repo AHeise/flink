@@ -42,8 +42,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -157,18 +155,18 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
 			notifyDataAvailable = finish || shouldNotifyDataAvailable();
-			LOG.error(subpartitionInfo + " added @ " + notifyPriority + " " + notifyDataAvailable + " " + StreamSupport.stream(
-				buffers.spliterator(),
-				false).map(BufferConsumer::getDataType).collect(
-				Collectors.toList()));
+//			LOG.error(subpartitionInfo + " added @ " + notifyPriority + " " + notifyDataAvailable + " " + StreamSupport.stream(
+//				buffers.spliterator(),
+//				false).map(BufferConsumer::getDataType).collect(
+//				Collectors.toList()));
 
 			isFinished |= finish;
 		}
 
 		if (notifyPriority) {
 			notifyPriorityEvent();
-		} else if (notifyDataAvailable) {
-			LOG.error("add notifyDataAvailable " + subpartitionInfo);
+		}
+		if (notifyDataAvailable) {
 			notifyDataAvailable();
 		}
 
@@ -282,7 +280,6 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				BufferConsumer bufferConsumer = buffers.peek();
 
 				buffer = bufferConsumer.build();
-//				LOG.error("pollBuffer " + buffer);
 
 				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
 					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
@@ -437,11 +434,10 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !isBlockedByCheckpoint && buffers.getNumUnprioritizedElements() == 1 && buffers.peekLast().isDataAvailable();
+			notifyDataAvailable = !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().isDataAvailable();
 			flushRequested = buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
-			LOG.error("flush notifyDataAvailable " + subpartitionInfo);
 			notifyDataAvailable();
 		}
 	}
@@ -517,7 +513,6 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	private void notifyPriorityEvent() {
-		LOG.error("notifyPriorityEvent " + subpartitionInfo);
 		if (readView != null) {
 			readView.notifyPriorityEvent();
 		}

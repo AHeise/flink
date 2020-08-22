@@ -198,7 +198,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 				state -> state.runNumber == 4))
 			.slotSharingGroup(slotSharing ? "default" : "map")
 			.partitionCustom(new DistributingPartitioner(), l -> l)
-			.addSink(new VerifyingSink(minCheckpoints))
+			.addSink(new VerifyingSink())
 			.slotSharingGroup(slotSharing ? "default" : "sink");
 	}
 
@@ -298,10 +298,9 @@ public class UnalignedCheckpointITCase extends TestLogger {
 				new ListStateDescriptor<>("state", State.class);
 		private ListState<State> stateList;
 		private State state;
-		private final long minCheckpoints;
+		private long sleepCounter;
 
-		private VerifyingSink(long minCheckpoints) {
-			this.minCheckpoints = minCheckpoints;
+		private VerifyingSink() {
 		}
 
 		@Override
@@ -361,6 +360,10 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 			state.lastRecordInPartitions[partition] = value;
 			state.numOutput++;
+
+			if (++sleepCounter % 20 == 0) {
+				Thread.sleep(1);
+			}
 		}
 
 		private static class State {

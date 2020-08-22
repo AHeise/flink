@@ -443,7 +443,6 @@ public class RemoteInputChannel extends InputChannel {
 		boolean recycleBuffer = true;
 
 		try {
-			LOG.error(inputGate.getOwningTaskName() + " onBuffer " + buffer);
 			if (expectedSequenceNumber != sequenceNumber) {
 				onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
 				return;

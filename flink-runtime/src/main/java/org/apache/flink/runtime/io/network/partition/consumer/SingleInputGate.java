@@ -59,8 +59,6 @@ import java.util.Optional;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -644,7 +642,6 @@ public class SingleInputGate extends IndexedInputGate {
 				if (!nextOpt.isPresent()) {
 					if (inputChannelsWithData.isEmpty()) {
 						availabilityHelper.resetUnavailable();
-						priorityAvailabilityHelper.resetUnavailable();
 					}
 					continue;
 				}
@@ -662,15 +659,11 @@ public class SingleInputGate extends IndexedInputGate {
 					(next.morePriorityEvents() || nextChannelHasPriorityEvents());
 				if (next.hasPriority() && !morePriorityEvents) {
 					priorityAvailabilityHelper.resetUnavailable();
-					if (!inputChannelsWithData.isEmpty()) {
-						availabilityHelper.getUnavailableToResetAvailable().complete(null);
-					}
 //					LOG.error("reset priority " + priorityAvailabilityHelper.getAvailableFuture());
 				}
 
 				if (inputChannelsWithData.isEmpty()) {
 					availabilityHelper.resetUnavailable();
-					priorityAvailabilityHelper.resetUnavailable();
 				}
 
 				return Optional.of(new InputWithData<>(
@@ -821,6 +814,7 @@ public class SingleInputGate extends IndexedInputGate {
 
 	private void queueChannel(InputChannel channel, boolean priority) {
 
+		CompletableFuture<?> toNotifyPriority = null;
 		CompletableFuture<?> toNotify = null;
 
 		synchronized (inputChannelsWithData) {
@@ -829,10 +823,10 @@ public class SingleInputGate extends IndexedInputGate {
 			}
 
 			if (priority && inputChannelsWithData.getNumPriorityElements() == 1) {
-				inputChannelsWithData.notifyAll();
-				toNotify = priorityAvailabilityHelper.getUnavailableToResetAvailable();
-				LOG.error(getOwningTaskName() + " toNotify " + toNotify + " " + channel.getChannelInfo());
-			} else if (inputChannelsWithData.getNumUnprioritizedElements() == 1) {
+				toNotifyPriority = priorityAvailabilityHelper.getUnavailableToResetAvailable();
+				LOG.error(getOwningTaskName() + " toNotify " + toNotifyPriority + " " + channel.getChannelInfo());
+			}
+			if (inputChannelsWithData.size() == 1) {
 				inputChannelsWithData.notifyAll();
 				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
@@ -841,6 +835,9 @@ public class SingleInputGate extends IndexedInputGate {
 //				false).map(InputChannel::getChannelInfo).collect(Collectors.toList()));
 		}
 
+		if (toNotifyPriority != null) {
+			toNotifyPriority.complete(null);
+		}
 		if (toNotify != null) {
 			toNotify.complete(null);
 		}

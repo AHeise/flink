@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -308,6 +307,7 @@ public class UnionInputGate extends InputGate {
 		checkNotNull(inputGate);
 
 		CompletableFuture<?> toNotify = null;
+		CompletableFuture<?> toNotifyPriority = null;
 
 		synchronized (inputGatesWithData) {
 			final boolean alreadyEnqueued = inputGatesWithData.contains(inputGate);
@@ -319,14 +319,17 @@ public class UnionInputGate extends InputGate {
 			inputGatesWithData.add(inputGate, priority, alreadyEnqueued);
 
 			if (priority && inputGatesWithData.getNumPriorityElements() == 1) {
-				inputGatesWithData.notifyAll();
-				toNotify = priorityAvailabilityHelper.getUnavailableToResetAvailable();
-			} else if (inputGatesWithData.size() == 1) {
+				toNotifyPriority = priorityAvailabilityHelper.getUnavailableToResetAvailable();
+			}
+			if (inputGatesWithData.size() == 1) {
 				inputGatesWithData.notifyAll();
 				toNotify = availabilityHelper.getUnavailableToResetAvailable();
 			}
 		}
 
+		if (toNotifyPriority != null) {
+			toNotifyPriority.complete(null);
+		}
 		if (toNotify != null) {
 			toNotify.complete(null);
 		}
