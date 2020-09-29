@@ -22,14 +22,24 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Random;
+import java.util.function.Function;
+
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+import static org.apache.flink.util.OptionalUtil.or;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -76,8 +86,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Flag to force checkpointing in iterative jobs. */
 	private boolean forceCheckpointing;
 
-	/** Flag to enable unaligned checkpoints. */
-	private boolean unalignedCheckpointsEnabled;
+	/** Flag to enable unaligned checkpoints. If not explicitly set, may be randomly filled. */
+	@Nullable
+	private Boolean unalignedCheckpointsEnabled;
 
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
@@ -100,6 +111,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * The default value is -1 meaning undetermined and not set via {@link #setTolerableCheckpointFailureNumber(int)}.
 	 * */
 	private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
+
+	@Nullable
+	private Function<Integer, Integer> randomValuePicker;
 
 	// ------------------------------------------------------------------------
 
@@ -420,6 +434,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	 */
 	@PublicEvolving
 	public boolean isUnalignedCheckpointsEnabled() {
+		if (unalignedCheckpointsEnabled == null) {
+			unalignedCheckpointsEnabled = chooseRandomConfig("unalignedCheckpointsEnabled", false, true);
+		}
 		return unalignedCheckpointsEnabled;
 	}
 
@@ -510,7 +527,54 @@ public class CheckpointConfig implements java.io.Serializable {
 			.ifPresent(this::setTolerableCheckpointFailureNumber);
 		configuration.getOptional(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT)
 			.ifPresent(this::enableExternalizedCheckpoints);
-		configuration.getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
+		or(configuration.getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED),
+			() -> Optional.ofNullable(System.getProperty(ExecutionCheckpointingOptions.ENABLE_UNALIGNED.key()))
+				.map(Boolean::valueOf))
 			.ifPresent(this::enableUnalignedCheckpoints);
 	}
+
+	private <T> T chooseRandomConfig(String description, T defaultOption, T... alternatives) {
+		if (randomValuePicker == null) {
+			randomValuePicker = createRandomValuePicker(EnvironmentInformation.getGitCommitId());
+		}
+		final Integer choice = randomValuePicker.apply(alternatives.length);
+		T value;
+		switch (choice) {
+			case -1: return defaultOption;
+			case 0: value = defaultOption; break;
+			default: value = alternatives[choice];
+		}
+		LOG.info("Randomly chosen {} for {}", value, description);
+		return value;
+	}
+
+	private Function<Integer, Integer> createRandomValuePicker(String checkpointingRandomizationSeed) {
+		if (!Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"))) {
+			// always pick default option
+			return numOptions -> -1;
+		}
+
+		StackTraceElement entryPoint = findEntryPoint();
+		final int seed = Objects.hash(
+			checkpointingRandomizationSeed,
+			entryPoint.getClassName(),
+			entryPoint.getMethodName());
+		return new Random(seed)::nextInt;
+	}
+
+	@Nonnull
+	private StackTraceElement findEntryPoint() {
+		// find the entry point and use class + method name as seed components
+		StackTraceElement entryPoint = null;
+		final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+		for (int i = stackTrace.length - 1; i >= 0; i--) {
+			entryPoint = stackTrace[i];
+			if (entryPoint.getClassName().startsWith("org.apache.flink")) {
+				break;
+			}
+		}
+		assert entryPoint != null;
+		return entryPoint;
+	}
+
 }
