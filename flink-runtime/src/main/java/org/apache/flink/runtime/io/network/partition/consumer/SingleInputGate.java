@@ -429,9 +429,8 @@ public class SingleInputGate extends IndexedInputGate {
 				// we might change to generate different type channels based on config future.
 				if (inputChannel instanceof RemoteInputChannel) {
 					((RemoteInputChannel) inputChannel).assignExclusiveSegments();
-				}
-				else if (inputChannel instanceof RemoteRecoveredInputChannel) {
-					((RemoteRecoveredInputChannel) inputChannel).assignExclusiveSegments();
+				} else if (inputChannel instanceof RecoveredInputChannel) {
+					((RecoveredInputChannel) inputChannel).assignExclusiveSegments();
 				}
 			}
 		}
