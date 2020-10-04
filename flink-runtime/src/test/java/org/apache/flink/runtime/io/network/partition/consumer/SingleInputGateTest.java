@@ -59,11 +59,14 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -71,14 +74,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
-import static org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannelTest.submitTasksAndWaitForResults;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -104,7 +105,10 @@ public class SingleInputGateTest extends InputGateTestBase {
 	public void testSetupLogic() throws Exception {
 		final NettyShuffleEnvironment environment = createNettyShuffleEnvironment();
 		final SingleInputGate inputGate = createInputGate(environment);
-		try {
+		try (Closer closer = Closer.create()) {
+			closer.register(inputGate::close);
+			closer.register(environment::close);
+
 			// before setup
 			assertNull(inputGate.getBufferPool());
 			for (InputChannel inputChannel : inputGate.getInputChannels().values()) {
@@ -126,9 +130,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 					assertEquals(0, ((LocalRecoveredInputChannel) inputChannel).bufferManager.getNumberOfAvailableBuffers());
 				}
 			}
-		} finally {
-			inputGate.close();
-			environment.close();
 		}
 	}
 
@@ -150,7 +151,10 @@ public class SingleInputGateTest extends InputGateTestBase {
 		final SingleInputGate inputGate = createInputGate(environment);
 
 		final ExecutorService executor = Executors.newFixedThreadPool(1);
-		try {
+		try (Closer closer = Closer.create()) {
+			closer.register(executor::shutdown);
+			closer.register(environment::close);
+
 			inputGate.setup();
 			CompletableFuture<?> future = inputGate.readRecoveredState(executor, stateReader);
 
@@ -167,9 +171,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 			// release the gate to verify that all the requested buffers are recycled
 			inputGate.close();
 			assertEquals(totalBuffers, environment.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
-		} finally {
-			executor.shutdown();
-			environment.close();
 		}
 	}
 
@@ -192,7 +193,10 @@ public class SingleInputGateTest extends InputGateTestBase {
 		final SingleInputGate inputGate = createInputGate(environment);
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
-		try {
+		try (Closer closer = Closer.create()) {
+			closer.register(executor::shutdown);
+			closer.register(environment::close);
+
 			inputGate.setup();
 
 			Callable<Void> closeTask = () -> {
@@ -217,15 +221,11 @@ public class SingleInputGateTest extends InputGateTestBase {
 				}
 			};
 
-			submitTasksAndWaitForResults(executor, new Callable[] {closeTask, readRecoveredStateTask, processStateTask});
-		} finally {
-			executor.shutdown();
+			executor.invokeAll(Arrays.asList(closeTask, readRecoveredStateTask, processStateTask));
+
 			// wait until the internal channel state recover task finishes
-			executor.awaitTermination(60, TimeUnit.SECONDS);
 			assertEquals(totalBuffers, environment.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
 			assertTrue(inputGate.getCloseFuture().isDone());
-
-			environment.close();
 		}
 	}
 
