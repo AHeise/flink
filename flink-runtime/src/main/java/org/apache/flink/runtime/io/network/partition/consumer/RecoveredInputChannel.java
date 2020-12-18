@@ -99,6 +99,9 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
 	public void onRecoveredStateBuffer(Buffer buffer) {
 		boolean recycleBuffer = true;
+		if (buffer.getDataType().isBuffer()) {
+			LOG.info("{}/{} recovered {} bytes", inputGate.getOwningTaskName(), channelInfo, buffer.getSize());
+		}
 		try {
 			final boolean wasEmpty;
 			synchronized (receivedBuffers) {

@@ -25,6 +25,9 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -63,6 +66,12 @@ final class ChannelStatePersister {
 			lastSeenBarrier = barrierId;
 		}
 		if (knownBuffers.size() > 0) {
+			for (final Buffer buffer : knownBuffers) {
+				if (buffer.isBuffer()) {
+					LOG.info("{} startPersisting {} bytes", channelInfo, buffer.getSize());
+				}
+			}
+
 			channelStateWriter.addInputData(
 				barrierId,
 				channelInfo,
@@ -77,9 +86,10 @@ final class ChannelStatePersister {
 			lastSeenBarrier = id;
 		}
 	}
-
+private static final Logger LOG = LoggerFactory.getLogger(ChannelStatePersister.class);
 	protected void maybePersist(Buffer buffer) {
 		if (checkpointStatus == CheckpointStatus.BARRIER_PENDING && buffer.isBuffer()) {
+			LOG.info("{} maybePersist {} bytes", channelInfo, buffer.getSize());
 			channelStateWriter.addInputData(
 				lastSeenBarrier,
 				channelInfo,

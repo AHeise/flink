@@ -40,6 +40,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.util.CloseableIterator;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -222,6 +226,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		return checkpointedInputGate.getAvailableFuture();
 	}
 
+	private static final Logger LOG = LoggerFactory.getLogger(StreamTaskNetworkInput.class);
 	@Override
 	public CompletableFuture<Void> prepareSnapshot(
 			ChannelStateWriter channelStateWriter,
@@ -231,11 +236,17 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			if (deserializer != null) {
 				final InputChannel channel = checkpointedInputGate.getChannel(channelIndex);
 
-				channelStateWriter.addInputData(
-					checkpointId,
-					channel.getChannelInfo(),
-					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-					deserializer.getUnconsumedBuffer());
+				final CloseableIterator<Buffer> unconsumedBuffer = deserializer.getUnconsumedBuffer();
+				if (unconsumedBuffer.hasNext()) {
+					final Buffer buffer = unconsumedBuffer.next();
+					LOG.info("{} prepareSnapshot {} bytes", channel.getChannelInfo(), buffer.getSize());
+
+					channelStateWriter.addInputData(
+						checkpointId,
+						channel.getChannelInfo(),
+						ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+						CloseableIterator.ofElement(buffer, Buffer::recycleBuffer));
+				}
 			}
 		}
 		return checkpointedInputGate.getAllBarriersReceivedFuture(checkpointId);

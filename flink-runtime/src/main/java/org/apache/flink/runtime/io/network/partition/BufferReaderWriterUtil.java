@@ -71,6 +71,13 @@ public final class BufferReaderWriterUtil {
 		return true;
 	}
 
+	public static byte[] getBytes(Buffer buffer) {
+		byte[] bytes = new byte[buffer.getSize()];
+		final Buffer buffer1 = buffer.readOnlySlice();
+		buffer1.getNioBufferReadable().get(bytes);
+		return bytes;
+	}
+
 	@Nullable
 	static Buffer sliceNextBuffer(ByteBuffer memory) {
 		final int remaining = memory.remaining();
