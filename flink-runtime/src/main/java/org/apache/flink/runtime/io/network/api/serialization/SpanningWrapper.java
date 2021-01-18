@@ -133,10 +133,9 @@ final class SpanningWrapper {
         }
 
         int toCopy = min(recordLength - accumulatedRecordBytes, numBytes);
-        if (toCopy > 0) {
+        if (toCopy == recordLength) {
             copyFromSegment(segment, offset, toCopy);
-        }
-        if (numBytes > toCopy) {
+        } else {
             leftOverData = segment;
             leftOverStart = offset + toCopy;
             leftOverLimit = limit;

@@ -67,10 +67,13 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
         Preconditions.checkArgument(
                 barrier.getCheckpointOptions().isUnalignedCheckpoint(),
                 "Aligned barrier not expected");
-        checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
         for (final CheckpointableInput input : inputs) {
             input.checkpointStarted(barrier);
         }
+        //        if (ThreadLocalRandom.current().nextInt(10) == 0) {
+        //            throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
+        //        }
+        checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
         return Optional.of(barrier);
     }
 

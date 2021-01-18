@@ -654,7 +654,10 @@ public class SingleInputGate extends IndexedInputGate {
                     continue;
                 }
                 NetworkActionsLogger.log(
-                        getClass(), "waitAndGetNextData", bufferAndAvailabilityOpt.get().buffer());
+                        getClass(),
+                        "waitAndGetNextData",
+                        inputChannel.getChannelInfo(),
+                        bufferAndAvailabilityOpt.get().buffer());
 
                 final BufferAndAvailability bufferAndAvailability = bufferAndAvailabilityOpt.get();
                 if (bufferAndAvailability.moreAvailable()) {

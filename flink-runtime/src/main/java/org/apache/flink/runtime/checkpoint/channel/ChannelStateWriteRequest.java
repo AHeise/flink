@@ -60,6 +60,7 @@ interface ChannelStateWriteRequest {
         return buildWriteRequest(
                 checkpointId,
                 "writeInput",
+                info,
                 iterator,
                 (writer, buffer) -> writer.writeInput(info, buffer));
     }
@@ -69,6 +70,7 @@ interface ChannelStateWriteRequest {
         return buildWriteRequest(
                 checkpointId,
                 "writeOutput",
+                info,
                 ofElements(Buffer::recycleBuffer, buffers),
                 (writer, buffer) -> writer.writeOutput(info, buffer));
     }
@@ -76,6 +78,7 @@ interface ChannelStateWriteRequest {
     static ChannelStateWriteRequest buildWriteRequest(
             long checkpointId,
             String name,
+            Object info,
             CloseableIterator<Buffer> iterator,
             BiConsumerWithException<ChannelStateCheckpointWriter, Buffer, Exception>
                     bufferConsumer) {
@@ -85,7 +88,8 @@ interface ChannelStateWriteRequest {
                 writer -> {
                     while (iterator.hasNext()) {
                         Buffer buffer = iterator.next();
-                        NetworkActionsLogger.log(ChannelStateWriteRequest.class, name, buffer);
+                        NetworkActionsLogger.log(
+                                ChannelStateWriteRequest.class, name, info, buffer);
                         try {
                             checkArgument(buffer.isBuffer());
                         } catch (Exception e) {

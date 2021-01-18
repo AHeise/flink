@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.logger;
 
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
@@ -35,18 +36,27 @@ public class NetworkActionsLogger {
     private static final boolean ENABLED = LOG.isTraceEnabled();
     private static final boolean INCLUDE_HASH = true;
 
-    public static void log(Class<?> clazz, String action, Buffer buffer) {
+    public static void log(Class<?> clazz, String action, Object info, Buffer buffer) {
         if (ENABLED) {
-            LOG.trace("{}#{} buffer = [{}]", clazz.getSimpleName(), action, toPrettyString(buffer));
+            LOG.trace(
+                    "{}#{} buffer = [{}] @ {}",
+                    clazz.getSimpleName(),
+                    action,
+                    toPrettyString(buffer),
+                    info);
         }
     }
 
-    public static void log(Class<?> clazz, String action, BufferConsumer bufferConsumer) {
+    public static void log(
+            Class<?> clazz,
+            String action,
+            ResultSubpartitionInfo subpartitionInfo,
+            BufferConsumer bufferConsumer) {
         if (ENABLED) {
             Buffer buffer = null;
             try (BufferConsumer copiedBufferConsumer = bufferConsumer.copy()) {
                 buffer = copiedBufferConsumer.build();
-                log(clazz, action, buffer);
+                log(clazz, action, subpartitionInfo, buffer);
                 checkState(copiedBufferConsumer.isFinished());
             } finally {
                 if (buffer != null) {
