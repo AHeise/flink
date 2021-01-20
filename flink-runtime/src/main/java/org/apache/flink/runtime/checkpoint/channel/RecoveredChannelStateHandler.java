@@ -67,7 +67,7 @@ class InputChannelRecoveredStateHandler
     @Override
     public void recover(InputChannelInfo channelInfo, Buffer buffer) {
         if (buffer.readableBytes() > 0) {
-            NetworkActionsLogger.log(getClass(), "recover", channelInfo, buffer);
+            NetworkActionsLogger.log(getClass(), "recover", buffer, channelInfo);
             getChannel(channelInfo).onRecoveredStateBuffer(buffer);
         } else {
             buffer.recycleBuffer();
@@ -119,7 +119,7 @@ class ResultSubpartitionRecoveredStateHandler
         bufferBuilderAndConsumer.f0.finish();
         if (bufferBuilderAndConsumer.f1.isDataAvailable()) {
             NetworkActionsLogger.log(
-                    getClass(), "recover", subpartitionInfo, bufferBuilderAndConsumer.f1);
+                    getClass(), "recover", bufferBuilderAndConsumer.f1, subpartitionInfo);
             boolean added =
                     getSubpartition(subpartitionInfo)
                             .add(bufferBuilderAndConsumer.f1, Integer.MIN_VALUE);

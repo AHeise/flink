@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.disk.FileBasedBufferIterator;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.StringUtils;
 
@@ -50,7 +51,7 @@ import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static org.apache.flink.core.memory.MemorySegmentFactory.wrapCopy;
 import static org.apache.flink.core.memory.MemorySegmentFactory.wrapInt;
-import static org.apache.flink.runtime.io.network.api.serialization.NonSpanningWrapper.singleBufferIterator;
+import static org.apache.flink.runtime.io.network.api.serialization.NonSpanningWrapper.asBuffer;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.apache.flink.util.CloseableIterator.empty;
 import static org.apache.flink.util.FileUtils.writeCompletely;
@@ -133,9 +134,10 @@ final class SpanningWrapper {
         }
 
         int toCopy = min(recordLength - accumulatedRecordBytes, numBytes);
-        if (toCopy == recordLength) {
+        if (toCopy > 0) {
             copyFromSegment(segment, offset, toCopy);
-        } else {
+        }
+        if (numBytes > toCopy) {
             leftOverData = segment;
             leftOverStart = offset + toCopy;
             leftOverLimit = limit;
@@ -192,13 +194,18 @@ final class SpanningWrapper {
 
     CloseableIterator<Buffer> getUnconsumedSegment() throws IOException {
         if (isReadingLength()) {
-            return singleBufferIterator(wrapCopy(lengthBuffer.array(), 0, lengthBuffer.position()));
+            final NetworkBuffer buffer =
+                    asBuffer(wrapCopy(lengthBuffer.array(), 0, lengthBuffer.position()));
+            NetworkActionsLogger.log(getClass(), "getUnconsumedSegment#1", buffer);
+            return CloseableIterator.ofElement(buffer, Buffer::recycleBuffer);
         } else if (isAboveSpillingThreshold()) {
             return createSpilledDataIterator();
         } else if (recordLength == -1) {
             return empty(); // no remaining partial length or data
         } else {
-            return singleBufferIterator(copyDataBuffer());
+            final NetworkBuffer buffer = asBuffer(copyDataBuffer());
+            NetworkActionsLogger.log(getClass(), "getUnconsumedSegment#4", buffer);
+            return CloseableIterator.ofElement(buffer, Buffer::recycleBuffer);
         }
     }
 

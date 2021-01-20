@@ -29,6 +29,8 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
+
 /** Controller for unaligned checkpoints. */
 @Internal
 public class UnalignedController implements CheckpointBarrierBehaviourController {
@@ -70,9 +72,15 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
         for (final CheckpointableInput input : inputs) {
             input.checkpointStarted(barrier);
         }
-        //        if (ThreadLocalRandom.current().nextInt(10) == 0) {
-        //            throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
-        //        }
+        if (barrier.getId() == 2
+                && channelInfo.getInputChannelIdx() == 9
+                && Thread.currentThread().getName().contains("Flat Map (10/")) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+            }
+            throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
+        }
         checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
         return Optional.of(barrier);
     }

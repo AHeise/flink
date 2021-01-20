@@ -89,7 +89,7 @@ interface ChannelStateWriteRequest {
                     while (iterator.hasNext()) {
                         Buffer buffer = iterator.next();
                         NetworkActionsLogger.log(
-                                ChannelStateWriteRequest.class, name, info, buffer);
+                                ChannelStateWriteRequest.class, name, buffer, info, checkpointId);
                         try {
                             checkArgument(buffer.isBuffer());
                         } catch (Exception e) {

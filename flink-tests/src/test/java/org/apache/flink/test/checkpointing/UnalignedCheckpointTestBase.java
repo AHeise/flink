@@ -81,7 +81,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.fail;
 
 /** Base class for tests related to unaligned checkpoints. */

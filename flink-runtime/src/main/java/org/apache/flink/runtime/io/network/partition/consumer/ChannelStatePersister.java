@@ -131,4 +131,12 @@ final class ChannelStatePersister {
     protected boolean hasBarrierReceived() {
         return checkpointStatus == CheckpointStatus.BARRIER_RECEIVED;
     }
+
+    public long getLastSeenBarrier() {
+        return lastSeenBarrier;
+    }
+
+    public CheckpointStatus getCheckpointStatus() {
+        return checkpointStatus;
+    }
 }

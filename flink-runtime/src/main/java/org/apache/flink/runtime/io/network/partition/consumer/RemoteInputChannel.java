@@ -445,7 +445,14 @@ public class RemoteInputChannel extends InputChannel {
             final boolean wasEmpty;
             boolean firstPriorityEvent = false;
             synchronized (receivedBuffers) {
-                NetworkActionsLogger.log(getClass(), "onBuffer", channelInfo, buffer);
+                NetworkActionsLogger.log(
+                        getClass(),
+                        "onBuffer",
+                        buffer,
+                        channelInfo,
+                        sequenceNumber,
+                        lastBarrierId,
+                        lastBarrierSequenceNumber);
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
                 // after releaseAllResources() released all buffers from receivedBuffers
                 // (see above for details).

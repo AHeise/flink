@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.util.CloseableIterator;
 
 import java.io.EOFException;
@@ -76,7 +77,9 @@ final class NonSpanningWrapper implements DataInputView {
         }
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(remaining());
         this.segment.copyTo(position, segment, 0, remaining());
-        return singleBufferIterator(segment);
+        final NetworkBuffer buffer = asBuffer(segment);
+        NetworkActionsLogger.log(getClass(), "getUnconsumedSegment", buffer);
+        return CloseableIterator.ofElement(buffer, Buffer::recycleBuffer);
     }
 
     boolean hasRemaining() {
@@ -355,10 +358,8 @@ final class NonSpanningWrapper implements DataInputView {
         return recordLength <= remaining();
     }
 
-    static CloseableIterator<Buffer> singleBufferIterator(MemorySegment target) {
-        return CloseableIterator.ofElement(
-                new NetworkBuffer(
-                        target, FreeingBufferRecycler.INSTANCE, DATA_BUFFER, target.size()),
-                Buffer::recycleBuffer);
+    static NetworkBuffer asBuffer(MemorySegment target) {
+        return new NetworkBuffer(
+                target, FreeingBufferRecycler.INSTANCE, DATA_BUFFER, target.size());
     }
 }

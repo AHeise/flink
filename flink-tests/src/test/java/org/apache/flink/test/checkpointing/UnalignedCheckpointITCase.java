@@ -131,6 +131,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
             //            new Object[] {"Parallel cogroup, p = 5", createCogroupSettings(5)},
             //            new Object[] {"Parallel cogroup, p = 10", createCogroupSettings(10)},
             //            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
+            //            new Object[] {"Parallel union, p = 2", createUnionSettings(2)},
+            //            new Object[] {"Parallel union, p = 4", createUnionSettings(4)},
             new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
         };
     }
@@ -149,7 +151,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setNumSlots(slotSharing ? parallelism : parallelism * numShuffles)
                 .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(slotsPerTaskManager)
-                .setExpectedFailures(5)
+                .setExpectedFailures(1)
                 .setAlignmentTimeout(timeout);
     }
 
@@ -161,7 +163,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setNumSlots(parallelism * numShuffles)
                 .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(parallelism)
-                .setExpectedFailures(5);
+                .setExpectedFailures(1);
     }
 
     private static UnalignedSettings createUnionSettings(int parallelism) {
@@ -172,7 +174,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setNumSlots(parallelism * numShuffles)
                 .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(parallelism)
-                .setExpectedFailures(5);
+                .setExpectedFailures(1);
     }
 
     private static int getNumBuffers(int parallelism, int numShuffles) {
@@ -286,17 +288,10 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .partitionCustom(new ShiftingPartitioner(), l -> l)
                 .map(
                         new FailingMapper(
-                                state ->
-                                        state.completedCheckpoints >= minCheckpoints / 4
-                                                        && state.runNumber == 0
-                                                || state.completedCheckpoints
-                                                                >= minCheckpoints * 3 / 4
-                                                        && state.runNumber == 2,
-                                state ->
-                                        state.completedCheckpoints >= minCheckpoints / 2
-                                                && state.runNumber == 1,
-                                state -> state.runNumber == 3,
-                                state -> state.runNumber == 4))
+                                state -> state.completedCheckpoints >= 3 && state.runNumber == 0,
+                                state -> false,
+                                state -> false,
+                                state -> false))
                 .name("failing-map")
                 .uid("failing-map")
                 .slotSharingGroup(slotSharing ? "default" : "map")
