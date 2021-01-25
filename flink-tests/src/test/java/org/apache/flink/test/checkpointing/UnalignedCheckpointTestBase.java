@@ -37,9 +37,11 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -203,6 +205,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             private int numAbortedCheckpoints;
             private boolean throttle = true;
             private int numRestarts;
+            private boolean shouldFinish = false;
 
             public LongSourceReader(final long minCheckpoints, int expectedRestarts) {
                 this.minCheckpoints = minCheckpoints;
@@ -226,10 +229,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     // after full recovery)
                     Thread.sleep(1);
                 }
-                return split.numCompletedCheckpoints >= minCheckpoints
-                                && numRestarts >= expectedRestarts
-                        ? InputStatus.END_OF_INPUT
-                        : InputStatus.MORE_AVAILABLE;
+                return shouldFinish ? InputStatus.END_OF_INPUT : InputStatus.MORE_AVAILABLE;
             }
 
             @Override
@@ -253,6 +253,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             split.numCompletedCheckpoints,
                             split.nextNumber % split.increment,
                             numRestarts);
+                    checkShouldFinish();
                     split.numCompletedCheckpoints++;
                     numAbortedCheckpoints = 0;
                     throttle = split.numCompletedCheckpoints >= minCheckpoints;
@@ -282,20 +283,39 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             "Tried to add " + splits + " but already got " + split);
                 }
                 split = Iterables.getOnlyElement(splits);
+                checkShouldFinish();
                 LOG.info(
-                        "Added split {} @ {} subtask ({} attempt)",
+                        "Added split {}, shouldFinish={} @ {} subtask ({} attempt)",
                         split,
+                        shouldFinish,
                         split.nextNumber % split.increment,
                         numRestarts);
             }
 
+            /** Should only be called if the split has been successfully checkpointed. */
+            private void checkShouldFinish() {
+                shouldFinish =
+                        split != null
+                                && split.numCompletedCheckpoints >= minCheckpoints
+                                && numRestarts >= expectedRestarts;
+            }
+
             @Override
-            public void notifyNoMoreSplits() {}
+            public void notifyNoMoreSplits() {
+                LOG.info("notifyNoMoreSplits ({} attempt)", numRestarts);
+                shouldFinish = true;
+            }
 
             @Override
             public void handleSourceEvents(SourceEvent sourceEvent) {
                 if (sourceEvent instanceof RestartEvent) {
                     numRestarts = ((RestartEvent) sourceEvent).numRestarts;
+                    checkShouldFinish();
+                    LOG.info(
+                            "Set restarts {}, shouldFinish={} ({} attempt)",
+                            split,
+                            shouldFinish,
+                            numRestarts);
                 }
             }
 
@@ -852,9 +872,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         return value ^ HEADER;
     }
 
-    protected static void checkHeader(long value) {
+    protected static long checkHeader(long value) {
         if ((value & HEADER_MASK) != HEADER) {
             throw new IllegalArgumentException("Stream corrupted");
         }
+        return value;
     }
 }
