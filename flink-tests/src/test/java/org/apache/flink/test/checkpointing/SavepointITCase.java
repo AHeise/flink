@@ -20,6 +20,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -29,24 +30,43 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.rest.RestClient;
+import org.apache.flink.runtime.rest.RestClientConfiguration;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -65,6 +85,8 @@ import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Description;
@@ -72,6 +94,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -98,12 +121,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.allOf;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -600,6 +625,274 @@ public class SavepointITCase extends TestLogger {
         }
     }
 
+    // FLINK-21133 needs to be resolved to fix this test
+    @Ignore
+    @Test
+    public void
+            testStopWithSavepointWithFromSourceInEmbarrassinglyParallelJobFailingFromSourceAfterSnapshotCreation()
+                    throws Exception {
+        testStopWithSavepointWithFailingSourceInEmbarrassinglyParallelJob(
+                createFromSourcePipeline(
+                        new TestingContinuousNumberSequenceSource(
+                                TestingContinuousNumberSequenceSource.FailureLocation
+                                        .AfterSnapshotCreation,
+                                new RuntimeException(
+                                        "Expected RuntimeException after snapshot creation."))),
+                checkpointDir,
+                savepointDir,
+                3,
+                assertAfterSnapshotCreationFailure());
+    }
+
+    @Test
+    public void
+            testStopWithSavepointWithFromSourceInEmbarrassinglyParallelJobFailingFromSourceInSnapshotCreation()
+                    throws Exception {
+        testStopWithSavepointWithFailingSourceInEmbarrassinglyParallelJob(
+                createFromSourcePipeline(
+                        new TestingContinuousNumberSequenceSource(
+                                TestingContinuousNumberSequenceSource.FailureLocation
+                                        .InSnapshotCreation,
+                                new RuntimeException(
+                                        "Expected RuntimeException in snapshot creation"))),
+                checkpointDir,
+                savepointDir,
+                2,
+                assertInSnapshotCreationFailure());
+    }
+
+    @Test
+    public void
+            testStopWithSavepointWithAddSourceInEmbarrassinglyParallelJobFailingFromSourceInSnapshotCreation()
+                    throws Exception {
+        testStopWithSavepointWithFailingSourceInEmbarrassinglyParallelJob(
+                createAddSourcePipeline(new SnapshotFailingInfiniteTestSource()),
+                checkpointDir,
+                savepointDir,
+                2,
+                assertInSnapshotCreationFailure());
+    }
+
+    @Test
+    public void
+            testStopWithSavepointWithAddSourceInEmbarrassinglyParallelJobFailingFromSourceAfterSnapshotCreation()
+                    throws Exception {
+        testStopWithSavepointWithFailingSourceInEmbarrassinglyParallelJob(
+                createAddSourcePipeline(
+                        new InfiniteTestSource() {
+                            @Override
+                            public void cancel() {
+                                throw new RuntimeException(
+                                        "Expected RuntimeException after snapshot creation.");
+                            }
+                        }),
+                checkpointDir,
+                savepointDir,
+                3,
+                assertAfterSnapshotCreationFailure());
+    }
+
+    /**
+     * Creates a job using the {@link SourceFunction} prior to FLIP-27.
+     *
+     * @param failingSource The failing source.
+     * @return a consumer creating the embarrassingly parallel job pipelines.
+     */
+    private static Consumer<StreamExecutionEnvironment> createAddSourcePipeline(
+            InfiniteTestSource failingSource) {
+        return env -> {
+            env.addSource(failingSource)
+                    .name("Failing Source")
+                    .map(
+                            value -> {
+                                failingPipelineLatch.trigger();
+                                return value;
+                            })
+                    .addSink(new DiscardingSink<>());
+            env.addSource(new InfiniteTestSource())
+                    .name("Succeeding Source")
+                    .map(
+                            value -> {
+                                succeedingPipelineLatch.trigger();
+                                return value;
+                            })
+                    .addSink(new DiscardingSink<>());
+        };
+    }
+
+    /**
+     * Creates a job using the {@link Source} interface introduced in FLIP-27.
+     *
+     * @param failingSource The failing source.
+     * @return a consumer creating the embarrassingly parallel job pipelines.
+     */
+    private static Consumer<StreamExecutionEnvironment> createFromSourcePipeline(
+            TestingContinuousNumberSequenceSource failingSource) {
+        return env -> {
+            env.fromSource(failingSource, WatermarkStrategy.noWatermarks(), "Failing Source")
+                    .map(
+                            value -> {
+                                failingPipelineLatch.trigger();
+                                return value;
+                            })
+                    .addSink(new DiscardingSink<>());
+            env.fromSource(
+                            new TestingContinuousNumberSequenceSource(),
+                            WatermarkStrategy.noWatermarks(),
+                            "Succeeding Source")
+                    .map(
+                            value -> {
+                                succeedingPipelineLatch.trigger();
+                                return value;
+                            })
+                    .addSink(new DiscardingSink<>());
+        };
+    }
+
+    private static Consumer<ExecutionException> assertAfterSnapshotCreationFailure() {
+        return actualException -> {
+            Optional<FlinkException> actualFlinkException =
+                    ExceptionUtils.findThrowable(actualException, FlinkException.class);
+            assertTrue(actualFlinkException.isPresent());
+            assertThat(
+                    actualFlinkException.get().getMessage(),
+                    is("Job stopped in unfinished state."));
+        };
+    }
+
+    private static Consumer<ExecutionException> assertInSnapshotCreationFailure() {
+        return actualException -> {
+            Optional<FlinkException> actualFlinkException =
+                    ExceptionUtils.findThrowable(actualException, FlinkException.class);
+            assertTrue(actualFlinkException.isPresent());
+            assertThat(
+                    actualFlinkException.get().getMessage(),
+                    is("An error occurred while creating the savepoint."));
+
+            // a failure in checkpoint creation leaves the Checkpoint in pending mode and
+            // will trigger a job failover that causes a
+            // CheckpointFailureReason.JOB_FAILOVER_REGION CheckpointException
+            Optional<CheckpointException> actualFailureCause =
+                    ExceptionUtils.findThrowable(
+                            actualFlinkException.get(), CheckpointException.class);
+            assertTrue(actualFailureCause.isPresent());
+            assertThat(
+                    actualFailureCause.get().getCheckpointFailureReason(),
+                    is(CheckpointFailureReason.JOB_FAILOVER_REGION));
+        };
+    }
+
+    private static OneShotLatch failingPipelineLatch;
+    private static OneShotLatch succeedingPipelineLatch;
+
+    /**
+     * FLINK-21030
+     *
+     * <p>Tests the handling of a failure that happened while stopping an embarrassingly parallel
+     * job with a Savepoint. The test expects that the stopping action fails and all executions are
+     * in state {@code RUNNING} afterwards.
+     *
+     * @param pipelineCreator creates the pipeline that's being test.
+     * @param checkpointDir the directory used for checkpoints.
+     * @param savepointDir the directory used for savepoints.
+     * @param expectedMaximumNumberOfRestarts the maximum number of restarts allowed by the restart
+     *     strategy.
+     * @param exceptionAssertion asserts the client-call exception to verify that the right error
+     *     was handled.
+     * @see SavepointITCase#failingPipelineLatch The latch used to trigger the successful start of
+     *     the later on failing pipeline.
+     * @see SavepointITCase#succeedingPipelineLatch The latch that triggers the successful start of
+     *     the succeeding pipeline.
+     * @throws Exception if an error occurred while running the test.
+     */
+    private static void testStopWithSavepointWithFailingSourceInEmbarrassinglyParallelJob(
+            Consumer<StreamExecutionEnvironment> pipelineCreator,
+            File checkpointDir,
+            File savepointDir,
+            int expectedMaximumNumberOfRestarts,
+            Consumer<ExecutionException> exceptionAssertion)
+            throws Exception {
+        // Config
+        int numTaskManagers = 1;
+        int numSlotsPerTaskManager = 1;
+        int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+        failingPipelineLatch = new OneShotLatch();
+        succeedingPipelineLatch = new OneShotLatch();
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(parallelism);
+        env.getConfig()
+                .setRestartStrategy(
+                        RestartStrategies.fixedDelayRestart(expectedMaximumNumberOfRestarts, 10));
+
+        pipelineCreator.accept(env);
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        MiniClusterWithClientResource cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(
+                                        createFileBasedCheckpointsConfig(
+                                                checkpointDir.toURI().toString(),
+                                                savepointDir.toURI().toString()))
+                                .setNumberTaskManagers(numTaskManagers)
+                                .setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
+                                .build());
+        cluster.before();
+        try {
+            ClusterClient<?> client = cluster.getClusterClient();
+            client.submitJob(jobGraph).get();
+
+            // we need to wait for both pipelines to be in state RUNNING because that's the only
+            // state which allows creating a savepoint
+            failingPipelineLatch.await();
+            succeedingPipelineLatch.await();
+
+            try {
+                client.stopWithSavepoint(
+                                jobGraph.getJobID(), false, savepointDir.toURI().toString())
+                        .get();
+                fail("The future should fail exceptionally.");
+            } catch (ExecutionException e) {
+                exceptionAssertion.accept(e);
+            }
+
+            // access the REST endpoint of the cluster to determine the state of each
+            // ExecutionVertex
+            final RestClient restClient =
+                    new RestClient(
+                            RestClientConfiguration.fromConfiguration(
+                                    new UnmodifiableConfiguration(new Configuration())),
+                            TestingUtils.defaultExecutor());
+
+            final URI restAddress = cluster.getRestAddres();
+            final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+            final JobMessageParameters params = detailsHeaders.getUnresolvedMessageParameters();
+            params.jobPathParameter.resolve(jobGraph.getJobID());
+
+            CommonTestUtils.waitUntilCondition(
+                    () -> {
+                        JobDetailsInfo detailsInfo =
+                                restClient
+                                        .sendRequest(
+                                                restAddress.getHost(),
+                                                restAddress.getPort(),
+                                                detailsHeaders,
+                                                params,
+                                                EmptyRequestBody.getInstance())
+                                        .get();
+
+                        return detailsInfo.getJobVerticesPerState().get(ExecutionState.RUNNING)
+                                == 2;
+                    },
+                    Deadline.fromNow(Duration.ofSeconds(10)));
+        } finally {
+            cluster.after();
+        }
+    }
+
     /**
      * FLINK-5985
      *
@@ -811,6 +1104,95 @@ public class SavepointITCase extends TestLogger {
 
         public static void suspendAll() {
             createdSources.forEach(InfiniteTestSource::suspend);
+        }
+    }
+
+    /** An {@link InfiniteTestSource} implementation that fails while creating a snapshot. */
+    private static class SnapshotFailingInfiniteTestSource extends InfiniteTestSource
+            implements CheckpointedFunction {
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            throw new Exception(
+                    "Expected Exception happened during snapshot creation within test source");
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            // all good here
+        }
+    }
+
+    /**
+     * A {@link NumberSequenceSource} implementation that can fail in or after snapshot creation
+     * depending on the parameters used.
+     */
+    private static class TestingContinuousNumberSequenceSource extends NumberSequenceSource {
+
+        private enum FailureLocation {
+            AfterSnapshotCreation,
+            InSnapshotCreation
+        }
+
+        @Override
+        public Boundedness getBoundedness() {
+            return Boundedness.CONTINUOUS_UNBOUNDED;
+        }
+
+        private class TestingContinuousNumberSequenceSourceReader
+                extends IteratorSourceReader<
+                        Long, NumberSequenceIterator, NumberSequenceSource.NumberSequenceSplit> {
+
+            public TestingContinuousNumberSequenceSourceReader(SourceReaderContext context) {
+                super(context);
+            }
+
+            @Override
+            public List<NumberSequenceSplit> snapshotState(long checkpointId) {
+                if (failureLocation == FailureLocation.InSnapshotCreation) {
+                    throw failureCause;
+                }
+
+                return super.snapshotState(checkpointId);
+            }
+
+            @Override
+            public void notifyCheckpointComplete(long checkpointId) throws Exception {
+                if (failureLocation == FailureLocation.AfterSnapshotCreation) {
+                    throw failureCause;
+                }
+
+                super.notifyCheckpointComplete(checkpointId);
+            }
+
+            @Override
+            public void notifyNoMoreSplits() {
+                // TODO: investigation needed - we run into IllegalStateExceptions due to remaining
+                // splits if this method is not disabled by overwriting it
+                // nothing to do
+            }
+        }
+
+        private final FailureLocation failureLocation;
+        private final RuntimeException failureCause;
+
+        public TestingContinuousNumberSequenceSource() {
+            // no failure is going to be thrown
+            this(null, null);
+        }
+
+        public TestingContinuousNumberSequenceSource(
+                FailureLocation failureLocation, RuntimeException failureCause) {
+            super(0, Long.MAX_VALUE);
+
+            this.failureLocation = failureLocation;
+            this.failureCause = failureCause;
+        }
+
+        @Override
+        public SourceReader<Long, NumberSequenceSplit> createReader(
+                SourceReaderContext readerContext) {
+            return new TestingContinuousNumberSequenceSourceReader(readerContext);
         }
     }
 
@@ -1101,14 +1483,18 @@ public class SavepointITCase extends TestLogger {
         }
     }
 
-    private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
+    private static Configuration createFileBasedCheckpointsConfig(
+            String checkpointDir, String savepointDir) {
         final Configuration config = new Configuration();
         config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
         config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         return config;
+    }
+
+    private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
+        return createFileBasedCheckpointsConfig(checkpointDir.toURI().toString(), savepointDir);
     }
 
     private Configuration getFileBasedCheckpointsConfig() {

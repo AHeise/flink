@@ -120,6 +120,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -1080,44 +1081,60 @@ public abstract class SchedulerBase implements SchedulerNG {
                         .triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
 
-        final CompletableFuture<JobStatus> terminationFuture =
-                executionGraph
-                        .getTerminationFuture()
-                        .handle(
-                                (jobstatus, throwable) -> {
-                                    if (throwable != null) {
-                                        log.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: {}",
-                                                jobGraph.getJobID(),
-                                                throwable.getMessage());
-                                        throw new CompletionException(throwable);
-                                    } else if (jobstatus != JobStatus.FINISHED) {
-                                        log.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: Reached state {} instead of FINISHED.",
-                                                jobGraph.getJobID(),
-                                                jobstatus);
-                                        throw new CompletionException(
-                                                new FlinkException(
-                                                        "Reached state "
-                                                                + jobstatus
-                                                                + " instead of FINISHED."));
-                                    }
-                                    return jobstatus;
-                                });
+        final CompletableFuture<Collection<ExecutionState>> stopFuture =
+                FutureUtils.combineAll(
+                        StreamSupport.stream(
+                                        executionGraph.getAllExecutionVertices().spliterator(),
+                                        false)
+                                .map(ExecutionVertex::getCurrentExecutionAttempt)
+                                .map(Execution::getTerminalStateFuture)
+                                .collect(Collectors.toList()));
 
         return savepointFuture
-                .thenCompose((path) -> terminationFuture.thenApply((jobStatus -> path)))
-                .handleAsync(
-                        (path, throwable) -> {
-                            if (throwable != null) {
-                                // restart the checkpoint coordinator if stopWithSavepoint failed.
-                                startCheckpointScheduler(checkpointCoordinator);
-                                throw new CompletionException(throwable);
-                            }
+                .exceptionally(
+                        throwable -> {
+                            // a CheckpointException having the
+                            // CheckpointFailureReason.JOB_FAILOVER_REGION is triggered when the
+                            // checkpoint creation fails
+                            throw new CompletionException(
+                                    new FlinkException(
+                                            "An error occurred while creating the savepoint.",
+                                            throwable));
+                        })
+                .thenCompose(
+                        path ->
+                                stopFuture.handleAsync(
+                                        (executionStates, throwable) -> {
+                                            if (throwable != null) {
+                                                log.info(
+                                                        "Failed while waiting for each task to stop after stop-with-savepoint was triggered for job {}. Reason: {}",
+                                                        jobGraph.getJobID(),
+                                                        throwable.getMessage());
+                                                throw new CompletionException(throwable);
+                                            } else if (executionStates.stream()
+                                                    .anyMatch(
+                                                            state ->
+                                                                    state
+                                                                            != ExecutionState
+                                                                                    .FINISHED)) {
+                                                log.info(
+                                                        "Failed while stopping job {} with a savepoint. Reason: Not all tasks finished properly.",
+                                                        jobGraph.getJobID());
+                                                // restart the checkpoint coordinator if
+                                                // stopWithSavepoint failed or the job was not
+                                                // terminated
+                                                startCheckpointScheduler(checkpointCoordinator);
+                                                incrementVersionsOfAllVertices();
+                                                executionGraph.failGlobal(throwable);
 
-                            return path;
-                        },
-                        mainThreadExecutor);
+                                                throw new CompletionException(
+                                                        new FlinkException(
+                                                                "Job stopped in unfinished state."));
+                                            }
+
+                                            return path;
+                                        },
+                                        mainThreadExecutor));
     }
 
     private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
