@@ -83,8 +83,8 @@ import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
@@ -108,7 +108,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "unalignedCheckpointEnabled ={0}")
     public static Collection<Boolean> parameter() {
-        return Arrays.asList(true, false);
+        return Collections.nCopies(10000, true);
     }
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -196,7 +196,9 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
     }
 
     private void verifyAllOperatorsNotifyAborted() throws InterruptedException {
+        log.info("Waiting for NormalMap to trigger notifyCheckpointAborted");
         NormalMap.notifiedAbortedLatch.await();
+        log.info("Waiting for DeclineSink to trigger notifyCheckpointAborted");
         DeclineSink.notifiedAbortedLatch.await();
     }
 
