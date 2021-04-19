@@ -208,7 +208,8 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
     @Test
     public void runStressTest() throws Exception {
         long startTs = System.currentTimeMillis();
-        Optional<File> externalizedCheckpoint = Optional.empty();
+        Optional<File> externalizedCheckpoint =
+                Optional.of(new File("/Users/pnowojski/trash/uc/chk-3084"));
         while (System.currentTimeMillis() < startTs + TEST_DURATION) {
             try {
                 externalizedCheckpoint =
