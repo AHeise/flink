@@ -209,20 +209,9 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
     public void runStressTest() throws Exception {
         long startTs = System.currentTimeMillis();
         Optional<File> externalizedCheckpoint =
-                Optional.of(new File("/Users/pnowojski/trash/uc/chk-3084"));
+                Optional.of(new File("/tmp/FAILED_TEST_CHECKPOINT1957483165672171725/chk-3084/"));
         while (System.currentTimeMillis() < startTs + TEST_DURATION) {
-            try {
-                externalizedCheckpoint =
-                        Optional.of(runAndTakeExternalCheckpoint(externalizedCheckpoint));
-            } catch (Exception ex) {
-                Path checkpointDir = Files.createTempDirectory("FAILED_TEST_CHECKPOINT");
-                log.error("Copying out starting externalized checkpoint to: " + checkpointDir);
-                if (externalizedCheckpoint.isPresent()) {
-                    org.apache.commons.io.FileUtils.copyDirectoryToDirectory(
-                            externalizedCheckpoint.get(), checkpointDir.toFile());
-                }
-                throw ex;
-            }
+            Optional.of(runAndTakeExternalCheckpoint(externalizedCheckpoint));
             cleanDirectoryExcept(externalizedCheckpoint.get());
         }
     }
