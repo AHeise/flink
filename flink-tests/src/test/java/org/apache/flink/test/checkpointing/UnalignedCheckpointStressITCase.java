@@ -65,6 +65,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -495,12 +496,17 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         }
     }
 
-    private static class Record {
-        private int sourceId;
-        private byte[] payload;
-        private long value;
+    /** Payload record. */
+    public static class Record implements Serializable {
+        public int sourceId;
+        public long value;
+        public byte[] payload;
 
-        private Record(int sourceId, long value, int payloadSize) {
+        public Record() {
+            this(0, 0, SMALL_RECORD_SIZE);
+        }
+
+        public Record(int sourceId, long value, int payloadSize) {
             this.sourceId = sourceId;
             this.payload = new byte[payloadSize];
             this.value = value;
