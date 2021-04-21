@@ -173,6 +173,11 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             stateConsumedFuture.complete(null);
             return null;
         } else {
+            NetworkActionsLogger.traceRecover(
+                    "RecoveredInputChannel#getNextRecoveredStateBuffer",
+                    next,
+                    inputGate.getOwningTaskName(),
+                    channelInfo);
             return new BufferAndAvailability(next, nextDataType, 0, sequenceNumber++);
         }
     }
