@@ -54,7 +54,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -1464,7 +1464,7 @@ public class StreamTaskTest extends TestLogger {
                             .setStreamInputProcessor(inputProcessor)
                             .build();
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
-            TaskIOMetricGroup ioMetricGroup =
+            InternalTaskIOMetricGroup ioMetricGroup =
                     task.getEnvironment().getMetricGroup().getIOMetricGroup();
 
             final RunnableWithException completeFutureTask =
@@ -1518,7 +1518,7 @@ public class StreamTaskTest extends TestLogger {
                     new MockStreamTaskBuilder(environment)
                             .setStreamInputProcessor(inputProcessor)
                             .build();
-            TaskIOMetricGroup ioMetricGroup =
+            InternalTaskIOMetricGroup ioMetricGroup =
                     task.getEnvironment().getMetricGroup().getIOMetricGroup();
 
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();

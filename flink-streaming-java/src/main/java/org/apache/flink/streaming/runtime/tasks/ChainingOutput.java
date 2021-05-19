@@ -20,8 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -50,12 +50,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
             OneInputStreamOperator<T, ?> operator,
             StreamStatusProvider streamStatusProvider,
             @Nullable OutputTag<T> outputTag) {
-        this(
-                operator,
-                (OperatorMetricGroup) operator.getMetricGroup(),
-                streamStatusProvider,
-                outputTag,
-                operator::close);
+        this(operator, operator.getMetricGroup(), streamStatusProvider, outputTag, operator::close);
     }
 
     public ChainingOutput(

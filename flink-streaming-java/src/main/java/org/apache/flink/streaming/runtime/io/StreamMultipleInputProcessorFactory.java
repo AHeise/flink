@@ -31,7 +31,7 @@ import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelectable;
@@ -71,7 +71,7 @@ public class StreamMultipleInputProcessorFactory {
             StreamConfig.InputConfig[] configuredInputs,
             IOManager ioManager,
             MemoryManager memoryManager,
-            TaskIOMetricGroup ioMetricGroup,
+            InternalTaskIOMetricGroup ioMetricGroup,
             Counter mainOperatorRecordsIn,
             StreamStatusMaintainer streamStatusMaintainer,
             MultipleInputStreamOperator<?> mainOperator,

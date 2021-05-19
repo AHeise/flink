@@ -23,7 +23,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
@@ -61,7 +61,7 @@ public class InputProcessorUtil {
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             IndexedInputGate[] inputGates,
-            TaskIOMetricGroup taskIOMetricGroup,
+            InternalTaskIOMetricGroup taskIOMetricGroup,
             String taskName,
             MailboxExecutor mailboxExecutor,
             TimerService timerService) {
@@ -87,7 +87,7 @@ public class InputProcessorUtil {
             AbstractInvokable toNotifyOnCheckpoint,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
-            TaskIOMetricGroup taskIOMetricGroup,
+            InternalTaskIOMetricGroup taskIOMetricGroup,
             String taskName,
             MailboxExecutor mailboxExecutor,
             List<IndexedInputGate>[] inputGates,
@@ -110,7 +110,7 @@ public class InputProcessorUtil {
     public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
             MailboxExecutor mailboxExecutor,
             List<IndexedInputGate>[] inputGates,
-            TaskIOMetricGroup taskIOMetricGroup,
+            InternalTaskIOMetricGroup taskIOMetricGroup,
             CheckpointBarrierHandler barrierHandler,
             StreamConfig config) {
 
@@ -232,7 +232,7 @@ public class InputProcessorUtil {
     }
 
     private static void registerCheckpointMetrics(
-            TaskIOMetricGroup taskIOMetricGroup, CheckpointBarrierHandler barrierHandler) {
+            InternalTaskIOMetricGroup taskIOMetricGroup, CheckpointBarrierHandler barrierHandler) {
         taskIOMetricGroup.gauge(
                 MetricNames.CHECKPOINT_ALIGNMENT_TIME, barrierHandler::getAlignmentDurationNanos);
         taskIOMetricGroup.gauge(
