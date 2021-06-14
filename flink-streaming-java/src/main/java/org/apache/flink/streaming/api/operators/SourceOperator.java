@@ -31,7 +31,9 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.metrics.groups.SourceMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSourceMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -168,16 +170,17 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             return;
         }
 
-        final MetricGroup metricGroup = getMetricGroup();
+        final OperatorMetricGroup metricGroup = getMetricGroup();
         assert metricGroup != null;
 
         final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
+        final SourceMetricGroup sourceMetricGroup = new InternalSourceMetricGroup(metricGroup);
         final SourceReaderContext context =
                 new SourceReaderContext() {
                     @Override
-                    public MetricGroup metricGroup() {
-                        return metricGroup;
+                    public SourceMetricGroup metricGroup() {
+                        return sourceMetricGroup;
                     }
 
                     @Override

@@ -94,6 +94,10 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredOperatorMetricGroup();
     }
 
+    public static SourceMetricGroup createUnregisteredSourceMetricGroup() {
+        return new UnregisteredSourceMetricGroup();
+    }
+
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
             implements OperatorMetricGroup {
         @Override
@@ -130,6 +134,68 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         @Override
         public Counter getNumBytesOutCounter() {
             return new SimpleCounter();
+        }
+    }
+
+    private static class UnregisteredSourceMetricGroup extends UnregisteredMetricsGroup
+            implements SourceMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public TaskIOMetricGroup getTaskIOMetricGroup() {
+            return new UnregisteredTaskIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsInErrors() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Gauge<Long> createCurrentFetchEventTimeLag(
+                Gauge<Long> currentFetchEventTimeLagGauge) {
+            return currentFetchEventTimeLagGauge;
+        }
+
+        @Override
+        public Gauge<Long> getCurrentEmitEventTimeLag() {
+            return new DummyGauge<>(0L);
+        }
+
+        @Override
+        public Gauge<Long> getWatermarkLag() {
+            return new DummyGauge<>(0L);
+        }
+
+        @Override
+        public Gauge<Long> createSourceIdleTime(Gauge<Long> sourceIdleTimeGauge) {
+            return sourceIdleTimeGauge;
+        }
+
+        @Override
+        public Gauge<Long> createPendingBytes(Gauge<Long> pendingBytesGauge) {
+            return pendingBytesGauge;
+        }
+
+        @Override
+        public Gauge<Long> createPendingRecords(Gauge<Long> pendingRecordsGauge) {
+            return pendingRecordsGauge;
+        }
+    }
+
+    private static class DummyGauge<T> implements Gauge<T> {
+        private final T value;
+
+        public DummyGauge(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
         }
     }
 }
