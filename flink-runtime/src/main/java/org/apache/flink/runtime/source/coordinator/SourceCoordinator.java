@@ -90,7 +90,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     private static final CoordinatorStore COORDINATOR_STORE = new CoordinatorStore();
     private static final String WATERMARK_GROUP = "watermark-group-1";
 
-    private final WatermarkAggregator<Integer> combinedWatermark = new WatermarkAggregator();
+    private final WatermarkAggregator<Integer> combinedWatermark = new WatermarkAggregator<>();
 
     private final long maxAllowedWatemarkUpdateInterval = 1000;
     private final long maxAllowedWatermarkLag = 10_000;
@@ -124,7 +124,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         this.enumCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
         this.context = context;
 
-        COORDINATOR_STORE.putIfAbsent(WATERMARK_GROUP, new WatermarkAggregator());
+        COORDINATOR_STORE.putIfAbsent(WATERMARK_GROUP, new WatermarkAggregator<>());
 
         coordinatorExecutor.scheduleAtFixedRate(
                 this::announceCombinedWatermark,
@@ -143,11 +143,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                                     aggregator.getAggregatedWatermark().getTimestamp());
                         });
 
+        // TODO: check if min actually changed
         for (Integer subtaskId : combinedWatermark.keySet()) {
             context.sendEventToSourceOperator(
                     subtaskId,
                     new WatermarkAlignmentEvent(
-                            globalCombinedWatermark.getTimestamp() - maxAllowedWatermarkLag));
+                            globalCombinedWatermark.getTimestamp() + maxAllowedWatermarkLag));
         }
     }
 
@@ -214,7 +215,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                         handleReaderRegistrationEvent((ReaderRegistrationEvent) event);
                     } else if (event instanceof ReportedWatermarkEvent) {
                         handleReportedWatermark(
-                                subtask, ((ReportedWatermarkEvent) event).getWatermark());
+                                subtask,
+                                new Watermark(((ReportedWatermarkEvent) event).getWatermark()));
                     } else {
                         throw new FlinkException("Unrecognized Operator Event: " + event);
                     }

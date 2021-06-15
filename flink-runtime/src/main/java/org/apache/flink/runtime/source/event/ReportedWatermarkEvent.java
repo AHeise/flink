@@ -30,13 +30,13 @@ public class ReportedWatermarkEvent implements OperatorEvent {
 
     private static final long serialVersionUID = 1L;
 
-    private final Watermark watermark;
+    private final long watermark;
 
-    public ReportedWatermarkEvent(Watermark watermark) {
+    public ReportedWatermarkEvent(long watermark) {
         this.watermark = watermark;
     }
 
-    public Watermark getWatermark() {
+    public long getWatermark() {
         return watermark;
     }
 

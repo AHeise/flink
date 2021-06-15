@@ -38,7 +38,7 @@ public class EventTimeAlignment {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(new Configuration());
         env.getConfig().setAutoWatermarkInterval(2000);
-        env.setParallelism(1);
+        env.setParallelism(2);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 10));
 
         DataStream<Long> eventStream =

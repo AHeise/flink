@@ -38,13 +38,19 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -130,6 +136,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     /** Indicating whether the source operator has been closed. */
     private boolean closed;
 
+    private WatermarkTrackingOutput<OUT> watermarkTrackingOutput;
+    private long currentMaxDesiredWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+    private CompletableFuture<Void> waitingForAlignmentFuture = new CompletableFuture<>();
+
+    private final long maxWatemarkUpdateInterval = 1000;
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -149,6 +161,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.configuration = checkNotNull(configuration);
         this.localHostname = checkNotNull(localHostname);
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
+
+        timeService.scheduleWithFixedDelay(
+                this::emitLatestWatermark, maxWatemarkUpdateInterval, maxWatemarkUpdateInterval);
     }
 
     /**
@@ -291,13 +306,25 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         // short circuit the common case (every invocation except the first)
         if (currentMainOutput != null) {
+            if (isWaitingForAlignment()) {
+                // other partitions are lagging behind, so do not return anything
+                waitingForAlignmentFuture.complete(null);
+                waitingForAlignmentFuture = new CompletableFuture<>();
+                return InputStatus.NOTHING_AVAILABLE;
+            }
             return sourceReader.pollNext(currentMainOutput);
         }
 
         // this creates a batch or streaming output based on the runtime mode
-        currentMainOutput = eventTimeLogic.createMainOutput(output);
+        watermarkTrackingOutput = new WatermarkTrackingOutput<>(output);
+        currentMainOutput = eventTimeLogic.createMainOutput(watermarkTrackingOutput);
         lastInvokedOutput = output;
         return sourceReader.pollNext(currentMainOutput);
+    }
+
+    private void emitLatestWatermark(long time) {
+        operatorEventGateway.sendEventToCoordinator(
+                new ReportedWatermarkEvent(watermarkTrackingOutput.getLastWatermark()));
     }
 
     @Override
@@ -309,7 +336,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public CompletableFuture<?> getAvailableFuture() {
+        if (watermarkTrackingOutput != null && isWaitingForAlignment()) {
+            return waitingForAlignmentFuture;
+        }
         return sourceReader.isAvailable();
+    }
+
+    private boolean isWaitingForAlignment() {
+        return currentMaxDesiredWatermark < watermarkTrackingOutput.getLastWatermark();
     }
 
     @Override
@@ -334,7 +368,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @SuppressWarnings("unchecked")
     public void handleOperatorEvent(OperatorEvent event) {
-        if (event instanceof AddSplitEvent) {
+        if (event instanceof WatermarkAlignmentEvent) {
+            currentMaxDesiredWatermark = ((WatermarkAlignmentEvent) event).getMaxWatermark();
+            waitingForAlignmentFuture.complete(null);
+        } else if (event instanceof AddSplitEvent) {
             try {
                 sourceReader.addSplits(((AddSplitEvent<SplitT>) event).splits(splitSerializer));
             } catch (IOException e) {
@@ -365,5 +402,39 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @VisibleForTesting
     ListState<SplitT> getReaderState() {
         return readerState;
+    }
+
+    private static class WatermarkTrackingOutput<OUT> implements DataOutput<OUT> {
+        private final DataOutput<OUT> output;
+        private long lastWatermark;
+
+        public WatermarkTrackingOutput(DataOutput<OUT> output) {
+            this.output = output;
+        }
+
+        public long getLastWatermark() {
+            return lastWatermark;
+        }
+
+        @Override
+        public void emitRecord(StreamRecord<OUT> streamRecord) throws Exception {
+            output.emitRecord(streamRecord);
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {
+            output.emitWatermark(watermark);
+            lastWatermark = watermark.getTimestamp();
+        }
+
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            output.emitStreamStatus(streamStatus);
+        }
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+            output.emitLatencyMarker(latencyMarker);
+        }
     }
 }
