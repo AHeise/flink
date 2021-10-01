@@ -51,6 +51,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.P
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
@@ -759,7 +760,8 @@ public class ExecutingTest extends TestLogger {
                     Time.milliseconds(1L),
                     1L,
                     new DefaultVertexParallelismInfo(1, 1, max -> Optional.empty()),
-                    new DefaultSubtaskAttemptNumberStore(Collections.emptyList()));
+                    new DefaultSubtaskAttemptNumberStore(Collections.emptyList()),
+                    new CoordinatorStore());
             mockExecutionVertex = executionVertexSupplier.apply(this);
         }
 

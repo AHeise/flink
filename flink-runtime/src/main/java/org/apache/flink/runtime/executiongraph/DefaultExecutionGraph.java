@@ -59,6 +59,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
@@ -130,6 +131,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     /** The executor which is used to execute blocking io operations. */
     private final Executor ioExecutor;
+
+    /** {@link CoordinatorStore} shared across all operator coordinators within this execution. */
+    private final CoordinatorStore coordinatorStore = new CoordinatorStore();
 
     /** Executor that runs tasks in the job manager's main thread. */
     @Nonnull private ComponentMainThreadExecutor jobMasterMainThreadExecutor;
@@ -788,7 +792,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                             rpcTimeout,
                             createTimestamp,
                             parallelismInfo,
-                            initialAttemptCounts.getAttemptCounts(jobVertex.getID()));
+                            initialAttemptCounts.getAttemptCounts(jobVertex.getID()),
+                            coordinatorStore);
 
             ejv.connectToPredecessors(this.intermediateResults);
 
