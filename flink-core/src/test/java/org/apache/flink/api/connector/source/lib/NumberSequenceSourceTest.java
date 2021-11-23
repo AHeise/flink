@@ -19,18 +19,17 @@
 package org.apache.flink.api.connector.source.lib;
 
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.internal.InternalReaderOutput;
+import org.apache.flink.api.connector.source.internal.InternalSourceOutput;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
-
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -145,7 +144,7 @@ public class NumberSequenceSourceTest {
         }
     }
 
-    private static final class TestingReaderOutput<E> implements ReaderOutput<E> {
+    private static final class TestingReaderOutput<E> implements InternalReaderOutput<E> {
 
         private final ArrayList<E> emittedRecords = new ArrayList<>();
 
@@ -175,7 +174,7 @@ public class NumberSequenceSourceTest {
         }
 
         @Override
-        public SourceOutput<E> createOutputForSplit(String splitId) {
+        public InternalSourceOutput<E> createOutputForSplit(String splitId) {
             return this;
         }
 
@@ -184,6 +183,11 @@ public class NumberSequenceSourceTest {
 
         public ArrayList<E> getEmittedRecords() {
             return emittedRecords;
+        }
+
+        @Override
+        public long getLastWatermark() {
+            return 0;
         }
     }
 }

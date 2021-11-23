@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
+import org.apache.flink.api.connector.source.internal.InternalSourceOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
@@ -56,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of emitted records.
  */
 @Internal
-public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
+public class SourceOutputWithWatermarks<T> implements InternalSourceOutput<T> {
 
     private final PushingAsyncDataInput.DataOutput<T> recordsOutput;
 
@@ -69,6 +70,8 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
     private final WatermarkOutput periodicWatermarkOutput;
 
     private final StreamRecord<T> reusingRecord;
+
+    private long lastWatermark;
 
     /**
      * Creates a new SourceOutputWithWatermarks that emits records to the given DataOutput and
@@ -128,6 +131,7 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
     @Override
     public final void emitWatermark(Watermark watermark) {
         onEventWatermarkOutput.emitWatermark(watermark);
+        this.lastWatermark = watermark.getTimestamp();
     }
 
     @Override
@@ -142,6 +146,11 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
 
     public final void emitPeriodicWatermark() {
         watermarkGenerator.onPeriodicEmit(periodicWatermarkOutput);
+    }
+
+    @Override
+    public long getLastWatermark() {
+        return lastWatermark;
     }
 
     // ------------------------------------------------------------------------

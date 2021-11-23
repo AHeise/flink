@@ -24,6 +24,8 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -45,6 +47,8 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
     private final Object wakeupLock = new Object();
     private volatile Thread threadInBlocking;
     private boolean wokenUp;
+
+    private static final Logger LOG = LoggerFactory.getLogger(MockSplitReader.class);
 
     private MockSplitReader(
             int numRecordsPerSplitPerFetch,
@@ -100,7 +104,10 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
                 Map.Entry<String, MockSourceSplit> entry = iterator.next();
                 MockSourceSplit split = entry.getValue();
                 boolean hasRecords = false;
-                for (int i = 0; i < numRecordsPerSplitPerFetch && !split.isFinished(); i++) {
+                int recordIndex = 0;
+                for (;
+                        recordIndex < numRecordsPerSplitPerFetch && !split.isFinished();
+                        recordIndex++) {
                     // This call may throw InterruptedException.
                     int[] record = split.getNext(blockingFetch);
                     if (record != null) {
@@ -108,6 +115,7 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
                         hasRecords = true;
                     }
                 }
+                LOG.info("Read from {} {} records", split, recordIndex);
                 if (split.isFinished()) {
                     if (!separatedFinishedRecord) {
                         records.addFinishedSplit(entry.getKey());
