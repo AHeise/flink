@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.splitreader.AlignmentAwareSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.slf4j.Logger;
@@ -219,6 +220,22 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
             wakeUpUnsafe(true);
         } finally {
             lock.unlock();
+        }
+    }
+
+    public void alignSplits(Collection<SplitT> splitsToPause, Collection<SplitT> splitsToResume) {
+        if (splitReader instanceof AlignmentAwareSplitReader) {
+            lock.lock();
+            try {
+                enqueueTaskUnsafe(
+                        new AlignmentTask<>(
+                                (AlignmentAwareSplitReader<?, SplitT>) splitReader,
+                                splitsToPause,
+                                splitsToResume));
+                wakeUpUnsafe(true);
+            } finally {
+                lock.unlock();
+            }
         }
     }
 
