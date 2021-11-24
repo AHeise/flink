@@ -21,6 +21,7 @@ package org.apache.flink.connector.kafka.source.reader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.splitreader.AlignmentAwareSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
@@ -67,7 +68,7 @@ import java.util.stream.Collectors;
  * @param <T> the type of the record to be emitted from the Source.
  */
 public class KafkaPartitionSplitReader<T>
-        implements SplitReader<Tuple3<T, Long, Long>, KafkaPartitionSplit> {
+        implements AlignmentAwareSplitReader<Tuple3<T, Long, Long>, KafkaPartitionSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaPartitionSplitReader.class);
     private static final long POLL_TIMEOUT = 10000L;
 
@@ -102,6 +103,20 @@ public class KafkaPartitionSplitReader<T>
         // Metric registration
         maybeRegisterKafkaConsumerMetrics(props, kafkaSourceReaderMetrics, consumer);
         this.kafkaSourceReaderMetrics.registerNumBytesIn(consumer);
+    }
+
+    @Override
+    public void alignSplits(
+            Collection<KafkaPartitionSplit> splitsToPause,
+            Collection<KafkaPartitionSplit> splitsToResume) {
+        consumer.resume(
+                splitsToResume.stream()
+                        .map(KafkaPartitionSplit::getTopicPartition)
+                        .collect(Collectors.toList()));
+        consumer.pause(
+                splitsToPause.stream()
+                        .map(KafkaPartitionSplit::getTopicPartition)
+                        .collect(Collectors.toList()));
     }
 
     @Override
