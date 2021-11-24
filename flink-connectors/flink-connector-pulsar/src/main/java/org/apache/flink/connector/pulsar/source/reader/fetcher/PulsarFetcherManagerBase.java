@@ -78,6 +78,17 @@ public abstract class PulsarFetcherManagerBase<T>
     }
 
     @Override
+    public void alignSplits(
+            Collection<String> splitIdsToPause, Collection<String> splitIdsToResume) {
+        for (String splitId : splitIdsToPause) {
+            getOrCreateFetcher(splitId).pause();
+        }
+        for (String splitId : splitIdsToResume) {
+            getOrCreateFetcher(splitId).resume();
+        }
+    }
+
+    @Override
     protected void startFetcher(SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> fetcher) {
         if (fetcherStatus.get(fetcher.fetcherId()) != Boolean.TRUE) {
             fetcherStatus.put(fetcher.fetcherId(), true);
