@@ -60,6 +60,9 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     @GuardedBy("lock")
     private boolean closed;
 
+    @GuardedBy("lock")
+    private boolean paused;
+
     private final FetchTask<E, SplitT> fetchTask;
 
     @GuardedBy("lock")
@@ -70,6 +73,9 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
     @GuardedBy("lock")
     private final Condition nonEmpty = lock.newCondition();
+
+    @GuardedBy("lock")
+    private final Condition resumed = lock.newCondition();
 
     SplitFetcher(
             int id,
@@ -188,23 +194,26 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     @Nullable
     private SplitFetcherTask getNextTaskUnsafe() {
         assert lock.isHeldByCurrentThread();
-        if (!taskQueue.isEmpty()) {
-            // a specific task is avail, so take that in FIFO
-            return taskQueue.poll();
-        } else if (!assignedSplits.isEmpty()) {
-            // use fallback task = fetch if there is at least one split
-            return fetchTask;
-        } else {
-            // nothing to do, wait for signal
-            try {
-                nonEmpty.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-
-                throw new RuntimeException(
-                        "The thread was interrupted while waiting for a fetcher task.");
+        try {
+            if (paused) {
+                resumed.await();
             }
-            return taskQueue.poll();
+            if (!taskQueue.isEmpty()) {
+                // a specific task is avail, so take that in FIFO
+                return taskQueue.poll();
+            } else if (!assignedSplits.isEmpty()) {
+                // use fallback task = fetch if there is at least one split
+                return fetchTask;
+            } else {
+                // nothing to do, wait for signal
+                nonEmpty.await();
+                return taskQueue.poll();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+
+            throw new RuntimeException(
+                    "The thread was interrupted while waiting for a fetcher task.");
         }
     }
 
@@ -335,6 +344,25 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
             // Only wake up when the thread has started and there is no running task.
             LOG.debug("Waking up fetcher thread.");
             nonEmpty.signal();
+        }
+    }
+
+    public void pause() {
+        lock.lock();
+        try {
+            paused = true;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void resume() {
+        lock.lock();
+        try {
+            paused = false;
+            resumed.signal();
+        } finally {
+            lock.unlock();
         }
     }
 }
