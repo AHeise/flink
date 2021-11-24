@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.api.connector.source.AlignmentAwareSourceReader;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -82,13 +83,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStreamOperator<OUT>
         implements OperatorEventHandler, PushingAsyncDataInput<OUT> {
-    private static final long serialVersionUID = 1405537676017904695L;
-
+    public static final long NO_ALIGNMENT = Watermark.MAX_WATERMARK.getTimestamp();
     // Package private for unit test.
     static final ListStateDescriptor<byte[]> SPLITS_STATE_DESC =
             new ListStateDescriptor<>("SourceReaderState", BytePrimitiveArraySerializer.INSTANCE);
-    public static final long NO_ALIGNMENT = Watermark.MAX_WATERMARK.getTimestamp();
-
+    private static final long serialVersionUID = 1405537676017904695L;
     /**
      * The factory for the source reader. This is a workaround, because currently the SourceReader
      * must be lazily initialized, which is mainly because the metrics groups that the reader relies
@@ -121,45 +120,30 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private final boolean emitProgressiveWatermarks;
 
     // ---- lazily initialized fields (these fields are the "hot" fields) ----
-
+    private final CompletableFuture<Void> finished = new CompletableFuture<>();
+    private final SourceOperatorAvailabilityHelper availabilityHelper =
+            new SourceOperatorAvailabilityHelper();
+    private final long maxWatemarkUpdateInterval = 1000;
     /** The source reader that does most of the work. */
     private SourceReader<OUT, SplitT> sourceReader;
 
     private InternalReaderOutput<OUT> currentMainOutput;
-
     private DataOutput<OUT> lastInvokedOutput;
-
     /** The state that holds the currently assigned splits. */
     private ListState<SplitT> readerState;
-
     /**
      * The event time and watermarking logic. Ideally this would be eagerly passed into this
      * operator, but we currently need to instantiate this lazily, because the metric groups exist
      * only later.
      */
     private TimestampsAndWatermarks<OUT> eventTimeLogic;
-
     /** A mode to control the behaviour of the {@link #emitNext(DataOutput)} method. */
     private OperatingMode operatingMode;
-
-    private final CompletableFuture<Void> finished = new CompletableFuture<>();
-    private final SourceOperatorAvailabilityHelper availabilityHelper =
-            new SourceOperatorAvailabilityHelper();
-
-    private enum OperatingMode {
-        READING,
-        OUTPUT_NOT_INITIALIZED,
-        SOURCE_STOPPED,
-        DATA_FINISHED
-    }
 
     private InternalSourceReaderMetricGroup sourceMetricGroup;
 
     private long currentMaxDesiredWatermark = NO_ALIGNMENT;
     private CompletableFuture<Void> waitingForAlignmentFuture = new CompletableFuture<>();
-
-    private final long maxWatemarkUpdateInterval = 1000;
-
     private @Nullable LatencyMarkerEmitter<OUT> latencyMarerEmitter;
 
     public SourceOperator(
@@ -484,6 +468,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     public void handleOperatorEvent(OperatorEvent event) {
         if (event instanceof WatermarkAlignmentEvent) {
             currentMaxDesiredWatermark = ((WatermarkAlignmentEvent) event).getMaxWatermark();
+            if (sourceReader instanceof AlignmentAwareSourceReader) {
+                ((AlignmentAwareSourceReader<?, ?>) sourceReader)
+                        .setCurrentMaxWatermark(
+                                new org.apache.flink.api.common.eventtime.Watermark(
+                                        currentMaxDesiredWatermark));
+            }
             waitingForAlignmentFuture.complete(null);
         } else if (event instanceof AddSplitEvent) {
             try {
@@ -506,16 +496,23 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                         getRuntimeContext().getIndexOfThisSubtask(), localHostname));
     }
 
-    // --------------- methods for unit tests ------------
-
     @VisibleForTesting
     public SourceReader<OUT, SplitT> getSourceReader() {
         return sourceReader;
     }
 
+    // --------------- methods for unit tests ------------
+
     @VisibleForTesting
     ListState<SplitT> getReaderState() {
         return readerState;
+    }
+
+    private enum OperatingMode {
+        READING,
+        OUTPUT_NOT_INITIALIZED,
+        SOURCE_STOPPED,
+        DATA_FINISHED
     }
 
     private static class SourceOperatorAvailabilityHelper {
