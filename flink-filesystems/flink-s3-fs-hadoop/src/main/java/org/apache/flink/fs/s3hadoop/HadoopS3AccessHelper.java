@@ -18,9 +18,6 @@
 
 package org.apache.flink.fs.s3hadoop;
 
-import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
-import org.apache.flink.util.MathUtils;
-
 import com.amazonaws.SdkBaseException;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -29,11 +26,16 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
+import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
+import org.apache.flink.util.MathUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
+import org.apache.hadoop.fs.s3a.S3AInstrumentation;
 import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
+import org.apache.hadoop.fs.s3a.statistics.impl.BondedS3AStatisticsContext;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -52,8 +54,22 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     private final InternalWriteOperationHelper s3accessHelper;
 
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
+        FileSystem.Statistics statistics = new FileSystem.Statistics(s3a.getScheme());
+        BondedS3AStatisticsContext statisticsContext =
+                new BondedS3AStatisticsContext(
+                        new BondedS3AStatisticsContext.S3AFSStatisticsSource() {
+                            public S3AInstrumentation getInstrumentation() {
+                                return s3a.getInstrumentation();
+                            }
+
+                            public FileSystem.Statistics getInstanceStatistics() {
+                                return statistics;
+                            }
+                        });
+
         this.s3accessHelper =
-                new InternalWriteOperationHelper(checkNotNull(s3a), checkNotNull(conf));
+                new InternalWriteOperationHelper(
+                        checkNotNull(s3a), checkNotNull(conf), statisticsContext);
         this.s3a = s3a;
     }
 
@@ -144,8 +160,11 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
      */
     private static final class InternalWriteOperationHelper extends WriteOperationHelper {
 
-        InternalWriteOperationHelper(S3AFileSystem owner, Configuration conf) {
-            super(owner, conf);
+        InternalWriteOperationHelper(
+                S3AFileSystem owner,
+                Configuration conf,
+                BondedS3AStatisticsContext statisticsContext) {
+            super(owner, conf, statisticsContext);
         }
     }
 }
