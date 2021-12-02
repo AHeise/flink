@@ -29,7 +29,9 @@ import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -99,6 +101,11 @@ public class S3EntropyFsFactoryTest extends TestLogger {
         @Override
         protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
             return null;
+        }
+
+        @Override
+        protected void bulkDelete(FileSystem fs, Collection collection) throws IOException {
+
         }
 
         @Override

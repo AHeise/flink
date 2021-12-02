@@ -18,23 +18,25 @@
 
 package org.apache.flink.fs.s3presto;
 
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
+import com.facebook.presto.hive.s3.HackyPrestoS3FileSystem;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
-import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import com.facebook.presto.hive.s3.PrestoS3FileSystem;
-import org.apache.hadoop.fs.FileSystem;
 
-import javax.annotation.Nullable;
-
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.stream.Collectors;
 
 /** Simple factory for the S3 file system. */
-public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
+public class S3FileSystemFactory extends AbstractS3FileSystemFactory<HackyPrestoS3FileSystem> {
 
     private static final String[] FLINK_CONFIG_PREFIXES = {"s3.", "presto.s3."};
 
@@ -65,8 +67,13 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     }
 
     @Override
-    protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
-        return new PrestoS3FileSystem();
+    protected HackyPrestoS3FileSystem createHadoopFileSystem() {
+        return new HackyPrestoS3FileSystem();
+    }
+
+    @Override
+    protected void bulkDelete(HackyPrestoS3FileSystem fs, Collection<Path> paths) throws IOException {
+        fs.bulkDelete(paths.stream().map(path -> path.getPath().substring(1)).collect(Collectors.toList()));
     }
 
     @Override
@@ -85,12 +92,6 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
         return initUri;
     }
 
-    @Nullable
-    @Override
-    protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-        return null;
-    }
-
     private URI createURI(String str) {
         try {
             return new URI(str);
@@ -98,4 +99,5 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
             throw new FlinkRuntimeException("Error in s3 aws URI - " + str, e);
         }
     }
+
 }

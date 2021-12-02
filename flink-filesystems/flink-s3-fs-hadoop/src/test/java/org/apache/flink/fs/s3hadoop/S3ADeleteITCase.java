@@ -34,6 +34,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
@@ -46,24 +47,18 @@ import java.util.stream.Stream;
 class S3ADeleteITCase {
     private static final Logger LOG = LoggerFactory.getLogger(S3ADeleteITCase.class);
 
-//    @Container
-//    private final MinioContainer minio =
-//            new MinioContainer().withLogConsumer(new Slf4jLogConsumer(LOG));
+    @Container
+    private final MinioContainer minio =
+            new MinioContainer().withLogConsumer(new Slf4jLogConsumer(LOG));
 
-    ForkJoinPool pool = new ForkJoinPool(100);
+    ForkJoinPool pool = new ForkJoinPool(10);
 
     @Test
     void testDirectoryDelete() throws IOException {
-//        Path path = minio.getFullPath("path");
-        Path path = new Path("s3://flink-integration-tests/temp/delete-performance-hadoop2");
+        Path path = minio.getFullPath("path");
 
         System.out.println("started");
-//        Configuration config = minio.getConfig();
-        Configuration conf = new Configuration();
-        conf.setString("s3.endpoint", "s3.us-east-1.amazonaws.com");
-//        conf.setString("s3.endpoint", getHostAddress());
-        conf.setString("s3.path.style.access", "true");
-        conf.setString("s3.path-style-access", "true");
+        Configuration conf = minio.getConfig();
         FileSystem.initialize(conf, null);
         FileSystem fs = FileSystem.get(URI.create(path.toString()));
 
@@ -72,6 +67,46 @@ class S3ADeleteITCase {
             long addTime = measure(() -> addFiles(path, fs, finalNumFiles));
             FileStatus[] status = fs.listStatus(path);
             long deleteTime = measure(() -> fs.delete(path, true));
+            System.out.printf("%s;%s;%s;%s\n", numFiles, addTime, deleteTime, status.length);
+        }
+    }
+
+    @Test
+    void testBulkDelete() throws IOException {
+        Path path = minio.getFullPath("path");
+
+        System.out.println("started");
+        Configuration conf = minio.getConfig();
+        FileSystem.initialize(conf, null);
+        FileSystem fs = FileSystem.get(URI.create(path.toString()));
+
+        for (int numFiles = 10; numFiles <= 100000; numFiles *= 10) {
+            int finalNumFiles = numFiles;
+            long addTime = measure(() -> addFiles(path, fs, finalNumFiles));
+            FileStatus[] status = fs.listStatus(path);
+            long deleteTime = measure(() -> fs.bulkDelete(Arrays.stream(status).map(fileStatus -> fileStatus.getPath()).collect(Collectors.toList())));
+            System.out.printf("%s;%s;%s;%s\n", numFiles, addTime, deleteTime, status.length);
+        }
+    }
+
+    @Test
+    void testIndividualDelete() throws IOException {
+        Path path = minio.getFullPath("path");
+
+        System.out.println("started");
+        Configuration conf = minio.getConfig();
+        FileSystem.initialize(conf, null);
+        FileSystem fs = FileSystem.get(URI.create(path.toString()));
+
+        for (int numFiles = 10; numFiles <= 10000; numFiles *= 10) {
+            int finalNumFiles = numFiles;
+            long addTime = measure(() -> addFiles(path, fs, finalNumFiles));
+            FileStatus[] status = fs.listStatus(path);
+            long deleteTime = measure(() -> {
+                for (int i = 0; i < finalNumFiles; i++) {
+                    fs.delete(new Path(path, i + ".txt"), true) ;
+                }
+            } );
             System.out.printf("%s;%s;%s;%s\n", numFiles, addTime, deleteTime, status.length);
         }
     }

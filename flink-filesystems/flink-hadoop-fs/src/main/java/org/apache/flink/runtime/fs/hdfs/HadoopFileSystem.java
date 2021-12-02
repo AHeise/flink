@@ -34,10 +34,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link FileSystem} that wraps an {@link org.apache.hadoop.fs.FileSystem Hadoop File System}.
  */
-public class HadoopFileSystem extends FileSystem {
+public class HadoopFileSystem<T extends org.apache.hadoop.fs.FileSystem> extends FileSystem {
 
     /** The wrapped Hadoop File System. */
-    private final org.apache.hadoop.fs.FileSystem fs;
+    private final T fs;
 
     /* This field caches the file system kind. It is lazily set because the file system
      * URL is lazily initialized. */
@@ -49,7 +49,7 @@ public class HadoopFileSystem extends FileSystem {
      *
      * @param hadoopFileSystem The Hadoop FileSystem that will be used under the hood.
      */
-    public HadoopFileSystem(org.apache.hadoop.fs.FileSystem hadoopFileSystem) {
+    public HadoopFileSystem(T hadoopFileSystem) {
         this.fs = checkNotNull(hadoopFileSystem, "hadoopFileSystem");
     }
 
@@ -252,5 +252,9 @@ public class HadoopFileSystem extends FileSystem {
             // this also includes federated HDFS (viewfs).
             return FileSystemKind.FILE_SYSTEM;
         }
+    }
+
+    protected T getFs() {
+        return fs;
     }
 }

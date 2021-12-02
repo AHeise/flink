@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedTmpFileCreator;
@@ -28,22 +29,28 @@ import org.apache.flink.fs.s3.common.writer.S3RecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
+import org.apache.hadoop.fs.FileSystem;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 
 /**
  * Implementation of the Flink {@link org.apache.flink.core.fs.FileSystem} interface for S3. This
  * class implements the common behavior implemented directly by Flink and delegates common calls to
  * an implementation of Hadoop's filesystem abstraction.
  */
-public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInjectingFileSystem {
+public class FlinkS3FileSystem <T extends org.apache.hadoop.fs.FileSystem> extends HadoopFileSystem<T> implements EntropyInjectingFileSystem {
 
     @Nullable private final String entropyInjectionKey;
 
@@ -65,6 +72,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
     private final long s3uploadPartSize;
 
     private final int maxConcurrentUploadsPerStream;
+    private final   BiConsumerWithException<T,  Collection<Path>, IOException> bulkDelete;
 
     /**
      * Creates a FlinkS3FileSystem based on the given Hadoop S3 file system. The given Hadoop file
@@ -77,15 +85,17 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
      * @param entropyLength The number of random alphanumeric characters to inject as entropy.
      */
     public FlinkS3FileSystem(
-            org.apache.hadoop.fs.FileSystem hadoopS3FileSystem,
+            T hadoopS3FileSystem,
             String localTmpDirectory,
             @Nullable String entropyInjectionKey,
             int entropyLength,
             @Nullable S3AccessHelper s3UploadHelper,
             long s3uploadPartSize,
-            int maxConcurrentUploadsPerStream) {
+            int maxConcurrentUploadsPerStream,
+            BiConsumerWithException<T,  Collection<Path>, IOException> bulkDelete) {
 
         super(hadoopS3FileSystem);
+        this.bulkDelete = bulkDelete;
 
         if (entropyInjectionKey != null && entropyLength <= 0) {
             throw new IllegalArgumentException(
@@ -104,6 +114,11 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
         Preconditions.checkArgument(s3uploadPartSize >= S3_MULTIPART_MIN_PART_SIZE);
         this.s3uploadPartSize = s3uploadPartSize;
         this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
+    }
+
+    @Override
+    public void bulkDelete(Collection<Path> paths) throws IOException {
+         bulkDelete.accept(getFs(), paths);
     }
 
     // ------------------------------------------------------------------------

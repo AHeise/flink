@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.Preconditions;
@@ -36,9 +37,10 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 
 /** Base class for file system factories that create S3 file systems. */
-public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
+public abstract class AbstractS3FileSystemFactory<T extends org.apache.hadoop.fs.FileSystem> implements FileSystemFactory {
 
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")
@@ -119,7 +121,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             // create the Hadoop FileSystem
             org.apache.hadoop.conf.Configuration hadoopConfig =
                     hadoopConfigLoader.getOrLoadHadoopConfig();
-            org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
+            T fs = createHadoopFileSystem();
             fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
 
             // load the entropy injection settings
@@ -148,14 +150,15 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             final int maxConcurrentUploads = flinkConfig.getInteger(MAX_CONCURRENT_UPLOADS);
             final S3AccessHelper s3AccessHelper = getS3AccessHelper(fs);
 
-            return new FlinkS3FileSystem(
+            return new FlinkS3FileSystem<>(
                     fs,
                     localTmpDirectory,
                     entropyInjectionKey,
                     numEntropyChars,
                     s3AccessHelper,
                     s3minPartSize,
-                    maxConcurrentUploads);
+                    maxConcurrentUploads,
+                    this::bulkDelete);
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -163,10 +166,14 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
         }
     }
 
-    protected abstract org.apache.hadoop.fs.FileSystem createHadoopFileSystem();
+    protected abstract void bulkDelete(T fs, Collection<Path> paths) throws IOException;
+
+    protected abstract T createHadoopFileSystem();
 
     protected abstract URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig);
 
     @Nullable
-    protected abstract S3AccessHelper getS3AccessHelper(org.apache.hadoop.fs.FileSystem fs);
+    protected S3AccessHelper getS3AccessHelper(T fs) {
+        return null;
+    }
 }

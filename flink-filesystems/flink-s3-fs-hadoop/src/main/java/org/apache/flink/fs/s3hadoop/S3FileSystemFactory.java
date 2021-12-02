@@ -18,23 +18,31 @@
 
 package org.apache.flink.fs.s3hadoop;
 
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
+import com.google.common.collect.Iterables;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
+import org.apache.hadoop.fs.s3a.s3guard.BulkOperationState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /** Simple factory for the S3 file system. */
-public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
+public class S3FileSystemFactory extends AbstractS3FileSystemFactory<S3AFileSystem> {
 
     private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
 
@@ -45,6 +53,7 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
         {"fs.s3a.secret-key", "fs.s3a.secret.key"},
         {"fs.s3a.path-style-access", "fs.s3a.path.style.access"}
     };
+    public static final int MAX_DELETES = 1000;
 
     public S3FileSystemFactory() {
         super("Hadoop s3a file system", createHadoopConfigLoader());
@@ -67,8 +76,22 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     }
 
     @Override
-    protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
+    protected S3AFileSystem createHadoopFileSystem() {
         return new S3AFileSystem();
+    }
+
+    @Override
+    protected void bulkDelete(S3AFileSystem fs, Collection<Path> paths) throws IOException {
+        for (List<Path> partition : Iterables.partition(paths, MAX_DELETES)) {
+            List<DeleteObjectsRequest.KeyVersion> keysToRemove = new ArrayList<>();
+            for (Path path : partition) {
+                keysToRemove.add(new DeleteObjectsRequest.KeyVersion(path.getPath().substring(1)));
+            }
+            fs.    removeKeys(
+                    keysToRemove,
+                    false,
+                    new BulkOperationState(BulkOperationState.OperationType.Delete));;
+        }
     }
 
     @Override
@@ -90,10 +113,10 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
         return fsUri;
     }
 
-    @Nullable
     @Override
-    protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
+    protected S3AccessHelper getS3AccessHelper(S3AFileSystem fs) {
         final S3AFileSystem s3Afs = (S3AFileSystem) fs;
         return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
     }
+
 }

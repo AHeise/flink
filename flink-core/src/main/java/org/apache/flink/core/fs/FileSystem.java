@@ -61,6 +61,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -681,6 +682,18 @@ public abstract class FileSystem {
      * @throws IOException
      */
     public abstract boolean delete(Path f, boolean recursive) throws IOException;
+
+    /**
+     * Delete several non-directory files at once.
+     *
+     * @param paths the paths to delete
+     * @throws IOException thrown if there is any error during deletion
+     */
+    public void bulkDelete(Collection<Path> paths) throws IOException {
+        for (Path p : paths) {
+           delete(p, false);
+        }
+    }
 
     /**
      * Make the given file and all non-existent parents into directories. Has the semantics of Unix
