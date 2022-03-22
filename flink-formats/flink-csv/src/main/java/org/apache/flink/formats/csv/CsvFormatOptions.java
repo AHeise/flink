@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
+import java.nio.charset.StandardCharsets;
+
 /** Options for CSV format. */
 @PublicEvolving
 public class CsvFormatOptions {
@@ -86,6 +88,12 @@ public class CsvFormatOptions {
                     .withDescription(
                             "Optional null literal string that is interpreted as a\n"
                                     + "null value (disabled by default)");
+
+    public static final ConfigOption<String> CHARSET =
+            ConfigOptions.key("charset")
+                    .stringType()
+                    .defaultValue(StandardCharsets.UTF_8.displayName())
+                    .withDescription("Defines the string charset.");
 
     private CsvFormatOptions() {}
 }

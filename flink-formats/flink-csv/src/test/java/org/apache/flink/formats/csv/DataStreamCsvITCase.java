@@ -20,13 +20,11 @@ package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.common.Converter;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -44,10 +42,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -57,6 +56,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,21 +94,21 @@ public class DataStreamCsvITCase {
 
     private static final String[] CSV_LINES =
             new String[] {
-                "Berlin,52.5167,13.3833,Germany,DE,Berlin,primary,3644826",
+                "Berlin,52.5167,13.3833,Germany,DE,Börlin,primary,3644826",
                 "San Francisco,37.7562,-122.443,United States,US,California,,3592294",
                 "Beijing,39.905,116.3914,China,CN,Beijing,primary,19433000"
             };
 
     private static final String[] CSV_LINES_PIPE_SEPARATED =
             new String[] {
-                "Berlin|52.5167|13.3833|Germany|DE|Berlin|primary|3644826",
+                "Berlin|52.5167|13.3833|Germany|DE|Börlin|primary|3644826",
                 "San Francisco|37.7562|-122.443|United States|US|California||3592294",
                 "Beijing|39.905|116.3914|China|CN|Beijing|primary|19433000"
             };
 
     private static final String[] CSV_LINES_MALFORMED =
             new String[] {
-                "Berlin,52.5167,13.3833,Germany,DE,Berlin,primary,3644826",
+                "Berlin,52.5167,13.3833,Germany,DE,Börlin,primary,3644826",
                 "San Francisco,MALFORMED,3592294",
                 "Beijing,39.905,116.3914,China,CN,Beijing,primary,19433000"
             };
@@ -121,7 +121,7 @@ public class DataStreamCsvITCase {
                         new BigDecimal("13.3833"),
                         "Germany",
                         "DE",
-                        "Berlin",
+                        "Börlin",
                         "primary",
                         3644826L),
                 new CityPojo(
@@ -144,40 +144,49 @@ public class DataStreamCsvITCase {
                         19433000L)
             };
 
+    public static Charset[] charsets() {
+        return new Charset[] {StandardCharsets.UTF_8, StandardCharsets.ISO_8859_1};
+    }
+
     // ------------------------------------------------------------------------
     //  test cases
     // ------------------------------------------------------------------------
-    @Test
-    public void testCsvReaderFormatFromPojo() throws Exception {
-        writeFile(outDir, "data.csv", CSV_LINES);
+    @ParameterizedTest
+    @MethodSource("charsets")
+    public void testCsvReaderFormatFromPojo(Charset charset) throws Exception {
+        writeFile(outDir, "data.csv", CSV_LINES, charset);
 
-        final CsvReaderFormat<CityPojo> csvFormat = CsvReaderFormat.forPojo(CityPojo.class);
+        final CsvReaderFormat<CityPojo> csvFormat =
+                Csv.readerForPojo(CityPojo.class).withCharset(charset);
         final List<CityPojo> result = initializeSourceAndReadData(outDir, csvFormat);
 
         assertThat(Arrays.asList(POJOS)).isEqualTo(result);
     }
 
-    @Test
-    public void testCsvReaderFormatFromSchema() throws Exception {
-        writeFile(outDir, "data.csv", CSV_LINES_PIPE_SEPARATED);
+    @ParameterizedTest
+    @MethodSource("charsets")
+    public void testCsvReaderFormatFromSchema(Charset charset) throws Exception {
+        writeFile(outDir, "data.csv", CSV_LINES_PIPE_SEPARATED, charset);
 
         CsvMapper mapper = new CsvMapper();
         CsvSchema schema =
                 mapper.schemaFor(CityPojo.class).withoutQuoteChar().withColumnSeparator('|');
 
         final CsvReaderFormat<CityPojo> csvFormat =
-                CsvReaderFormat.forSchema(mapper, schema, TypeInformation.of(CityPojo.class));
+                Csv.readerForSchema(mapper, schema, TypeInformation.of(CityPojo.class))
+                        .withCharset(charset);
         final List<CityPojo> result = initializeSourceAndReadData(outDir, csvFormat);
 
         assertThat(Arrays.asList(POJOS)).isEqualTo(result);
     }
 
-    @Test
-    public void testCsvReaderFormatMalformed() throws Exception {
-        writeFile(outDir, "data.csv", CSV_LINES_MALFORMED);
+    @ParameterizedTest
+    @MethodSource("charsets")
+    public void testCsvReaderFormatMalformed(Charset charset) throws Exception {
+        writeFile(outDir, "data.csv", CSV_LINES_MALFORMED, charset);
 
         final CsvReaderFormat<CityPojo> csvFormat =
-                CsvReaderFormat.forPojo(CityPojo.class).withIgnoreParseErrors();
+                Csv.readerForPojo(CityPojo.class).withIgnoreParseErrors().withCharset(charset);
         final List<CityPojo> result = initializeSourceAndReadData(outDir, csvFormat);
 
         List<CityPojo> expected = new ArrayList<>();
@@ -187,8 +196,9 @@ public class DataStreamCsvITCase {
         assertThat(expected).isEqualTo(result);
     }
 
-    @Test
-    public void testCustomBulkWriter() throws Exception {
+    @ParameterizedTest
+    @MethodSource("charsets")
+    public void testCustomBulkWriter(Charset charset) throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
@@ -200,21 +210,23 @@ public class DataStreamCsvITCase {
         final DataStream<CityPojo> stream = sequence.map(pojosList::get).returns(CityPojo.class);
 
         FileSink<CityPojo> sink =
-                FileSink.forBulkFormat(new Path(outDir.toURI()), factoryForPojo(CityPojo.class))
+                FileSink.forBulkFormat(
+                                new Path(outDir.toURI()),
+                                Csv.writerForPojo(CityPojo.class).withCharset(charset))
                         .withBucketAssigner(new BasePathBucketAssigner<>())
                         .build();
 
         stream.sinkTo(sink);
         env.execute();
 
-        String[] result = getResultsFromSinkFiles(outDir);
+        String[] result = getResultsFromSinkFiles(outDir, charset);
 
         assertThat(result).containsExactlyInAnyOrder(CSV_LINES);
     }
 
     @NotNull
-    private String[] getResultsFromSinkFiles(File outDir) throws IOException {
-        final Map<File, String> contents = getFileContentByPath(outDir);
+    private String[] getResultsFromSinkFiles(File outDir, Charset charset) throws IOException {
+        final Map<File, String> contents = getFileContentByPath(outDir, charset);
 
         List<String> resultList =
                 contents.entrySet().stream()
@@ -225,19 +237,13 @@ public class DataStreamCsvITCase {
         return result;
     }
 
-    private static <T> BulkWriter.Factory<T> factoryForPojo(Class<T> pojoClass) {
-        final Converter<T, T, Void> converter = (value, context) -> value;
-        final CsvMapper csvMapper = new CsvMapper();
-        final CsvSchema schema = csvMapper.schemaFor(pojoClass).withoutQuoteChar();
-        return (out) -> new CsvBulkWriter<>(csvMapper, schema, converter, null, out);
-    }
-
-    private static Map<File, String> getFileContentByPath(File directory) throws IOException {
+    private static Map<File, String> getFileContentByPath(File directory, Charset charset)
+            throws IOException {
         Map<File, String> contents = new HashMap<>(4);
 
         final Collection<File> filesInBucket = FileUtils.listFiles(directory, null, true);
         for (File file : filesInBucket) {
-            contents.put(file, FileUtils.readFileToString(file));
+            contents.put(file, FileUtils.readFileToString(file, charset));
         }
         return contents;
     }
@@ -367,31 +373,30 @@ public class DataStreamCsvITCase {
     //  Write data utils
     // ------------------------------------------------------------------------
 
-    private static void writeFile(File testDir, String fileName, String[] lines)
+    private static void writeFile(File testDir, String fileName, String[] lines, Charset charset)
             throws IOException {
         final File file = new File(testDir, fileName);
-        writeFileAtomically(file, lines);
+        writeFileAtomically(file, lines, charset);
     }
 
-    private static void writeFileAtomically(final File file, final String[] lines)
+    private static void writeFileAtomically(final File file, final String[] lines, Charset charset)
             throws IOException {
-        writeFileAtomically(file, lines, (v) -> v);
+        writeFileAtomically(file, lines, (v) -> v, charset);
     }
 
     private static void writeFileAtomically(
             final File file,
             final String[] lines,
             final FunctionWithException<OutputStream, OutputStream, IOException>
-                    streamEncoderFactory)
+                    streamEncoderFactory,
+            Charset charset)
             throws IOException {
 
-        final File stagingFile =
-                new File(file.getParentFile(), ".tmp-" + UUID.randomUUID().toString());
+        final File stagingFile = new File(file.getParentFile(), ".tmp-" + UUID.randomUUID());
 
         try (final FileOutputStream fileOut = new FileOutputStream(stagingFile);
                 final OutputStream out = streamEncoderFactory.apply(fileOut);
-                final OutputStreamWriter encoder =
-                        new OutputStreamWriter(out, StandardCharsets.UTF_8);
+                final OutputStreamWriter encoder = new OutputStreamWriter(out, charset);
                 final PrintWriter writer = new PrintWriter(encoder)) {
 
             for (String line : lines) {

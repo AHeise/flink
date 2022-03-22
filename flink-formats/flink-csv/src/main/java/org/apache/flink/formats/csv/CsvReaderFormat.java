@@ -33,7 +33,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -77,7 +80,8 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
     private final Class<Object> rootType;
     private final Converter<Object, T, Void> converter;
     private final TypeInformation<T> typeInformation;
-    private boolean ignoreParseErrors;
+    private final boolean ignoreParseErrors;
+    private final String charset;
 
     @SuppressWarnings("unchecked")
     <R> CsvReaderFormat(
@@ -86,61 +90,16 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
             Class<R> rootType,
             Converter<R, T, Void> converter,
             TypeInformation<T> typeInformation,
-            boolean ignoreParseErrors) {
+            boolean ignoreParseErrors,
+            String charset) {
         this.mapper = checkNotNull(mapper);
         this.schema = checkNotNull(schema);
         this.rootType = (Class<Object>) checkNotNull(rootType);
         this.typeInformation = checkNotNull(typeInformation);
         this.converter = (Converter<Object, T, Void>) checkNotNull(converter);
         this.ignoreParseErrors = ignoreParseErrors;
-    }
-
-    /**
-     * Builds a new {@code CsvReaderFormat} using a {@code CsvSchema}.
-     *
-     * @param schema The Jackson CSV schema configured for parsing specific CSV files.
-     * @param typeInformation The Flink type descriptor of the returned elements.
-     * @param <T> The type of the returned elements.
-     */
-    public static <T> CsvReaderFormat<T> forSchema(
-            CsvSchema schema, TypeInformation<T> typeInformation) {
-        return forSchema(new CsvMapper(), schema, typeInformation);
-    }
-
-    /**
-     * Builds a new {@code CsvReaderFormat} using a {@code CsvSchema} and a pre-created {@code
-     * CsvMapper}.
-     *
-     * @param mapper The pre-created {@code CsvMapper}.
-     * @param schema The Jackson CSV schema configured for parsing specific CSV files.
-     * @param typeInformation The Flink type descriptor of the returned elements.
-     * @param <T> The type of the returned elements.
-     */
-    public static <T> CsvReaderFormat<T> forSchema(
-            CsvMapper mapper, CsvSchema schema, TypeInformation<T> typeInformation) {
-        return new CsvReaderFormat<>(
-                mapper,
-                schema,
-                typeInformation.getTypeClass(),
-                (value, context) -> value,
-                typeInformation,
-                false);
-    }
-
-    /**
-     * Builds a new {@code CsvReaderFormat} for reading CSV files mapped to the provided POJO class
-     * definition. Produced reader uses default mapper and schema settings, use {@code forSchema} if
-     * you need customizations.
-     *
-     * @param pojoType The type class of the POJO.
-     * @param <T> The type of the returned elements.
-     */
-    public static <T> CsvReaderFormat<T> forPojo(Class<T> pojoType) {
-        CsvMapper mapper = new CsvMapper();
-        return forSchema(
-                mapper,
-                mapper.schemaFor(pojoType).withoutQuoteChar(),
-                TypeInformation.of(pojoType));
+        checkArgument(Charset.isSupported(charset), "Unknown charset");
+        this.charset = checkNotNull(charset);
     }
 
     /**
@@ -154,14 +113,34 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
                 this.rootType,
                 this.converter,
                 this.typeInformation,
-                true);
+                true,
+                charset);
+    }
+
+    /** Returns a new {@code CsvReaderFormat} with the given charset. */
+    public CsvReaderFormat<T> withCharset(Charset charset) {
+        return withCharset(charset.name());
+    }
+
+    /** Returns a new {@code CsvReaderFormat} with the given charset. */
+    public CsvReaderFormat<T> withCharset(String charset) {
+        return new CsvReaderFormat<T>(
+                this.mapper,
+                this.schema,
+                this.rootType,
+                this.converter,
+                this.typeInformation,
+                this.ignoreParseErrors,
+                charset);
     }
 
     @Override
     public StreamFormat.Reader<T> createReader(Configuration config, FSDataInputStream stream)
             throws IOException {
         return new Reader<>(
-                mapper.readerFor(rootType).with(schema).readValues(stream),
+                mapper.readerFor(rootType)
+                        .with(schema)
+                        .readValues(new InputStreamReader(stream, charset)),
                 converter,
                 ignoreParseErrors);
     }

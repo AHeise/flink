@@ -54,6 +54,7 @@ import java.util.Set;
 
 import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.CHARSET;
 import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
@@ -128,7 +129,8 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                             JsonNode.class,
                             converter,
                             context.createTypeInformation(projectedDataType),
-                            ignoreParseErrors);
+                            ignoreParseErrors,
+                            formatOptions.get(CHARSET));
             return new StreamFormatAdapter<>(csvReaderFormat);
         }
 
@@ -160,7 +162,13 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                                 mapper, container);
 
                 return out ->
-                        CsvBulkWriter.forSchema(mapper, schema, converter, converterContext, out);
+                        new CsvBulkWriter<>(
+                                mapper,
+                                schema,
+                                converter,
+                                converterContext,
+                                out,
+                                formatOptions.get(CHARSET));
             }
 
             @Override

@@ -29,6 +29,7 @@ import java.util.Set;
 
 import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.CHARSET;
 import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
@@ -100,6 +101,7 @@ class CsvCommons {
         options.add(ARRAY_ELEMENT_DELIMITER);
         options.add(ESCAPE_CHARACTER);
         options.add(NULL_LITERAL);
+        options.add(CHARSET);
         return options;
     }
 
@@ -112,6 +114,7 @@ class CsvCommons {
         options.add(ARRAY_ELEMENT_DELIMITER);
         options.add(ESCAPE_CHARACTER);
         options.add(NULL_LITERAL);
+        options.add(CHARSET);
         return options;
     }
 }
