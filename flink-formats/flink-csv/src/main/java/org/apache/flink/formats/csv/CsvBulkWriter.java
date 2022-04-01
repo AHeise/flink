@@ -82,4 +82,30 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
         writer.flush();
         stream.sync();
     }
+
+    static class Factory<T> implements BulkWriter.Factory<T> {
+        private final CsvMapper mapper;
+        private final CsvSchema schema;
+        private final Converter<T, Object, Object> converter;
+        private final Object converterContext;
+        private final String charset;
+
+        <R, C> Factory(
+                CsvMapper mapper,
+                CsvSchema schema,
+                Converter<T, R, C> converter,
+                C converterContext,
+                String charset) {
+            this.mapper = mapper;
+            this.schema = schema;
+            this.converter = (Converter<T, Object, Object>) converter;
+            this.converterContext = converterContext;
+            this.charset = charset;
+        }
+
+        @Override
+        public BulkWriter<T> create(FSDataOutputStream out) throws IOException {
+            return new CsvBulkWriter<>(mapper, schema, converter, converterContext, out, charset);
+        }
+    }
 }

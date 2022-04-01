@@ -70,8 +70,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of the returned elements.
  */
-@PublicEvolving
-public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
+class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
 
     private static final long serialVersionUID = 1L;
 
@@ -114,23 +113,6 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
                 this.converter,
                 this.typeInformation,
                 true,
-                charset);
-    }
-
-    /** Returns a new {@code CsvReaderFormat} with the given charset. */
-    public CsvReaderFormat<T> withCharset(Charset charset) {
-        return withCharset(charset.name());
-    }
-
-    /** Returns a new {@code CsvReaderFormat} with the given charset. */
-    public CsvReaderFormat<T> withCharset(String charset) {
-        return new CsvReaderFormat<T>(
-                this.mapper,
-                this.schema,
-                this.rootType,
-                this.converter,
-                this.typeInformation,
-                this.ignoreParseErrors,
                 charset);
     }
 

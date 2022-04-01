@@ -68,7 +68,7 @@ trait FlinkRelNode extends RelNode {
   private[flink] def getExpressionString(
       expr: RexNode,
       inFields: List[String],
-      localExprsTable: Option[List[RexNode]],
+      localExprsTable: Option[List[RexN.ode]],
       expressionFormat: ExpressionFormat,
       sqlExplainLevel: SqlExplainLevel): String = {
     getExpressionString(

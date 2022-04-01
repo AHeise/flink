@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.serialization.Format;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
@@ -185,6 +186,16 @@ public class FileSink<IN>
     public Collection<String> getCompatibleWriterStateNames() {
         // StreamingFileSink
         return Collections.singleton("bucket-states");
+    }
+
+    public static <IN> DefaultRowFormatBuilder<IN> forFormat(
+            final Path basePath, final Format.WithEncoder<IN, ?> format) {
+        return forRowFormat(basePath, format.asEncoder());
+    }
+
+    public static <IN> DefaultBulkFormatBuilder<IN> forFormat(
+            final Path basePath, final Format.WithBulkWriter<IN, ?> format) {
+        return forBulkFormat(basePath, format.asWriter());
     }
 
     public static <IN> DefaultRowFormatBuilder<IN> forRowFormat(

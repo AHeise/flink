@@ -52,24 +52,18 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import java.util.Collections;
 import java.util.Set;
 
-import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
-import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
-import static org.apache.flink.formats.csv.CsvFormatOptions.CHARSET;
-import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
-import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
-import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
-import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
-import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
+import static org.apache.flink.configuration.trait.WithCharset.CHARSET;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** CSV format factory for file system. */
 @Internal
 public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
+    Csv<?, ?> csv = new Csv<>();
+
     @Override
     public String factoryIdentifier() {
-        return CsvCommons.IDENTIFIER;
+        return csv.getName();
     }
 
     @Override
@@ -79,12 +73,12 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return CsvCommons.optionalOptions();
+        return new Csv<>().optionalOptions();
     }
 
     @Override
     public Set<ConfigOption<?>> forwardOptions() {
-        return CsvCommons.forwardOptions();
+        return new Csv<>().forwardOptions();
     }
 
     @Override
@@ -96,7 +90,7 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
 
     private static class CsvBulkDecodingFormat
             implements BulkDecodingFormat<RowData>,
-                    ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>> {
+            ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>> {
 
         private final ReadableConfig formatOptions;
 

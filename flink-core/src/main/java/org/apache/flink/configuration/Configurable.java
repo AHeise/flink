@@ -1,26 +1,17 @@
-package org.apache.flink.api.common.serialization;
+package org.apache.flink.configuration;
 
 import java.util.Collections;
 import java.util.Set;
 
-import java.util.function.Consumer;
-
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
-
+/**
+ * Base interface for everything that can be configured with {@link ConfigOption}s.
+ *
+ * @param <SELF> the specific implementing class for using the {@code withX} methods. Users
+ *         can simply use a wildcard {@code Configurable<?>} after full configuration.
+ */
 public interface Configurable<SELF extends Configurable<SELF>> {
-    @SuppressWarnings("unchecked")
-    default <T> SELF configure(ConfigOption<T> option, T value) {
-        configure(configuration -> configuration.set(option, value));
-        return (SELF) this;
-    }
 
-    SELF configure(Consumer<Configuration> configurationConsumer);
-
-    default SELF apply(Configuration otherConfiguration) {
-        configure(configuration -> configuration.addAll(otherConfiguration));
-        return (SELF) this;
-    }
+    <T> SELF withOption(ConfigOption<T> option, T value);
 
     /**
      * Returns a set of {@link ConfigOption} that an implementation of this factory requires in

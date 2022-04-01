@@ -21,10 +21,11 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.file.FileFormat.StreamReadable;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
-import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.csv.Csv.TypedCsv;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -76,7 +77,8 @@ public class DataStreamCsvITCase {
 
     private static final int PARALLELISM = 4;
 
-    @TempDir File outDir;
+    @TempDir
+    File outDir;
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
@@ -93,59 +95,59 @@ public class DataStreamCsvITCase {
     // ------------------------------------------------------------------------
 
     private static final String[] CSV_LINES =
-            new String[] {
-                "Berlin,52.5167,13.3833,Germany,DE,Börlin,primary,3644826",
-                "San Francisco,37.7562,-122.443,United States,US,California,,3592294",
-                "Beijing,39.905,116.3914,China,CN,Beijing,primary,19433000"
+            new String[]{
+                    "Berlin,52.5167,13.3833,Germany,DE,Börlin,primary,3644826",
+                    "San Francisco,37.7562,-122.443,United States,US,California,,3592294",
+                    "Beijing,39.905,116.3914,China,CN,Beijing,primary,19433000"
             };
 
     private static final String[] CSV_LINES_PIPE_SEPARATED =
-            new String[] {
-                "Berlin|52.5167|13.3833|Germany|DE|Börlin|primary|3644826",
-                "San Francisco|37.7562|-122.443|United States|US|California||3592294",
-                "Beijing|39.905|116.3914|China|CN|Beijing|primary|19433000"
+            new String[]{
+                    "Berlin|52.5167|13.3833|Germany|DE|Börlin|primary|3644826",
+                    "San Francisco|37.7562|-122.443|United States|US|California||3592294",
+                    "Beijing|39.905|116.3914|China|CN|Beijing|primary|19433000"
             };
 
     private static final String[] CSV_LINES_MALFORMED =
-            new String[] {
-                "Berlin,52.5167,13.3833,Germany,DE,Börlin,primary,3644826",
-                "San Francisco,MALFORMED,3592294",
-                "Beijing,39.905,116.3914,China,CN,Beijing,primary,19433000"
+            new String[]{
+                    "Berlin,52.5167,13.3833,Germany,DE,Börlin,primary,3644826",
+                    "San Francisco,MALFORMED,3592294",
+                    "Beijing,39.905,116.3914,China,CN,Beijing,primary,19433000"
             };
 
     static final CityPojo[] POJOS =
-            new CityPojo[] {
-                new CityPojo(
-                        "Berlin",
-                        new BigDecimal("52.5167"),
-                        new BigDecimal("13.3833"),
-                        "Germany",
-                        "DE",
-                        "Börlin",
-                        "primary",
-                        3644826L),
-                new CityPojo(
-                        "San Francisco",
-                        new BigDecimal("37.7562"),
-                        new BigDecimal("-122.443"),
-                        "United States",
-                        "US",
-                        "California",
-                        "",
-                        3592294L),
-                new CityPojo(
-                        "Beijing",
-                        new BigDecimal("39.905"),
-                        new BigDecimal("116.3914"),
-                        "China",
-                        "CN",
-                        "Beijing",
-                        "primary",
-                        19433000L)
+            new CityPojo[]{
+                    new CityPojo(
+                            "Berlin",
+                            new BigDecimal("52.5167"),
+                            new BigDecimal("13.3833"),
+                            "Germany",
+                            "DE",
+                            "Börlin",
+                            "primary",
+                            3644826L),
+                    new CityPojo(
+                            "San Francisco",
+                            new BigDecimal("37.7562"),
+                            new BigDecimal("-122.443"),
+                            "United States",
+                            "US",
+                            "California",
+                            "",
+                            3592294L),
+                    new CityPojo(
+                            "Beijing",
+                            new BigDecimal("39.905"),
+                            new BigDecimal("116.3914"),
+                            "China",
+                            "CN",
+                            "Beijing",
+                            "primary",
+                            19433000L)
             };
 
     public static Charset[] charsets() {
-        return new Charset[] {StandardCharsets.UTF_8, StandardCharsets.ISO_8859_1};
+        return new Charset[]{StandardCharsets.UTF_8, StandardCharsets.ISO_8859_1};
     }
 
     // ------------------------------------------------------------------------
@@ -156,8 +158,8 @@ public class DataStreamCsvITCase {
     public void testCsvReaderFormatFromPojo(Charset charset) throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES, charset);
 
-        final CsvReaderFormat<CityPojo> csvFormat =
-                Csv.readerForPojo(CityPojo.class).withCharset(charset);
+        final TypedCsv<CityPojo> csvFormat =
+                Csv.forPojo(CityPojo.class).withCharset(charset);
         final List<CityPojo> result = initializeSourceAndReadData(outDir, csvFormat);
 
         assertThat(Arrays.asList(POJOS)).isEqualTo(result);
@@ -172,8 +174,9 @@ public class DataStreamCsvITCase {
         CsvSchema schema =
                 mapper.schemaFor(CityPojo.class).withoutQuoteChar().withColumnSeparator('|');
 
-        final CsvReaderFormat<CityPojo> csvFormat =
-                Csv.readerForSchema(mapper, schema, TypeInformation.of(CityPojo.class))
+        final TypedCsv<CityPojo> csvFormat =
+                Csv.forSchema(mapper, schema)
+                        .withOutputType(TypeInformation.of(CityPojo.class))
                         .withCharset(charset);
         final List<CityPojo> result = initializeSourceAndReadData(outDir, csvFormat);
 
@@ -185,8 +188,8 @@ public class DataStreamCsvITCase {
     public void testCsvReaderFormatMalformed(Charset charset) throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES_MALFORMED, charset);
 
-        final CsvReaderFormat<CityPojo> csvFormat =
-                Csv.readerForPojo(CityPojo.class).withIgnoreParseErrors().withCharset(charset);
+        final TypedCsv<CityPojo> csvFormat =
+                Csv.forPojo(CityPojo.class).withIgnoreParseErrors().withCharset(charset);
         final List<CityPojo> result = initializeSourceAndReadData(outDir, csvFormat);
 
         List<CityPojo> expected = new ArrayList<>();
@@ -210,9 +213,9 @@ public class DataStreamCsvITCase {
         final DataStream<CityPojo> stream = sequence.map(pojosList::get).returns(CityPojo.class);
 
         FileSink<CityPojo> sink =
-                FileSink.forBulkFormat(
+                FileSink.forFormat(
                                 new Path(outDir.toURI()),
-                                Csv.writerForPojo(CityPojo.class).withCharset(charset))
+                                Csv.forPojo(CityPojo.class).withCharset(charset))
                         .withBucketAssigner(new BasePathBucketAssigner<>())
                         .build();
 
@@ -249,16 +252,17 @@ public class DataStreamCsvITCase {
     }
 
     @JsonPropertyOrder({
-        "city",
-        "lat",
-        "lng",
-        "country",
-        "iso2",
-        "adminName",
-        "capital",
-        "population"
+            "city",
+            "lat",
+            "lng",
+            "country",
+            "iso2",
+            "adminName",
+            "capital",
+            "population"
     })
     static class CityPojo implements Serializable {
+
         public String city;
         public BigDecimal lat;
         public BigDecimal lng;
@@ -268,7 +272,8 @@ public class DataStreamCsvITCase {
         public String capital;
         public long population;
 
-        public CityPojo() {}
+        public CityPojo() {
+        }
 
         public CityPojo(
                 String city,
@@ -341,10 +346,12 @@ public class DataStreamCsvITCase {
         }
     }
 
-    private static <T> List<T> initializeSourceAndReadData(File testDir, StreamFormat<T> csvFormat)
+    private static <T> List<T> initializeSourceAndReadData(
+            File testDir,
+            StreamReadable<T, ?> csvFormat)
             throws Exception {
         final FileSource<T> source =
-                FileSource.forRecordStreamFormat(csvFormat, Path.fromLocalFile(testDir)).build();
+                FileSource.forFormat(csvFormat, Path.fromLocalFile(testDir)).build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
