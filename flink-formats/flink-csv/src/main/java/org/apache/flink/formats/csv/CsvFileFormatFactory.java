@@ -30,6 +30,7 @@ import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.connector.file.table.format.BulkDecodingFormat;
 import org.apache.flink.formats.common.Converter;
+import org.apache.flink.formats.csv.Csv.UntypedCsv;
 import org.apache.flink.formats.csv.RowDataToCsvConverters.RowDataToCsvConverter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
@@ -47,12 +48,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
-import org.apache.commons.lang3.StringEscapeUtils;
-
 import java.util.Collections;
 import java.util.Set;
 
-import static org.apache.flink.configuration.trait.WithCharset.CHARSET;
+import static org.apache.flink.configuration.configurable.WithCharset.CHARSET;
+import static org.apache.flink.formats.csv.Csv.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** CSV format factory for file system. */
@@ -143,6 +143,9 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                     DynamicTableSink.Context context, DataType physicalDataType) {
 
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
+                UntypedCsv<?> csv = Csv
+                        .forSchema(CsvRowSchemaConverter.convert(rowType))
+                        .withOptions(formatOptions);
                 final CsvSchema schema = buildCsvSchema(rowType, formatOptions);
 
                 final RowDataToCsvConverter converter =
@@ -172,33 +175,4 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         };
     }
 
-    private static CsvSchema buildCsvSchema(RowType rowType, ReadableConfig options) {
-        final CsvSchema csvSchema = CsvRowSchemaConverter.convert(rowType);
-        final CsvSchema.Builder csvBuilder = csvSchema.rebuild();
-        // format properties
-        options.getOptional(FIELD_DELIMITER)
-                .map(s -> StringEscapeUtils.unescapeJava(s).charAt(0))
-                .ifPresent(csvBuilder::setColumnSeparator);
-
-        if (options.get(DISABLE_QUOTE_CHARACTER)) {
-            csvBuilder.disableQuoteChar();
-        } else {
-            options.getOptional(QUOTE_CHARACTER)
-                    .map(s -> s.charAt(0))
-                    .ifPresent(csvBuilder::setQuoteChar);
-        }
-
-        options.getOptional(ALLOW_COMMENTS).ifPresent(csvBuilder::setAllowComments);
-
-        options.getOptional(ARRAY_ELEMENT_DELIMITER)
-                .ifPresent(csvBuilder::setArrayElementSeparator);
-
-        options.getOptional(ESCAPE_CHARACTER)
-                .map(s -> s.charAt(0))
-                .ifPresent(csvBuilder::setEscapeChar);
-
-        options.getOptional(NULL_LITERAL).ifPresent(csvBuilder::setNullValue);
-
-        return csvBuilder.build();
-    }
 }

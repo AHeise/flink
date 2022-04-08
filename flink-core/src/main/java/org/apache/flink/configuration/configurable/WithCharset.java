@@ -16,23 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.configuration.trait;
+package org.apache.flink.configuration.configurable;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configurable;
 
-public interface WithLenientParsing<SELF extends Configurable<SELF>> extends Configurable<SELF> {
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
-    ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
-            ConfigOptions.key("ignore-parse-errors")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Optional flag to skip fields and rows with parse errors instead of failing;\n"
-                                    + "fields are set to null in case of errors");
+/**
+ * A {@link Configurable} that allows users setting a {@link Charset}.
+ */
+public interface WithCharset<SELF extends Configurable<SELF>> extends Configurable<SELF> {
 
-    default SELF withIgnoreParseErrors() {
-        return withOption(IGNORE_PARSE_ERRORS, true);
+    ConfigOption<String> CHARSET =
+            ConfigOptions.key("charset")
+                    .stringType()
+                    .defaultValue(StandardCharsets.UTF_8.displayName())
+                    .withDescription("Defines the string charset.");
+
+    /** Sets the charset and returns this. */
+    default SELF withCharset(Charset charset) {
+        return withCharset(charset.name());
+    }
+
+    /** Sets the charset and returns this. */
+    default SELF withCharset(String charset) {
+        return withOption(CHARSET, charset);
     }
 }

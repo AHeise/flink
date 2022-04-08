@@ -25,10 +25,9 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.trait.WithCharset;
-import org.apache.flink.configuration.trait.WithLenientParsing;
+import org.apache.flink.configuration.configurable.WithCharset;
+import org.apache.flink.configuration.configurable.WithLenientParsing;
 import org.apache.flink.connector.file.FileFormat.BulkWritable;
-import org.apache.flink.connector.file.FileFormat.StreamReadable;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.formats.common.Converter;
 import org.apache.flink.table.api.ValidationException;
@@ -141,23 +140,54 @@ public class Csv<T, SELF extends Csv<T, SELF>> extends AbstractConfigurable<SELF
         return new TypedCsv<>(mapper, schema, configuration, typeInformation);
     }
 
-    public static <T> Csv<T, ?> forSchema(CsvSchema schema) {
+    public static <T> UntypedCsv<T> forSchema(CsvSchema schema) {
         return forSchema(new CsvMapper(), schema);
     }
 
+    CsvSchema buildCsvSchema() {
+        validateFormatOptions();
 
-    void validateFormatOptions(ReadableConfig tableOptions) {
-        final boolean hasQuoteCharacter = tableOptions.getOptional(QUOTE_CHARACTER).isPresent();
-        final boolean isDisabledQuoteCharacter = tableOptions.get(DISABLE_QUOTE_CHARACTER);
+        final CsvSchema.Builder csvBuilder = schema.rebuild();
+        // format properties
+        configuration.getOptional(FIELD_DELIMITER)
+                .map(s -> StringEscapeUtils.unescapeJava(s).charAt(0))
+                .ifPresent(csvBuilder::setColumnSeparator);
+
+        if (configuration.get(DISABLE_QUOTE_CHARACTER)) {
+            csvBuilder.disableQuoteChar();
+        } else {
+            configuration.getOptional(QUOTE_CHARACTER)
+                    .map(s -> s.charAt(0))
+                    .ifPresent(csvBuilder::setQuoteChar);
+        }
+
+        configuration.getOptional(ALLOW_COMMENTS).ifPresent(csvBuilder::setAllowComments);
+
+        configuration.getOptional(ARRAY_ELEMENT_DELIMITER)
+                .ifPresent(csvBuilder::setArrayElementSeparator);
+
+        configuration.getOptional(ESCAPE_CHARACTER)
+                .map(s -> s.charAt(0))
+                .ifPresent(csvBuilder::setEscapeChar);
+
+        configuration.getOptional(NULL_LITERAL).ifPresent(csvBuilder::setNullValue);
+
+        return csvBuilder.build();
+    }
+
+
+    void validateFormatOptions() {
+        final boolean hasQuoteCharacter = configuration.getOptional(QUOTE_CHARACTER).isPresent();
+        final boolean isDisabledQuoteCharacter = configuration.get(DISABLE_QUOTE_CHARACTER);
         if (isDisabledQuoteCharacter && hasQuoteCharacter) {
             throw new ValidationException(
                     "Format cannot define a quote character and disabled quote character at the same time.");
         }
         // Validate the option value must be a single char.
-        validateCharacterVal(tableOptions, FIELD_DELIMITER, true);
-        validateCharacterVal(tableOptions, ARRAY_ELEMENT_DELIMITER);
-        validateCharacterVal(tableOptions, QUOTE_CHARACTER);
-        validateCharacterVal(tableOptions, ESCAPE_CHARACTER);
+        validateCharacterVal(configuration, FIELD_DELIMITER, true);
+        validateCharacterVal(configuration, ARRAY_ELEMENT_DELIMITER);
+        validateCharacterVal(configuration, QUOTE_CHARACTER);
+        validateCharacterVal(configuration, ESCAPE_CHARACTER);
     }
 
     /** Validates the option {@code option} value must be a Character. */
@@ -196,7 +226,7 @@ public class Csv<T, SELF extends Csv<T, SELF>> extends AbstractConfigurable<SELF
         final Converter<T, T, Void> converter = (value, context) -> value;
         return new CsvBulkWriter.Factory<>(
                 mapper,
-                schema,
+                buildCsvSchema(),
                 converter,
                 null,
                 configuration.get(CHARSET));

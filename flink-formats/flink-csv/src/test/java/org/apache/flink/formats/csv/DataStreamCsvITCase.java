@@ -212,12 +212,17 @@ public class DataStreamCsvITCase {
                 env.fromSequence(0, POJOS.length - 1).map(Long::intValue);
         final DataStream<CityPojo> stream = sequence.map(pojosList::get).returns(CityPojo.class);
 
+        TypedCsv<CityPojo> csv = Csv.forPojo(CityPojo.class)
+                .withCharset(charset)
+                .withOption(Csv.ALLOW_COMMENTS, true);
         FileSink<CityPojo> sink =
                 FileSink.forFormat(
                                 new Path(outDir.toURI()),
-                                Csv.forPojo(CityPojo.class).withCharset(charset))
+                                csv)
                         .withBucketAssigner(new BasePathBucketAssigner<>())
                         .build();
+
+        env.fromSource(FileSource.forFormat(csv, new Path(outDir.toURI())), null, null);
 
         stream.sinkTo(sink);
         env.execute();

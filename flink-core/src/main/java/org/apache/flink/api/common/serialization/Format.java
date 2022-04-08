@@ -45,7 +45,7 @@ public interface Format<T, SELF extends Format<T, SELF>> extends Configurable<SE
      * <p>This trait should be mostly used by implementors of a {@link Format}, so that the
      * format can be converted into a {@link DeserializationSchema}.
      */
-    interface Deserializable<T, SELF extends Format<T, SELF>> extends Format<T, SELF> {
+    interface ByteDeserializable<T, SELF extends Format<T, SELF>> extends Format<T, SELF> {
 
         DeserializationSchema<T> asDeserializationSchema();
     }
@@ -57,7 +57,7 @@ public interface Format<T, SELF extends Format<T, SELF>> extends Configurable<SE
      * <p>This trait should be mostly used by implementors of a {@link Format}, so that the
      * format can be converted into a {@link SerializationSchema}.
      */
-    interface Serializable<T, SELF extends Format<T, SELF>> extends Format<T, SELF> {
+    interface ByteSerializable<T, SELF extends Format<T, SELF>> extends Format<T, SELF> {
 
         SerializationSchema<T> asSerializationSchema();
     }

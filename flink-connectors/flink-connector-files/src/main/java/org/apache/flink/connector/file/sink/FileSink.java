@@ -23,13 +23,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.api.common.serialization.Format;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.StatefulSink.WithCompatibleState;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
+import org.apache.flink.connector.file.FileFormat;
 import org.apache.flink.connector.file.sink.committer.FileCommitter;
 import org.apache.flink.connector.file.sink.compactor.FileCompactStrategy;
 import org.apache.flink.connector.file.sink.compactor.FileCompactor;
@@ -123,15 +123,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  * only be disabled via calling {@code disableCompact} explicitly, otherwise there might be data
  * loss.
  *
- * @param <IN> Type of the elements in the input of the sink that are also the elements to be
- *     written to its output
+ * @param <IN> Type of the elements in the input of the sink that are also the elements to
+ *         be written to its output
  */
 @Experimental
 public class FileSink<IN>
         implements StatefulSink<IN, FileWriterBucketState>,
-                TwoPhaseCommittingSink<IN, FileSinkCommittable>,
-                WithCompatibleState,
-                WithPreCommitTopology<IN, FileSinkCommittable> {
+        TwoPhaseCommittingSink<IN, FileSinkCommittable>,
+        WithCompatibleState,
+        WithPreCommitTopology<IN, FileSinkCommittable> {
 
     private final BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder;
 
@@ -189,12 +189,12 @@ public class FileSink<IN>
     }
 
     public static <IN> DefaultRowFormatBuilder<IN> forFormat(
-            final Path basePath, final Format.WithEncoder<IN, ?> format) {
+            final Path basePath, final FileFormat.StreamWritable<IN, ?> format) {
         return forRowFormat(basePath, format.asEncoder());
     }
 
     public static <IN> DefaultBulkFormatBuilder<IN> forFormat(
-            final Path basePath, final Format.WithBulkWriter<IN, ?> format) {
+            final Path basePath, final FileFormat.BulkWritable<IN, ?> format) {
         return forBulkFormat(basePath, format.asWriter());
     }
 
@@ -222,21 +222,21 @@ public class FileSink<IN>
             // not enabled at present, handlers will be added to process the remaining states of the
             // compact coordinator and the compactor operators.
             SingleOutputStreamOperator<
-                            Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>>
+                    Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>>
                     coordinatorOp =
-                            committableStream
-                                    .forward()
-                                    .transform(
-                                            "CompactorCoordinatorPlaceHolder",
-                                            new EitherTypeInfo<>(
-                                                    committableStream.getType(),
-                                                    new CompactorRequestTypeInfo(
-                                                            bucketsBuilder
-                                                                    ::getCommittableSerializer)),
-                                            new CompactCoordinatorStateHandlerFactory(
-                                                    bucketsBuilder::getCommittableSerializer))
-                                    .setParallelism(committableStream.getParallelism())
-                                    .uid("FileSinkCompactorCoordinator");
+                    committableStream
+                            .forward()
+                            .transform(
+                                    "CompactorCoordinatorPlaceHolder",
+                                    new EitherTypeInfo<>(
+                                            committableStream.getType(),
+                                            new CompactorRequestTypeInfo(
+                                                    bucketsBuilder
+                                                            ::getCommittableSerializer)),
+                                    new CompactCoordinatorStateHandlerFactory(
+                                            bucketsBuilder::getCommittableSerializer))
+                            .setParallelism(committableStream.getParallelism())
+                            .uid("FileSinkCompactorCoordinator");
 
             return coordinatorOp
                     .forward()
@@ -490,6 +490,7 @@ public class FileSink<IN>
     /** Builder for the vanilla {@link FileSink} using a row format. */
     public static final class DefaultRowFormatBuilder<IN>
             extends RowFormatBuilder<IN, DefaultRowFormatBuilder<IN>> {
+
         private static final long serialVersionUID = -8503344257202146718L;
 
         private DefaultRowFormatBuilder(
