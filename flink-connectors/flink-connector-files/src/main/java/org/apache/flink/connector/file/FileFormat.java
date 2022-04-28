@@ -24,7 +24,7 @@ public interface FileFormat<T, SELF extends FileFormat<T, SELF>> extends Format<
      *
      * <p>This trait should not be used in conjunction with {@link StreamWritable}.
      */
-    interface BulkWritable<T, SELF extends BulkWritable<T, SELF>> extends FileFormat<T, SELF> {
+    interface BulkWritable<T> {
 
         Factory<T> asWriter();
     }
@@ -37,7 +37,7 @@ public interface FileFormat<T, SELF extends FileFormat<T, SELF>> extends Format<
      *
      * <p>This trait should not be used in conjunction with {@link BulkWritable}.
      */
-    interface StreamWritable<T, SELF extends StreamWritable<T, SELF>> extends FileFormat<T, SELF> {
+    interface StreamWritable<T> {
 
         Encoder<T> asEncoder();
     }

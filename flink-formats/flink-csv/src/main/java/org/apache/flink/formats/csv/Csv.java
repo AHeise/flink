@@ -19,6 +19,7 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.api.common.serialization.Format.Projectable;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.AbstractConfigurable;
 import org.apache.flink.configuration.ConfigOption;
@@ -27,10 +28,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.configurable.WithCharset;
 import org.apache.flink.configuration.configurable.WithLenientParsing;
+import org.apache.flink.connector.file.FileFormat;
 import org.apache.flink.connector.file.FileFormat.BulkWritable;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.formats.common.Converter;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.Projection;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
@@ -40,7 +43,9 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class Csv<T, SELF extends Csv<T, SELF>> extends AbstractConfigurable<SELF> implements
-        BulkWritable<T, SELF>,
+        FileFormat<T, SELF>,
+        BulkWritable<T>,
+        Projectable<SELF>,
         WithCharset<SELF>,
         WithLenientParsing<SELF> {
 
@@ -108,6 +113,7 @@ public class Csv<T, SELF extends Csv<T, SELF>> extends AbstractConfigurable<SELF
 
     final CsvMapper mapper;
     final CsvSchema schema;
+    private Projection projection;
 
     private Csv(
             CsvMapper mapper,
@@ -138,6 +144,12 @@ public class Csv<T, SELF extends Csv<T, SELF>> extends AbstractConfigurable<SELF
 
     public <R extends T> TypedCsv<R> withOutputType(TypeInformation<R> typeInformation) {
         return new TypedCsv<>(mapper, schema, configuration, typeInformation);
+    }
+
+    @Override
+    public SELF withProjection(int[][] projections) {
+        this.projection = Projection.of(projections);
+        return self();
     }
 
     public static <T> UntypedCsv<T> forSchema(CsvSchema schema) {
@@ -174,7 +186,6 @@ public class Csv<T, SELF extends Csv<T, SELF>> extends AbstractConfigurable<SELF
 
         return csvBuilder.build();
     }
-
 
     void validateFormatOptions() {
         final boolean hasQuoteCharacter = configuration.getOptional(QUOTE_CHARACTER).isPresent();
@@ -220,7 +231,6 @@ public class Csv<T, SELF extends Csv<T, SELF>> extends AbstractConfigurable<SELF
                             IDENTIFIER, option.key(), tableOptions.get(option)));
         }
     }
-
 
     public BulkWriter.Factory<T> asWriter() {
         final Converter<T, T, Void> converter = (value, context) -> value;

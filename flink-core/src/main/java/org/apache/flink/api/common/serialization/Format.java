@@ -69,8 +69,7 @@ public interface Format<T, SELF extends Format<T, SELF>> extends Configurable<SE
      * <p>This trait should be mostly used by implementors of a {@link Format} and needs to be
      * present such that the format can be used in as a source.
      */
-    interface WithTypeInformation<T, SELF extends WithTypeInformation<T, SELF>> extends
-            Format<T, SELF> {
+    interface WithTypeInformation<T> {
 
         TypeInformation<T> getTypeInformation();
     }
