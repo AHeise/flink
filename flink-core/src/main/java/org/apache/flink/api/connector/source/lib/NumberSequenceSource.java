@@ -193,7 +193,7 @@ public class NumberSequenceSource
         }
 
         @Override
-        public IteratorSourceSplit<Long, NumberSequenceIterator> getUpdatedSplitForIterator(
+        public NumberSequenceSplit getUpdatedSplitForIterator(
                 final NumberSequenceIterator iterator) {
             return new NumberSequenceSplit(splitId, iterator.getCurrent(), iterator.getTo());
         }
