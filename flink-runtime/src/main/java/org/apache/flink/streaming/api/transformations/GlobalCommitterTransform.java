@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.transformations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.dag.Transformation;
@@ -40,6 +41,7 @@ import java.util.List;
  *
  * @param <CommT>
  */
+@Internal
 public class GlobalCommitterTransform<CommT> extends TransformationWithLineage<Void> {
 
     private final DataStream<CommittableMessage<CommT>> inputStream;
