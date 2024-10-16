@@ -145,17 +145,6 @@ public class CommittableCollector<CommT> {
     }
 
     /**
-     * Returns whether all {@link CheckpointCommittableManager} currently hold by the collector are
-     * either committed or failed.
-     *
-     * @return state of the {@link CheckpointCommittableManager}
-     */
-    public boolean isFinished() {
-        return checkpointCommittables.values().stream()
-                .allMatch(CheckpointCommittableManagerImpl::isFinished);
-    }
-
-    /**
      * Merges all information from an external collector into this collector.
      *
      * <p>This method is important during recovery from existing state.
