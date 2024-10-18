@@ -203,7 +203,8 @@ abstract class CommitterOperatorTestBase {
         final OperatorSubtaskState snapshot = testHarness.snapshot(checkpointId, 2L);
 
         // Trigger first checkpoint but committer needs retry
-        testHarness.notifyOfCompletedCheckpoint(0);
+        assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(0))
+                .hasMessageContaining("Failed to commit 2 committables");
 
         assertThat(testHarness.getOutput()).isEmpty();
         testHarness.close();

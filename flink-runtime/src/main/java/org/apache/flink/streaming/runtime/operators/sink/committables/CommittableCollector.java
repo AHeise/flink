@@ -208,9 +208,9 @@ public class CommittableCollector<CommT> {
         return checkNotNull(committables, "Unknown checkpoint for %s", committable);
     }
 
-    /** Removes all metadata about checkpoints of which all committables are fully committed. */
-    public void compact() {
-        checkpointCommittables.values().removeIf(CheckpointCommittableManagerImpl::isFinished);
+    /** Removes the manager for a specific checkpoint and all it's metadata. */
+    public void remove(CheckpointCommittableManager<CommT> manager) {
+        checkpointCommittables.remove(manager.getCheckpointId());
     }
 
     @Override
