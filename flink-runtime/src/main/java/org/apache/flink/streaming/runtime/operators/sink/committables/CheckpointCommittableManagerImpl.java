@@ -177,10 +177,14 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     /**
-     * Sinks don't use unaligned checkpoints, so we receive all committables of a given upstream
-     * task before the respective barrier. Thus, when the barrier reaches the committer, all
-     * committables of a specific checkpoint must have been received. Committing happens even later
-     * on notifyCheckpointComplete.
+     * For committers: Sinks don't use unaligned checkpoints, so we receive all committables of a
+     * given upstream task before the respective barrier. Thus, when the barrier reaches the
+     * committer, all committables of a specific checkpoint must have been received. Committing
+     * happens even later on notifyCheckpointComplete.
+     *
+     * <p>Global committers need to ensure that all committables of all subtasks have been received
+     * with {@link #hasGloballyReceivedAll()} before trying to commit. Naturally, this method then
+     * becomes a no-op.
      *
      * <p>Note that by transitivity, the assertion also holds for committables of subsumed
      * checkpoints.

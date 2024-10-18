@@ -60,7 +60,13 @@ class GlobalCommitterOperatorTest {
 
             // immediately commit on receiving the second committable iff commitOnInput is true
             testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(2, cid, 1)));
-            assertThat(committer.committed).containsExactly(1, 2);
+            if (commitOnInput) {
+                assertThat(committer.committed).containsExactly(1, 2);
+            } else {
+                assertThat(committer.committed).isEmpty();
+                testHarness.notifyOfCompletedCheckpoint(cid + 1);
+                assertThat(committer.committed).containsExactly(1, 2);
+            }
 
             assertThat(testHarness.getOutput()).isEmpty();
         }

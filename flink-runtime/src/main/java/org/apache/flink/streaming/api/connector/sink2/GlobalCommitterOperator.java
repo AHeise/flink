@@ -56,7 +56,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This operator usually trails behind a {@code CommitterOperator}. In this case, the global
  * committer will receive committables from the committer operator through {@link
  * #processElement(StreamRecord)}. Once all committables from all subtasks have been received, the
- * global committer will commit them.
+ * global committer will commit them. This approach also works for any number of intermediate custom
+ * operators between the committer and the global committer in a custom post-commit topology.
  *
  * <p>That means that the global committer will not wait for {@link
  * #notifyCheckpointComplete(long)}. In many cases, it receives the callback before the actual
@@ -73,10 +74,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * error. The state only includes incomplete checkpoints coming from upstream committers not
  * receiving {@link #notifyCheckpointComplete(long)}. All committables received are successful.
  *
- * <p>In rare cases, the GlobalCommitterOperator may be connected to a writer directly. In this
- * case, we absolutely need to use {@link #notifyCheckpointComplete(long)} similarly to the {@code
- * CommitterOperator}. Hence, {@link #commitOnInput} is set to false in this case. In particular,
- * the following three prerequisites must be met:
+ * <p>In rare cases, the GlobalCommitterOperator may not be connected (in)directly to a committer
+ * but instead is connected (in)directly to a writer. In this case, the global committer needs to
+ * perform the 2PC protocol instead of the committer. Thus, we absolutely need to use {@link
+ * #notifyCheckpointComplete(long)} similarly to the {@code CommitterOperator}. Hence, {@link
+ * #commitOnInput} is set to false in this case. In particular, the following three prerequisites
+ * must be met:
  *
  * <ul>
  *   <li>No committer is upstream of which we could implicitly infer {@link
@@ -163,9 +166,10 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
                                 sinkV1State.addAll(cc.getGlobalCommittables());
                                 committableCollector.merge(cc.getCommittableCollector());
                             });
-            lastCompletedCheckpointId = context.getRestoredCheckpointId().getAsLong();
             // try to re-commit recovered transactions as quickly as possible
-            commit();
+            if (context.getRestoredCheckpointId().isPresent()) {
+                commit(context.getRestoredCheckpointId().getAsLong());
+            }
         }
     }
 
@@ -185,12 +189,12 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
         if (!commitOnInput) {
-            lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
-            commit();
+            commit(checkpointId);
         }
     }
 
-    private void commit() throws IOException, InterruptedException {
+    private void commit(long checkpointIdOrEOI) throws IOException, InterruptedException {
+        lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointIdOrEOI);
         // this is true for the last commit and we need to make sure that all committables are
         // indeed committed as this function will never be invoked again
         boolean waitForAllCommitted =
@@ -219,13 +223,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
         // For commitOnInput=false, lastCompletedCheckpointId is only updated on
         // notifyCheckpointComplete.
         if (commitOnInput) {
-            lastCompletedCheckpointId =
-                    Math.max(lastCompletedCheckpointId, element.getValue().getCheckpointIdOrEOI());
+            commit(element.getValue().getCheckpointIdOrEOI());
         }
-        // However, we might have just received a committable of a previous checkpoint that was
-        // trailing behind (e.g. upstream didn't receive notifyCheckpointCompleted).
-        // In this case, we retry committing as all committables of that checkpoint might now be
-        // collected. So commit here in both cases commitOnInput=true/false
-        commit();
     }
 }
