@@ -60,8 +60,10 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.OptionalLong;
+import java.util.Set;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointIDCounter.INITIAL_CHECKPOINT_ID;
 import static org.apache.flink.util.IOUtils.closeAll;
@@ -99,6 +101,9 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     private final boolean emitDownstream;
 
     // ------------------------------- runtime fields ---------------------------------------
+
+    /** Side-output tags actually connected to a downstream operator. */
+    private Set<OutputTag<?>> connectedSideOutputs = Collections.emptySet();
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private Long currentWatermark = Long.MIN_VALUE;
@@ -144,6 +149,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
             StreamConfig config,
             Output<StreamRecord<CommittableMessage<CommT>>> output) {
         super.setup(containingTask, config, output);
+        this.connectedSideOutputs = config.getSideOutputTags(getUserCodeClassloader());
         // Metric "numRecordsOut" & "numBytesOut" is defined as the total number of records/bytes
         // written to the external system in FLIP-33, reuse them for task to account for traffic
         // with external system
@@ -306,6 +312,18 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         @Override
         public <X> void output(OutputTag<X> outputTag, X value) {
+            if (!connectedSideOutputs.contains(outputTag)) {
+                if (outputTag instanceof ErrorOutputTag) {
+                    throw new IllegalStateException(
+                            "Side output '"
+                                    + outputTag.getId()
+                                    + "' is configured for error routing but is not connected to any "
+                                    + "downstream operator. Consume it via "
+                                    + "DataStreamSink#getSideOutput(tag) or remove the error tag.");
+                }
+                // Optional side output without a consumer: drop, as for any unconsumed side output.
+                return;
+            }
             if (outputTag instanceof ErrorOutputTag) {
                 InternalSinkWriterMetricGroup.wrap(getMetricGroup())
                         .getNumRecordsOutErrorsCounter()

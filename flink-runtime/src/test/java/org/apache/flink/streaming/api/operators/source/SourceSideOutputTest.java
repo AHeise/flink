@@ -39,9 +39,14 @@ import org.apache.flink.util.OutputTag;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for source side-output emission via {@link
@@ -94,7 +99,7 @@ class SourceSideOutputTest {
                 InternalSourceReaderMetricGroup.mock(
                         UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
         final AsyncDataOutputToOutput<Integer> adapter =
-                new AsyncDataOutputToOutput<>(output, metricGroup, null);
+                new AsyncDataOutputToOutput<>(output, metricGroup, null, connected(ERROR, LATE));
 
         adapter.emitRecord(ERROR, new StreamRecord<>("bad-record", 1L));
         assertThat(metricGroup.getNumRecordsInErrorsCounter().getCount()).isEqualTo(1L);
@@ -104,6 +109,42 @@ class SourceSideOutputTest {
 
         assertThat(output.sideValues).containsExactly("bad-record", "late-record");
         assertThat(output.sideTags).containsExactly(ERROR, LATE);
+    }
+
+    @Test
+    void emittingToUnconnectedErrorTagThrows() {
+        final AsyncDataOutputToOutput<Integer> adapter =
+                new AsyncDataOutputToOutput<>(
+                        new RecordingOutput<>(),
+                        InternalSourceReaderMetricGroup.mock(
+                                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
+                        null,
+                        Collections.emptySet());
+
+        assertThatThrownBy(() -> adapter.emitRecord(ERROR, new StreamRecord<>("bad", 1L)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("dlq")
+                .hasMessageContaining("not connected");
+    }
+
+    @Test
+    void emittingToUnconnectedOptionalTagIsDropped() {
+        final RecordingOutput<Integer> output = new RecordingOutput<>();
+        final AsyncDataOutputToOutput<Integer> adapter =
+                new AsyncDataOutputToOutput<>(
+                        output,
+                        InternalSourceReaderMetricGroup.mock(
+                                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
+                        null,
+                        Collections.emptySet());
+
+        adapter.emitRecord(LATE, new StreamRecord<>("late", 1L));
+
+        assertThat(output.sideValues).isEmpty();
+    }
+
+    private static Set<OutputTag<?>> connected(OutputTag<?>... tags) {
+        return new HashSet<>(Arrays.asList(tags));
     }
 
     private static final class RecordingDataOutput<T>

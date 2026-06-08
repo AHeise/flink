@@ -49,6 +49,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -125,7 +126,8 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                 new AsyncDataOutputToOutput<T>(
                         operatorChain.getMainOperatorOutput(),
                         sourceOperator.getSourceMetricGroup(),
-                        null);
+                        null,
+                        configuration.getSideOutputTags(getUserCodeClassLoader()));
 
         inputProcessor = new StreamOneInputProcessor<>(input, output, operatorChain);
 
@@ -300,15 +302,18 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         private final Output<StreamRecord<T>> output;
         private final InternalSourceReaderMetricGroup metricGroup;
         @Nullable private final WatermarkGauge inputWatermarkGauge;
+        private final Set<OutputTag<?>> connectedSideOutputs;
 
         public AsyncDataOutputToOutput(
                 Output<StreamRecord<T>> output,
                 InternalSourceReaderMetricGroup metricGroup,
-                @Nullable WatermarkGauge inputWatermarkGauge) {
+                @Nullable WatermarkGauge inputWatermarkGauge,
+                Set<OutputTag<?>> connectedSideOutputs) {
 
             this.output = checkNotNull(output);
             this.inputWatermarkGauge = inputWatermarkGauge;
             this.metricGroup = metricGroup;
+            this.connectedSideOutputs = checkNotNull(connectedSideOutputs);
         }
 
         @Override
@@ -319,6 +324,18 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
         @Override
         public <X> void emitRecord(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+            if (!connectedSideOutputs.contains(outputTag)) {
+                if (outputTag instanceof ErrorOutputTag) {
+                    throw new IllegalStateException(
+                            "Side output '"
+                                    + outputTag.getId()
+                                    + "' is configured for error routing but is not connected to any "
+                                    + "downstream operator. Consume it via "
+                                    + "DataStreamSource#getSideOutput(tag) or remove the error tag.");
+                }
+                // Optional side output without a consumer: drop, as for any unconsumed side output.
+                return;
+            }
             if (outputTag instanceof ErrorOutputTag) {
                 metricGroup.getNumRecordsInErrorsCounter().inc();
             }

@@ -514,6 +514,22 @@ public class StreamConfig implements Serializable {
         }
     }
 
+    /** Returns the {@link OutputTag}s of all side-output edges leaving this operator. */
+    public Set<OutputTag<?>> getSideOutputTags(ClassLoader cl) {
+        final Set<OutputTag<?>> tags = new HashSet<>();
+        for (NonChainedOutput output : getOperatorNonChainedOutputs(cl)) {
+            if (output.getOutputTag() != null) {
+                tags.add(output.getOutputTag());
+            }
+        }
+        for (StreamEdge edge : getChainedOutputs(cl)) {
+            if (edge.getOutputTag() != null) {
+                tags.add(edge.getOutputTag());
+            }
+        }
+        return tags;
+    }
+
     public void setInPhysicalEdges(List<StreamEdge> inEdges) {
         toBeSerializedConfigObjects.put(IN_STREAM_EDGES, inEdges);
     }
