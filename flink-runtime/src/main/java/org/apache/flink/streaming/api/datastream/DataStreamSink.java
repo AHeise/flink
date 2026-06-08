@@ -32,7 +32,9 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -99,6 +101,25 @@ public class DataStreamSink<T> {
     @Internal
     public Transformation<T> getTransformation() {
         return transformation;
+    }
+
+    /**
+     * Returns the stream of records emitted by the sink writer into the side output identified by
+     * the given {@link OutputTag}. Only supported for Sink V2 ({@code sinkTo}) sinks.
+     */
+    @PublicEvolving
+    public <X> SideOutputDataStream<X> getSideOutput(OutputTag<X> sideOutputTag) {
+        if (!(transformation instanceof SinkTransformation)) {
+            throw new IllegalStateException("Side outputs are only supported for Sink V2 sinks.");
+        }
+        final SinkTransformation<?, ?> sinkTransformation =
+                (SinkTransformation<?, ?>) transformation;
+        sinkTransformation.addSideOutput(sideOutputTag);
+        final SideOutputTransformation<X> sideOutputTransformation =
+                new SideOutputTransformation<>(transformation, sideOutputTag);
+        return new SideOutputDataStream<>(
+                sinkTransformation.getInputStream().getExecutionEnvironment(),
+                sideOutputTransformation);
     }
 
     @Internal

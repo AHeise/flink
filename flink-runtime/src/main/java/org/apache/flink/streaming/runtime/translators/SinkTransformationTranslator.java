@@ -95,8 +95,7 @@ public class SinkTransformationTranslator<Input, Output>
                         transformation,
                         context,
                         batch);
-        expander.expand();
-        return Collections.emptyList();
+        return expander.expand();
     }
 
     /**
@@ -136,7 +135,7 @@ public class SinkTransformationTranslator<Input, Output>
             this.isBatchMode = isBatchMode;
         }
 
-        private void expand() {
+        private Collection<Integer> expand() {
 
             final int sizeBefore = executionEnvironment.getTransformations().size();
 
@@ -186,6 +185,23 @@ public class SinkTransformationTranslator<Input, Output>
 
             disallowUnalignedCheckpoint(getSinkTransformations(sizeBefore));
 
+            // When side outputs are requested off the sink, expose the writer's stream node so a
+            // SideOutputTransformation hung off this SinkTransformation attaches to the writer.
+            final Collection<Integer> writerNodeIds;
+            if (transformation.getSideOutputTags().isEmpty()) {
+                writerNodeIds = Collections.emptyList();
+            } else {
+                final Transformation<?> writer =
+                        getSinkTransformations(sizeBefore).stream()
+                                .filter(SinkExpander::isWriter)
+                                .findFirst()
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalStateException(
+                                                        "Writer transformation not found."));
+                writerNodeIds = context.getStreamNodeIds(writer);
+            }
+
             // Remove all added sink subtransformations to avoid duplications and allow additional
             // expansions
             while (executionEnvironment.getTransformations().size() > sizeBefore) {
@@ -193,6 +209,8 @@ public class SinkTransformationTranslator<Input, Output>
                         .getTransformations()
                         .remove(executionEnvironment.getTransformations().size() - 1);
             }
+
+            return writerNodeIds;
         }
 
         private <R> void repeatUntilConverged(Supplier<R> producer) {

@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.OutputTag;
 
 /**
  * The variant of {@link PullingAsyncDataInput} that is defined for handling both network input and
@@ -51,6 +52,13 @@ public interface PushingAsyncDataInput<T> extends AvailabilityProvider {
     interface DataOutput<T> {
 
         void emitRecord(StreamRecord<T> streamRecord) throws Exception;
+
+        /** Emits a record to the side output identified by the given {@link OutputTag}. */
+        default <X> void emitRecord(OutputTag<X> outputTag, StreamRecord<X> streamRecord)
+                throws Exception {
+            throw new UnsupportedOperationException(
+                    "This DataOutput does not support side outputs.");
+        }
 
         void emitWatermark(Watermark watermark) throws Exception;
 

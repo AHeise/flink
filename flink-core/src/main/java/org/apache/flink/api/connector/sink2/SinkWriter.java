@@ -20,6 +20,7 @@ package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
 
@@ -68,5 +69,14 @@ public interface SinkWriter<InputT> extends AutoCloseable {
          * have an assigned timestamp.
          */
         Long timestamp();
+
+        /**
+         * Emit a record to the side output identified by the given {@link OutputTag}, retrievable
+         * via {@code DataStreamSink#getSideOutput(OutputTag)}.
+         */
+        default <X> void output(OutputTag<X> outputTag, X value) {
+            throw new UnsupportedOperationException(
+                    "This SinkWriter.Context does not support side outputs.");
+        }
     }
 }

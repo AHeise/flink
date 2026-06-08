@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
+import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -109,6 +110,31 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
             // IMPORTANT: The event must be emitted before the watermark generator is called.
             recordsOutput.emitRecord(reusingRecord.replace(record, assignedTimestamp));
             watermarkGenerator.onEvent(record, assignedTimestamp, onEventWatermarkOutput);
+        } catch (ExceptionInChainedOperatorException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
+
+    @Override
+    public final <X> void collect(OutputTag<X> outputTag, X value) {
+        collect(outputTag, value, TimestampAssigner.NO_TIMESTAMP);
+    }
+
+    @Override
+    public final <X> void collect(OutputTag<X> outputTag, X value, long timestamp) {
+        try {
+            final StreamRecord<X> sideRecord =
+                    timestamp == TimestampAssigner.NO_TIMESTAMP
+                            ? new StreamRecord<>(value)
+                            : new StreamRecord<>(value, timestamp);
+            recordsOutput.emitRecord(outputTag, sideRecord);
+            // Advance the watermark on the raw timestamp; the diverted value has a different type,
+            // so generators that inspect the event itself cannot run here (common ones ignore it).
+            if (timestamp != TimestampAssigner.NO_TIMESTAMP) {
+                watermarkGenerator.onEvent(null, timestamp, onEventWatermarkOutput);
+            }
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
         } catch (Exception e) {

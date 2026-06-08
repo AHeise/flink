@@ -43,6 +43,8 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.ErrorOutputTag;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
@@ -313,6 +315,14 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         public void emitRecord(StreamRecord<T> streamRecord) {
             metricGroup.recordEmitted(streamRecord.getTimestamp());
             output.collect(streamRecord);
+        }
+
+        @Override
+        public <X> void emitRecord(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
+            if (outputTag instanceof ErrorOutputTag) {
+                metricGroup.getNumRecordsInErrorsCounter().inc();
+            }
+            output.collect(outputTag, streamRecord);
         }
 
         @Override

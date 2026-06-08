@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
+import org.apache.flink.util.OutputTag;
 
 import java.util.Collection;
 
@@ -109,6 +110,26 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
                 output.emitRecord(
                         reusingRecord.replace(
                                 record, timestampAssigner.extractTimestamp(record, timestamp)));
+            } catch (ExceptionInChainedOperatorException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ExceptionInChainedOperatorException(e);
+            }
+        }
+
+        @Override
+        public <X> void collect(OutputTag<X> outputTag, X value) {
+            collect(outputTag, value, TimestampAssigner.NO_TIMESTAMP);
+        }
+
+        @Override
+        public <X> void collect(OutputTag<X> outputTag, X value, long timestamp) {
+            try {
+                final StreamRecord<X> sideRecord =
+                        timestamp == TimestampAssigner.NO_TIMESTAMP
+                                ? new StreamRecord<>(value)
+                                : new StreamRecord<>(value, timestamp);
+                output.emitRecord(outputTag, sideRecord);
             } catch (ExceptionInChainedOperatorException e) {
                 throw e;
             } catch (Exception e) {

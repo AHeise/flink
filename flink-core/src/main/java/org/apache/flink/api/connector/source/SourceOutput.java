@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.source;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.util.OutputTag;
 
 /**
  * The {@code SourceOutput} is the gateway for a {@link SourceReader}) to emit the produced records
@@ -64,4 +65,20 @@ public interface SourceOutput<T> extends WatermarkOutput {
      * @param timestamp the timestamp of the record.
      */
     void collect(T record, long timestamp);
+
+    /**
+     * Emit a record to the side output identified by the given {@link OutputTag}. The side-output
+     * type {@code X} may differ from the main output type {@code T}.
+     */
+    default <X> void collect(OutputTag<X> outputTag, X value) {
+        throw new UnsupportedOperationException("This SourceOutput does not support side outputs.");
+    }
+
+    /**
+     * Emit a record with a timestamp to the side output identified by the given {@link OutputTag}.
+     * The timestamp still advances the split watermark so diverted records do not stall event time.
+     */
+    default <X> void collect(OutputTag<X> outputTag, X value, long timestamp) {
+        throw new UnsupportedOperationException("This SourceOutput does not support side outputs.");
+    }
 }

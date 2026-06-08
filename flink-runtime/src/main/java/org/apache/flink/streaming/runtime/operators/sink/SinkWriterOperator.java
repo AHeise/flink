@@ -51,6 +51,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.ErrorOutputTag;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
@@ -300,6 +302,20 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
                 return element.getTimestamp();
             }
             return null;
+        }
+
+        @Override
+        public <X> void output(OutputTag<X> outputTag, X value) {
+            if (outputTag instanceof ErrorOutputTag) {
+                InternalSinkWriterMetricGroup.wrap(getMetricGroup())
+                        .getNumRecordsOutErrorsCounter()
+                        .inc();
+            }
+            final StreamRecord<X> record =
+                    element.hasTimestamp()
+                            ? new StreamRecord<>(value, element.getTimestamp())
+                            : new StreamRecord<>(value);
+            output.collect(outputTag, record);
         }
     }
 

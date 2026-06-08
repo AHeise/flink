@@ -26,13 +26,16 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -51,6 +54,8 @@ public class SinkTransformation<InputT, OutputT> extends TransformationWithLinea
     private final CustomSinkOperatorUidHashes customSinkOperatorUidHashes;
 
     private ChainingStrategy chainingStrategy;
+
+    private final Map<OutputTag<?>, TypeInformation<?>> sideOutputTags = new LinkedHashMap<>();
 
     public SinkTransformation(
             DataStream<InputT> inputStream,
@@ -100,5 +105,13 @@ public class SinkTransformation<InputT, OutputT> extends TransformationWithLinea
 
     public CustomSinkOperatorUidHashes getSinkOperatorsUidHashes() {
         return customSinkOperatorUidHashes;
+    }
+
+    public void addSideOutput(OutputTag<?> outputTag) {
+        sideOutputTags.put(outputTag, outputTag.getTypeInfo());
+    }
+
+    public Map<OutputTag<?>, TypeInformation<?>> getSideOutputTags() {
+        return sideOutputTags;
     }
 }
