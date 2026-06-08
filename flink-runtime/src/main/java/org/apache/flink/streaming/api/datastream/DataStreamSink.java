@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,6 +35,7 @@ import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.util.ErrorOutputTag;
 import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -101,6 +103,20 @@ public class DataStreamSink<T> {
     @Internal
     public Transformation<T> getTransformation() {
         return transformation;
+    }
+
+    /** Id of the blessed error side output exposed by {@link #getErrorSideOutput()}. */
+    public static final String ERROR_SIDE_OUTPUT_ID = "sink-errors";
+
+    /**
+     * Returns the stream of input records the sink writer could not write (e.g. that failed
+     * serialization), typed as the sink's input. Consuming it activates error routing.
+     */
+    @PublicEvolving
+    public SideOutputDataStream<T> getErrorSideOutput() {
+        @SuppressWarnings("unchecked")
+        final TypeInformation<T> inputType = (TypeInformation<T>) transformation.getOutputType();
+        return getSideOutput(new ErrorOutputTag<>(ERROR_SIDE_OUTPUT_ID, inputType));
     }
 
     /**
