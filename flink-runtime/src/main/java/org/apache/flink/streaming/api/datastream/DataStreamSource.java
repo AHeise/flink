@@ -18,10 +18,13 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.SupportsDeadLetterOutput;
+import org.apache.flink.api.connector.SupportsSideOutput;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -29,6 +32,9 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.util.DeadLetter;
+import org.apache.flink.util.ErrorOutputTag;
+import org.apache.flink.util.OutputTag;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
@@ -124,6 +130,41 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
     @VisibleForTesting
     boolean isParallel() {
         return isParallel;
+    }
+
+    /**
+     * Returns the stream of {@link DeadLetter}s for records this source could not process (e.g.
+     * deserialize). Consuming it activates routing; otherwise such a record fails the source.
+     */
+    @PublicEvolving
+    @SuppressWarnings("unchecked")
+    public SideOutputDataStream<DeadLetter<Object>> getErrorSideOutput() {
+        if (!(getTransformation() instanceof SourceTransformation)) {
+            throw new IllegalStateException("This source does not support a dead-letter output.");
+        }
+        final Source<?, ?, ?> source =
+                ((SourceTransformation<?, ?, ?>) getTransformation()).getSource();
+        final OutputTag<?> errorTag;
+        if (source instanceof SupportsSideOutput) {
+            // Prefer the connector-listed, typed error tag so the record serializes with its real
+            // type rather than Kryo.
+            errorTag =
+                    ((SupportsSideOutput) source)
+                            .getSideOutputTags().stream()
+                                    .filter(tag -> tag instanceof ErrorOutputTag)
+                                    .filter(tag -> DeadLetter.SOURCE_TAG_ID.equals(tag.getId()))
+                                    .findFirst()
+                                    .orElseThrow(
+                                            () ->
+                                                    new IllegalStateException(
+                                                            "This source does not list a dead-letter side output."));
+        } else if (source instanceof SupportsDeadLetterOutput) {
+            errorTag = new ErrorOutputTag<>(DeadLetter.SOURCE_TAG_ID, DeadLetter.genericTypeInfo());
+        } else {
+            throw new IllegalStateException("This source does not support a dead-letter output.");
+        }
+        return (SideOutputDataStream<DeadLetter<Object>>)
+                (SideOutputDataStream<?>) getSideOutput(errorTag);
     }
 
     @Override

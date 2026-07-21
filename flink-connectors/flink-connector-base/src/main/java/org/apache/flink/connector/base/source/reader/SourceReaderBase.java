@@ -35,6 +35,9 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.util.DeadLetter;
+import org.apache.flink.util.ErrorOutputTag;
+import org.apache.flink.util.OutputTag;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,6 +106,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
     @Nullable private SplitContext<T, SplitStateT> currentSplitContext;
     @Nullable private SourceOutput<T> currentSplitOutput;
+
+    private static final OutputTag<DeadLetter<Object>> DEAD_LETTER_TAG =
+            new ErrorOutputTag<>(DeadLetter.SOURCE_TAG_ID, DeadLetter.genericTypeInfo());
 
     /** Indicating whether the SourceReader will be assigned more splits or not. */
     private boolean noMoreSplitsAssignment;
@@ -190,6 +196,24 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         }
     }
 
+    /**
+     * Emits the record; if emitRecord fails and a dead-letter side output is connected, routes the
+     * record + failure there instead, otherwise rethrows the original failure.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void emitRecordOrDeadLetter(E record) throws Exception {
+        try {
+            recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
+        } catch (Exception emitFailure) {
+            try {
+                ((SourceOutput) currentSplitOutput)
+                        .collect(DEAD_LETTER_TAG, DeadLetter.of(record, emitFailure));
+            } catch (IllegalStateException | UnsupportedOperationException notConnected) {
+                throw emitFailure;
+            }
+        }
+    }
+
     private InputStatus pollNextWithoutRateLimiting(
             RecordsWithSplitIds<E> recordsWithSplitId, ReaderOutput<T> output) throws Exception {
         // we need to loop here, in case we may have to go across splits
@@ -199,7 +223,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
             if (record != null) {
                 // emit the record.
                 numRecordsInCounter.inc(1);
-                recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
+                emitRecordOrDeadLetter(record);
                 LOG.trace("Emitted record: {}", record);
                 // We always emit MORE_AVAILABLE here, even though we do not strictly know whether
                 // more is available. If nothing more is available, the next invocation will find
@@ -229,7 +253,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
             if (record != null) {
                 // emit the record.
                 numRecordsInCounter.inc(1);
-                recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
+                emitRecordOrDeadLetter(record);
                 LOG.trace("Emitted record: {}", record);
                 RateLimitingSourceOutputWrapper<T> rateLimitingSourceOutputWrapper =
                         (RateLimitingSourceOutputWrapper<T>) currentSplitOutput;

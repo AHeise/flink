@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
@@ -33,6 +35,7 @@ import java.util.Set;
  * contains the original exception in serialized form. The original exception can be re-obtained by
  * supplying the appropriate class loader.
  */
+@PublicEvolving
 public class SerializedThrowable extends Exception implements Serializable {
 
     private static final long serialVersionUID = 7284183123441947635L;
