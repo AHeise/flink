@@ -307,32 +307,30 @@ public class OperatorCoordinatorHolder
             final long checkpointId, final CompletableFuture<byte[]> result) {
         mainThreadExecutor.assertRunningInMainThread();
 
-        final CompletableFuture<byte[]> coordinatorCheckpoint = new CompletableFuture<>();
-
-        FutureUtils.assertNoException(
-                coordinatorCheckpoint.handleAsync(
-                        (success, failure) -> {
-                            if (failure != null) {
-                                result.completeExceptionally(failure);
-                            } else if (checkpointId == OperatorCoordinator.BATCH_CHECKPOINT_ID
-                                    || closeGateways(checkpointId)) {
-                                completeCheckpointOnceEventsAreDone(checkpointId, result, success);
-                            } else {
-                                // if we cannot close the gateway, this means the checkpoint
-                                // has been aborted before, so the future is already
-                                // completed exceptionally. but we try to complete it here
-                                // again, just in case, as a safety net.
-                                result.completeExceptionally(
-                                        new FlinkException("Cannot close gateway"));
-                            }
-                            return null;
-                        },
-                        mainThreadExecutor));
-
         try {
             subtaskGatewayMap.forEach(
                     (subtask, gateway) -> gateway.markForCheckpoint(checkpointId));
-            coordinator.checkpointCoordinator(checkpointId, coordinatorCheckpoint);
+            CompletableFuture<Void> waitForEvents = FutureUtils.completedVoidFuture();
+            if (checkpointId == OperatorCoordinator.BATCH_CHECKPOINT_ID
+                    || closeGateways(checkpointId)) {
+                waitForEvents = waitForEventsToBeDone(checkpointId);
+            }
+            waitForEvents.handleAsync(
+                    (ignored, throwable) -> {
+                        if (throwable != null) {
+                            result.completeExceptionally(throwable);
+                            return null;
+                        }
+                        try {
+                            coordinator.checkpointCoordinator(checkpointId, result);
+                        } catch (Exception e) {
+                            result.completeExceptionally(e);
+                            return null;
+                        }
+                        return null;
+                    },
+                    mainThreadExecutor);
+
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             result.completeExceptionally(t);
@@ -356,16 +354,12 @@ public class OperatorCoordinatorHolder
         return closedGateways != 0;
     }
 
-    private void completeCheckpointOnceEventsAreDone(
-            final long checkpointId,
-            final CompletableFuture<byte[]> checkpointFuture,
-            final byte[] checkpointResult) {
+    private CompletableFuture<Void> waitForEventsToBeDone(final long checkpointId) {
 
         final Collection<CompletableFuture<?>> pendingEvents =
                 unconfirmedEvents.getCurrentIncompleteAndReset();
         if (pendingEvents.isEmpty()) {
-            checkpointFuture.complete(checkpointResult);
-            return;
+            return FutureUtils.completedVoidFuture();
         }
 
         LOG.info(
@@ -374,23 +368,7 @@ public class OperatorCoordinatorHolder
                 operatorId,
                 pendingEvents.size());
 
-        final CompletableFuture<?> conjunct = FutureUtils.waitForAll(pendingEvents);
-        conjunct.whenComplete(
-                (success, failure) -> {
-                    if (failure == null) {
-                        checkpointFuture.complete(checkpointResult);
-                    } else {
-                        // if we reach this situation, then anyway the checkpoint cannot
-                        // complete because
-                        // (a) the target task really is down
-                        // (b) we have a potentially lost RPC message and need to
-                        //     do a task failover for the receiver to restore consistency
-                        checkpointFuture.completeExceptionally(
-                                new FlinkException(
-                                        "Failing OperatorCoordinator checkpoint because some OperatorEvents "
-                                                + "before this checkpoint barrier were not received by the target tasks."));
-                    }
-                });
+        return FutureUtils.waitForAll(pendingEvents);
     }
 
     // ------------------------------------------------------------------------

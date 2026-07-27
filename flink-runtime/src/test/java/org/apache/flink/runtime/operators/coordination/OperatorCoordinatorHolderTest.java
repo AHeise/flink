@@ -129,6 +129,28 @@ class OperatorCoordinatorHolderTest {
     }
 
     @Test
+    void eventsBeforeCheckpointFutureCompletionAreCompleted() throws Exception {
+        CompletableFuture<Acknowledge> eventFuture = new CompletableFuture<>();
+        final EventReceivingTasks tasks =
+                EventReceivingTasks.createForRunningTasksWithRpcResult(eventFuture);
+        final OperatorCoordinatorHolder holder =
+                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
+        final byte[] testData = new byte[] {11, 22, 33, 44};
+
+        getCoordinator(holder).getSubtaskGateway(1).sendEvent(new TestOperatorEvent(1));
+        CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+        holder.checkpointCoordinator(1L, checkpointFuture);
+
+        assertThat(tasks.getSentEventsForSubtask(1)).containsExactly(new TestOperatorEvent(1));
+        assertThat(checkpointFuture).isNotDone();
+
+        eventFuture.complete(Acknowledge.get());
+        getCoordinator(holder).getLastTriggeredCheckpoint().complete(testData);
+
+        assertThatFuture(checkpointFuture).eventuallySucceeds().isEqualTo(testData);
+    }
+
+    @Test
     void eventsAreBlockedAfterCheckpointFutureCompletes() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =

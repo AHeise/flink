@@ -26,7 +26,6 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -110,11 +109,6 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                                 .getContainingTask()
                                 .getEnvironment()
                                 .getTaskManagerInfo()
-                                .getConfiguration(),
-                        parameters
-                                .getContainingTask()
-                                .getEnvironment()
-                                .getTaskManagerInfo()
                                 .getTaskManagerExternalAddress(),
                         emitProgressiveWatermarks,
                         parameters.getContainingTask().getCanEmitBatchOfRecords());
@@ -183,7 +177,6 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                     SimpleVersionedSerializer<?> splitSerializer,
                     WatermarkStrategy<T> watermarkStrategy,
                     ProcessingTimeService timeService,
-                    Configuration config,
                     String localHostName,
                     boolean emitProgressiveWatermarks,
                     CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
@@ -205,7 +198,6 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 typedSplitSerializer,
                 watermarkStrategy,
                 timeService,
-                config,
                 localHostName,
                 emitProgressiveWatermarks,
                 canEmitBatchOfRecords);

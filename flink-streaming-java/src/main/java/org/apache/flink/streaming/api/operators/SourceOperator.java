@@ -130,9 +130,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final WatermarkAlignmentParams watermarkAlignmentParams;
 
-    /** The Flink configuration. */
-    private final Configuration configuration;
-
     /**
      * Host name of the machine where the operator runs, to support locality aware work assignment.
      */
@@ -194,7 +191,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private @Nullable LatencyMarkerEmitter<OUT> latencyMarkerEmitter;
 
-    private final boolean allowUnalignedSourceSplits;
+    private boolean allowUnalignedSourceSplits;
 
     private final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
 
@@ -211,7 +208,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             SimpleVersionedSerializer<SplitT> splitSerializer,
             WatermarkStrategy<OUT> watermarkStrategy,
             ProcessingTimeService timeService,
-            Configuration configuration,
             String localHostname,
             boolean emitProgressiveWatermarks,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
@@ -221,12 +217,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.splitSerializer = checkNotNull(splitSerializer);
         this.watermarkStrategy = checkNotNull(watermarkStrategy);
         this.processingTimeService = timeService;
-        this.configuration = checkNotNull(configuration);
         this.localHostname = checkNotNull(localHostname);
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
         this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
         this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
-        this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
     }
 
@@ -237,6 +231,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Output<StreamRecord<OUT>> output) {
         super.setup(containingTask, config, output);
         initSourceMetricGroup();
+        this.allowUnalignedSourceSplits =
+                config.getConfiguration().get(ALLOW_UNALIGNED_SOURCE_SPLITS);
     }
 
     @VisibleForTesting
@@ -272,7 +268,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
                     @Override
                     public Configuration getConfiguration() {
-                        return configuration;
+                        return getRuntimeContext().getJobConfiguration();
                     }
 
                     @Override
